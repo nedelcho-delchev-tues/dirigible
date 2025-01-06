@@ -33,7 +33,7 @@ ideBpmProcessInstancesView.controller('IDEBpmProcessInstancesViewController', ($
         $scope.currentFetchDataInstance = setInterval(() => {
             const pageNumber = (args && args.pageNumber) || $scope.currentPage;
             const pageSize = (args && args.pageSize) || $scope.pageSize;
-            const limit = pageNumber * pageSize;
+            // const limit = pageNumber * pageSize;
             const startIndex = (pageNumber - 1) * pageSize;
             if (startIndex >= $scope.totalRows) {
                 return;
