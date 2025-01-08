@@ -32,7 +32,7 @@
                 <bk-form-group label="Extension Point:" name="entityForm">
                     <bk-form-item horizontal="false">
                         <bk-form-label for="idName" required="true" colon="true">Name</bk-form-label>
-                        <bk-form-input-message state="{{ forms.editor['name'].$valid ? '' : 'error' }}" message="inputErrorMessage">
+                        <bk-form-input-message state="{{ forms.editor['name'].$valid ? '' : 'error' }}" message="::inputErrorMessage">
                             <bk-input id="idName" name="name" state="{{ forms.editor['name'].$valid ? '' : 'error' }}" ng-required="true" ng-model="extensionpoint.name" ng-maxlength="255" input-rules="{ patterns: ['^[a-zA-Z0-9_.-]*$'] }"
                                 type="text" placeholder="Enter name"></bk-input>
                         </bk-form-input-message>

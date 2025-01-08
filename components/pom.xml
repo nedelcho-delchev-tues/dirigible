@@ -250,7 +250,13 @@
 		<module>platform-ide/editor-monaco-extensions</module>
 		<module>platform-ide/editor-bpm</module>
 		<module>platform-ide/editor-image</module>
+		<module>platform-ide/editor-data-structures</module>
 		<module>platform-ide/editor-extensions</module>
+		<module>platform-ide/editor-jobs</module>
+		<module>platform-ide/editor-listeners</module>
+		<module>platform-ide/editor-schema</module>
+		<module>platform-ide/editor-security</module>
+		<module>platform-ide/editor-websockets</module>
 		<module>platform-ide/menu-bpm</module>
 		<module>platform-ide/menu-database</module>
 		<module>platform-ide/menu-entity</module>
@@ -1416,7 +1422,37 @@
 			</dependency>
 			<dependency>
 				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-data-structures</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
 				<artifactId>dirigible-components-editor-extensions</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-jobs</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-listeners</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-schema</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-security</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-websockets</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 

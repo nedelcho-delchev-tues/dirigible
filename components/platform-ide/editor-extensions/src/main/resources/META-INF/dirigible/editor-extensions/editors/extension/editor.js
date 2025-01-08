@@ -98,17 +98,15 @@ angular.module('page', ['blimpKit', 'platformView', 'platformShortcuts', 'Worksp
 	});
 
 	workspaceHub.onSaveAll(() => {
-		if (!$scope.state.error && $scope.forms.editor.$valid) {
-			const extension = JSON.stringify($scope.extension, null, 4);
-			if (contents !== extension) $scope.save();
+		if ($scope.changed && !$scope.state.error && $scope.forms.editor.$valid) {
+			$scope.save();
 		}
 	});
 
 	workspaceHub.onSaveFile((data) => {
 		if (data.path && data.path === $scope.dataParameters.filePath) {
-			if (!$scope.state.error && $scope.forms.editor.$valid) {
-				const extension = JSON.stringify($scope.extension, null, 4);
-				if (contents !== extension) $scope.save();
+			if ($scope.changed && !$scope.state.error && $scope.forms.editor.$valid) {
+				$scope.save();
 			}
 		}
 	});
