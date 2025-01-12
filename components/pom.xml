@@ -257,6 +257,8 @@
 		<module>platform-ide/editor-schema</module>
 		<module>platform-ide/editor-security</module>
 		<module>platform-ide/editor-websockets</module>
+		<module>platform-ide/editor-integrations</module>
+		<module>platform-ide/editor-report</module>
 		<module>platform-ide/menu-bpm</module>
 		<module>platform-ide/menu-database</module>
 		<module>platform-ide/menu-entity</module>
@@ -1453,6 +1455,16 @@
 			<dependency>
 				<groupId>org.eclipse.dirigible</groupId>
 				<artifactId>dirigible-components-editor-websockets</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-integrations</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.dirigible</groupId>
+				<artifactId>dirigible-components-editor-report</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 

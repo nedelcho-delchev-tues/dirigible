@@ -69,7 +69,7 @@ angular.module('page', ['blimpKit', 'platformView', 'platformShortcuts', 'Worksp
 			console.error(response);
 			$scope.$evalAsync(() => {
 				$scope.state.error = true;
-				$scope.errorMessage = `Error saving '${$scope.dataParameters.file}'. Please look at the console for more information.`;
+				$scope.errorMessage = `Error saving '${$scope.dataParameters.filePath}'. Please look at the console for more information.`;
 				$scope.state.isBusy = false;
 			});
 		});

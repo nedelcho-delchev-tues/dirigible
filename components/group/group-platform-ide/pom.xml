@@ -261,6 +261,14 @@
 			<groupId>org.eclipse.dirigible</groupId>
 			<artifactId>dirigible-components-editor-websockets</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-components-editor-integrations</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-components-editor-report</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.dirigible</groupId>

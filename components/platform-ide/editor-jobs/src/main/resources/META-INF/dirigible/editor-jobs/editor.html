@@ -25,7 +25,7 @@
         <script type="text/javascript" src="/services/web/editor-jobs/js/editor.js"></script>
     </head>
 
-    <body class="bk-vbox bk-center--vertical" bk-scrollbar shortcut="'ctrl+s'" shortcut-action="save">
+    <body class="bk-vbox bk-center--vertical" shortcut="'ctrl+s'" shortcut-action="save">
         <bk-busy-indicator-extended class="bk-fill-parent" ng-hide="state.error || !state.isBusy" size="l">{{state.busyText}}</bk-busy-indicator-extended>
         <bk-scrollbar class="bk-full-width" ng-show="!state.error && !state.isBusy">
             <bk-fieldset class="fd-margin--md" ng-form="forms.editor">

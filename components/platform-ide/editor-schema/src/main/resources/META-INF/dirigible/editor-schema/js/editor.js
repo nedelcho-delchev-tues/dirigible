@@ -52,15 +52,13 @@ angular.module('ui.schema.modeler', ['blimpKit', 'platformView', 'WorkspaceServi
 	};
 
 	function initializeSchemaJson() {
-		// const name = schemaFile.substring(schemaFile.lastIndexOf('/') + 1);
-		// const path = schemaFile.substring(0, schemaFile.length - name.length);
 		WorkspaceService.createFile('', schemaFile, '').then(() => {
 			workspaceHub.announceFileSaved({
 				path: schemaFile,
 				contentType: $scope.dataParameters.contentType,
 			});
 			const workspace = $scope.dataParameters.filePath.substring(1, $scope.dataParameters.filePath.indexOf('/', 1));
-			dialogHub.postMessage({
+			workspaceHub.postMessage({
 				topic: 'projects.tree.refresh',
 				data: { partial: true, project: $scope.dataParameters.filePath.substring($scope.dataParameters.filePath.indexOf('/', workspace.length + 2), workspace.length + 2), workspace: workspace }
 			});
