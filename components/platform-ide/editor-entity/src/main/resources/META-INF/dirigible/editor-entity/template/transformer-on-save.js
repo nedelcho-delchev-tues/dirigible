@@ -9,7 +9,7 @@
  * SPDX-FileCopyrightText: Eclipse Dirigible contributors
  * SPDX-License-Identifier: EPL-2.0
  */
-import * as transformer from "ide-entity/template/transform-edm";
+import * as transformer from "editor-entity/template/transform-edm";
 import { Workspace as workspaceManager } from "sdk/platform";
 import { Bytes } from "sdk/io";
 
