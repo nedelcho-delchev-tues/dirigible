@@ -47,7 +47,13 @@ function isModule(path) {
 
 function isIgnoredModulePath(path) {
     return path.startsWith("ide-") // Ignore IDE packages
-
+        || path.startsWith("editor-") // Ignore platform editor packages
+        || path.startsWith("view-") // Ignore platform view packages
+        || path.startsWith("shell-") // Ignore platform shell packages
+        || path.startsWith("menu-") // Ignore platform menu packages
+        || path.startsWith("perspective-") // Ignore platform perspective packages
+        || path.startsWith("platform-") // Ignore platform packages
+        || path.startsWith("theme-") // Ignore platform theme packages
         || path.startsWith("indexing/") // Ignore system JavaScript API packages
         || path.startsWith("io/") // Ignore system JavaScript API packages
         || path.startsWith("net/") // Ignore system JavaScript API packages

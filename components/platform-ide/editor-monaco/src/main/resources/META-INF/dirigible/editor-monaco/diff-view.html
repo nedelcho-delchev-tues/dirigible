@@ -111,7 +111,7 @@
                     // TODO: Cache response
                     return new Promise((resolve, reject) => {
                         const xhr = new XMLHttpRequest();
-                        xhr.open("GET", "/services/js/ide-monaco/api/fileTypes.js");
+                        xhr.open("GET", "/services/js/editor-monaco/api/fileTypes.js");
                         xhr.onload = () => {
                             if (xhr.status === 200) {
                                 let fileTypes = JSON.parse(xhr.responseText);

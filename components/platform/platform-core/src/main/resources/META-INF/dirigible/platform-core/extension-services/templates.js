@@ -31,13 +31,13 @@ for (let i = 0; i < templateExtensions?.length; i++) {
 		try {
 			// @ts-ignore
 			const templateExtension = await import(`../../${module}`);
-			const template = templateExtension.getTemplate();
+			let template = templateExtension.getTemplate();
 			template.id = module;
 			templates.push(template);
 		} catch (e) {
 			// Fallback for not migrated extensions
 			const templateExtension = require(module);
-			const template = templateExtension.getTemplate();
+			let template = templateExtension.getTemplate();
 			template.id = module;
 			templates.push(template);
 		}

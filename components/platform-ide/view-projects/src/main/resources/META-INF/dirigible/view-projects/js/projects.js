@@ -810,7 +810,7 @@ projectsView.controller('ProjectsViewController', function (
                             if (contextMenuNodes[0].type !== 'project') {
                                 const pnode = getProjectNode(contextMenuNodes[0].parents);
                                 project = pnode.text;
-                                generatePath = contextMenuNodes[0].data.path.substring(pnode.text.length + 1);
+                                generatePath = contextMenuNodes[0].data.path.substring(pnode.data.path.length);
                                 if (generatePath.endsWith('/')) generatePath += 'filename';
                                 else generatePath += '/filename';
                             } else {
@@ -886,7 +886,7 @@ projectsView.controller('ProjectsViewController', function (
                                 });
                             });
                         } else if (id === 'generateModel') {
-                            let pnode = getProjectNode(contextMenuNodes[0].parents);
+                            const pnode = getProjectNode(contextMenuNodes[0].parents);
                             project = pnode.text;
                             const templateItems = getModelTemplates(getFileExtension(contextMenuNodes[0].text));
                             Dialogs.showFormDialog({
@@ -911,12 +911,12 @@ projectsView.controller('ProjectsViewController', function (
                                         label: 'Model (must be in the root of the project)',
                                         controlType: 'input',
                                         type: 'text',
-                                        placeholder: '/path/file',
+                                        placeholder: 'filename.model',
                                         inputRules: {
                                             // excluded: [], // TODO
                                             patterns: ['^[^/:]*$'],
                                         },
-                                        value: contextMenuNodes[0].data.path.substring(project.length + 2),
+                                        value: contextMenuNodes[0].data.path.substring(pnode.data.path.length + 1),
                                         submitOnEnter: true,
                                         required: true
                                     },
