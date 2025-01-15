@@ -10,11 +10,15 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 agGrid.initialiseAgGridWithAngular1(angular);
-const csvView = angular.module('csv-editor', ['ideUI', 'ideView', 'ideWorkspace', 'agGrid']);
-csvView.controller('CsvViewController', function ($scope, $window, messageHub, workspaceApi, ViewParameters) {
+const csvView = angular.module('csv-editor', ['blimpKit', 'platformView', 'platformShortcuts', 'WorkspaceService', 'agGrid']);
+csvView.controller('CsvController', ($scope, $window, WorkspaceService, ViewParameters) => {
+    const statusBarHub = new StatusBarHub();
+    const workspaceHub = new WorkspaceHub();
+    const layoutHub = new LayoutHub();
+    const contextMenuHub = new ContextMenuHub();
     let contents;
     let manual = false;
-    let isFileChanged = false;
+    $scope.changed = false;
     $scope.menuStyle = { 'display': 'none' };
     $scope.menuContext = { // Used for context menu content visibility
         viewport: false,
@@ -98,10 +102,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         $scope.rowsCount = rowsCount;
     }
 
-    angular.element($window).bind('focus', function () {
-        messageHub.setFocusedEditor($scope.dataParameters.file);
-        messageHub.setStatusCaret('');
-    });
+    angular.element($window).bind('focus', () => { statusBarHub.showLabel('') });
 
     function sizeToFit() {
         manual = false;
@@ -135,32 +136,33 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         setRowsCount(csvData.data.length);
     }
 
-    function loadFileContents() {
-        if ($scope.dataParameters.file) {
-            workspaceApi.loadContent('', $scope.dataParameters.file).then(function (response) {
-                if (response.status === 200) {
-                    contents = response.data;
-                    parseContent();
-                    loadGrid();
-                    $scope.$apply(function () {
-                        $scope.state.isBusy = false;
-                    });
-                } else if (response.status === 404) {
-                    messageHub.closeEditor($scope.dataParameters.file);
-                } else {
-                    $scope.$apply(function () {
-                        $scope.state.error = true;
-                        $scope.errorMessage = 'There was a problem with loading the file';
-                        $scope.state.isBusy = false;
-                    });
-                }
+    const loadFileContents = () => {
+        if (!$scope.state.error) {
+            $scope.state.isBusy = true;
+            WorkspaceService.loadContent($scope.dataParameters.filePath).then((response) => {
+                contents = response.data;
+                parseContent();
+                loadGrid();
+                $scope.$evalAsync(() => {
+                    $scope.state.isBusy = false;
+                });
+            }, (response) => {
+                console.error(response);
+                $scope.$evalAsync(() => {
+                    $scope.state.error = true;
+                    $scope.errorMessage = 'Error while loading file. Please look at the console for more information.';
+                    $scope.state.isBusy = false;
+                });
             });
         }
-    }
+    };
 
     function fileChanged() {
-        isFileChanged = true;
-        messageHub.setEditorDirty($scope.dataParameters.file, isFileChanged);
+        $scope.changed = true;
+        layoutHub.setEditorDirty({
+            path: $scope.dataParameters.filePath,
+            dirty: $scope.changed,
+        });
         setRowsCount(csvData.data.length);
     }
 
@@ -218,27 +220,27 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
     }
 
     function saveContents(text) {
-        workspaceApi.saveContent('', $scope.dataParameters.file, text).then(function (response) {
-            if (response.status === 200) {
-                messageHub.announceFileSaved({
-                    name: $scope.dataParameters.file.substring($scope.dataParameters.file.lastIndexOf('/') + 1),
-                    path: $scope.dataParameters.file.substring($scope.dataParameters.file.indexOf('/', 1)),
-                    contentType: $scope.dataParameters.contentType,
-                    workspace: $scope.dataParameters.file.substring(1, $scope.dataParameters.file.indexOf('/', 1)),
-                });
-                messageHub.setStatusMessage(`File '${$scope.dataParameters.file}' saved`);
-                messageHub.setEditorDirty($scope.dataParameters.file, false);
-                $scope.$apply(function () {
-                    $scope.state.isBusy = false;
-                    isFileChanged = false;
-                });
-            } else {
-                messageHub.setStatusError(`Error saving '${$scope.dataParameters.file}'`);
-                messageHub.showAlertError('Error while saving the file', 'Please look at the console for more information');
-                $scope.$apply(function () {
-                    $scope.state.isBusy = false;
-                });
-            }
+        WorkspaceService.saveContent($scope.dataParameters.filePath, text).then(() => {
+            contents = text;
+            layoutHub.setEditorDirty({
+                path: $scope.dataParameters.filePath,
+                dirty: false,
+            });
+            workspaceHub.announceFileSaved({
+                path: $scope.dataParameters.filePath,
+                contentType: $scope.dataParameters.contentType,
+            });
+            $scope.$evalAsync(() => {
+                $scope.changed = false;
+                $scope.state.isBusy = false;
+            });
+        }, (response) => {
+            console.error(response);
+            $scope.$evalAsync(() => {
+                $scope.state.error = true;
+                $scope.errorMessage = `Error saving '${$scope.dataParameters.filePath}'. Please look at the console for more information.`;
+                $scope.state.isBusy = false;
+            });
         });
     }
 
@@ -298,70 +300,95 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         }
     };
 
-    $scope.handleClick = function (event) {
+    $scope.handleClick = (event) => {
         if (headerEditMode && event.which !== 3) {
             try {
                 if (!event.target.className.includes('header-input')) hideColumnInput();
             } catch (error) {
                 if (error.toString() != 'Error: Permission denied to access property "className"') { // Firefox bug
-                    console.log(error);
+                    console.error(error);
                 }
             }
         }
     };
 
-    $scope.contextMenuContent = function (element) {
-        let items;
+    $scope.showContextMenu = (event) => {
+        const items = [];
         if (
-            element.className.includes('ag-header-cell-label') ||
-            element.className.includes('ag-header-cell-text') ||
-            element.className.includes('ag-cell-label-container')
+            event.target.className.includes('ag-header-cell-label') ||
+            event.target.className.includes('ag-header-cell-text') ||
+            event.target.className.includes('ag-cell-label-container')
         ) {
-            focusedColumnIndex = parseInt(element.attributes.cid.value);
-            items = [{
+            event.preventDefault();
+            focusedColumnIndex = parseInt(event.target.attributes.cid.value);
+            items.push({
                 id: 'addColumn',
                 label: 'Add Column',
-                icon: 'sap-icon--add'
+                leftIconClass: 'sap-icon--add'
             }, {
                 id: 'editColumn',
                 label: 'Edit Column',
-                icon: 'sap-icon--edit'
+                separator: true,
+                leftIconClass: 'sap-icon--edit'
             }, {
                 id: 'deleteColumn',
                 label: 'Delete Column',
-                divider: true,
-                icon: 'sap-icon--delete'
-            }];
-        } else if (element.className.includes('ag-cell')) {
+                leftIconClass: 'sap-icon--delete'
+            });
+        } else if (event.target.className.includes('ag-cell')) {
+            event.preventDefault();
             focusedCellIndex = $scope.gridOptions.api.getFocusedCell().rowIndex;
-            items = [{
+            items.push({
                 id: 'addRowAbove',
                 label: 'Add Row Above',
             }, {
                 id: 'addRowBelow',
+                separator: true,
                 label: 'Add Row Below',
             }, {
                 id: 'deleteRows',
                 label: 'Delete Row(s)',
-                divider: true,
-                icon: 'sap-icon--delete'
-            }];
-        } else if (element.className.includes('ag-center-cols-viewport') || element.className.includes('ag-row')) {
-            items = [{
+                leftIconClass: 'sap-icon--delete'
+            });
+        } else if (event.target.className.includes('ag-center-cols-viewport') || event.target.className.includes('ag-row')) {
+            event.preventDefault();
+            items.push({
                 id: 'addRow',
                 label: 'Add Row',
-                divider: true,
-                icon: 'sap-icon--add'
-            }];
+                leftIconClass: 'sap-icon--add'
+            });
         } else return;
-        return {
-            callbackTopic: 'csvEditor.contextmenu',
-            hasIcons: true,
-            items: items,
-        }
+        contextMenuHub.showContextMenu({
+            ariaLabel: 'csv editor contextmenu',
+            posX: event.clientX,
+            posY: event.clientY,
+            icons: true,
+            items: items
+        }).then((id) => {
+            $scope.$evalAsync(() => {
+                if (id === 'addColumn') {
+                    $scope.addColumn();
+                } else if (id === 'editColumn') {
+                    $scope.editColumn();
+                } else if (id === 'deleteColumn') {
+                    $scope.deleteColumn();
+                } else if (id === 'addRowAbove') {
+                    $scope.addRowAbove();
+                } else if (id === 'addRowBelow') {
+                    $scope.addRowBelow();
+                } else if (id === 'deleteRows') {
+                    $scope.deleteRow();
+                } else if (id === 'addRow') {
+                    $scope.addRow();
+                }
+            });
+        }, (error) => {
+            console.error(error);
+            statusBarHub.showError('Unable to process context menu data');
+        })
     };
 
-    $scope.downloadCsv = function () {
+    $scope.downloadCsv = () => {
         $scope.search.text = '';
         $scope.gridOptions.api.setQuickFilter(undefined);
         $scope.gridOptions.api.setFilterModel(undefined);
@@ -371,30 +398,34 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         });
     };
 
-    $scope.save = function (_keySet, event) {
-        if (event) event.preventDefault();
-        $scope.state.busyText = 'Saving...';
-        $scope.state.isBusy = true;
-        $scope.search.text = '';
-        $scope.gridOptions.api.setQuickFilter(undefined);
-        $scope.gridOptions.api.setFilterModel(undefined);
-        contents = $scope.gridOptions.api.getDataAsCsv({
-            skipColumnHeaders: (($scope.papaConfig.header) ? false : true),
-            columnSeparator: $scope.delimiter
-        });
-        saveContents(contents);
+    $scope.save = (keySet = 'ctrl+s', event) => {
+        event?.preventDefault();
+        if (keySet === 'ctrl+s') {
+            if ($scope.changed && !$scope.state.error) {
+                $scope.state.busyText = 'Saving...';
+                $scope.state.isBusy = true;
+                $scope.search.text = '';
+                $scope.gridOptions.api.setQuickFilter(undefined);
+                $scope.gridOptions.api.setFilterModel(undefined);
+                contents = $scope.gridOptions.api.getDataAsCsv({
+                    skipColumnHeaders: (($scope.papaConfig.header) ? false : true),
+                    columnSeparator: $scope.delimiter
+                });
+                saveContents(contents);
+            }
+        }
     };
 
-    $scope.searchCsv = function () {
+    $scope.searchCsv = () => {
         $scope.gridOptions.api.setQuickFilter($scope.search.text);
     };
 
-    $scope.hasHeader = function () {
+    $scope.hasHeader = () => {
         parseContent();
         loadGrid();
     };
 
-    $scope.addRowAbove = function () {
+    $scope.addRowAbove = () => {
         let row = {};
         let columns = $scope.gridOptions.columnApi.getAllColumns();
         for (let i = 0; i < columns.length; i++) {
@@ -405,7 +436,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         fileChanged();
     };
 
-    $scope.addRowBelow = function () {
+    $scope.addRowBelow = () => {
         let row = {};
         let columns = $scope.gridOptions.columnApi.getAllColumns();
         for (let i = 0; i < columns.length; i++) {
@@ -416,7 +447,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         fileChanged();
     };
 
-    $scope.addRow = function () {
+    $scope.addRow = () => {
         let row = {};
         let columns = $scope.gridOptions.columnApi.getAllColumns();
         for (let i = 0; i < columns.length; i++) {
@@ -427,7 +458,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         fileChanged();
     };
 
-    $scope.deleteRow = function () {
+    $scope.deleteRow = () => {
         let rows = $scope.gridOptions.api.getSelectedNodes();
         let indexes = [];
         for (let i = 0; i < rows.length; i++) {
@@ -436,7 +467,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         if (!indexes.includes(focusedCellIndex)) {
             indexes.push(focusedCellIndex);
         }
-        indexes.sort(function (a, b) { return a - b; });
+        indexes.sort((a, b) => { return a - b; });
         for (let i = indexes.length - 1; i >= 0; i--) {
             csvData.data.splice(indexes[i], 1);
         }
@@ -444,7 +475,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         fileChanged();
     };
 
-    $scope.addColumn = function () {
+    $scope.addColumn = () => {
         let columnDefs = $scope.gridOptions.api.getColumnDefs();
         let column = {
             headerName: 'New column',
@@ -471,7 +502,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         fileChanged();
     };
 
-    $scope.editColumn = function () {
+    $scope.editColumn = () => {
         headerEditMode = true;
         let columnDefs = $scope.gridOptions.api.getColumnDefs();
         for (let i = 0; i < columnDefs.length; i++) {
@@ -485,7 +516,7 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         showColumnInput();
     };
 
-    $scope.deleteColumn = function () {
+    $scope.deleteColumn = () => {
         let columnDefs = $scope.gridOptions.api.getColumnDefs();
         let field = '';
         for (let i = 0; i < columnDefs.length; i++) {
@@ -503,72 +534,39 @@ csvView.controller('CsvViewController', function ($scope, $window, messageHub, w
         fileChanged();
     };
 
-    messageHub.onEditorFocusGain(function (msg) {
-        if (msg.resourcePath === $scope.dataParameters.file) messageHub.setStatusCaret('');
+    layoutHub.onFocusEditor((data) => {
+        if (data.path && data.path === $scope.dataParameters.filePath) statusBarHub.showLabel('');
     });
 
-    messageHub.onEditorReloadParameters(
-        function (event) {
-            $scope.$apply(() => {
-                if (event.resourcePath === $scope.dataParameters.file) {
-                    $scope.dataParameters = ViewParameters.get();
-                }
+    layoutHub.onReloadEditorParams((data) => {
+        if (data.path === $scope.dataParameters.filePath) {
+            $scope.$evalAsync(() => {
+                $scope.dataParameters = ViewParameters.get();
             });
+        };
+    });
+
+    workspaceHub.onSaveAll(() => {
+        if ($scope.changed && !$scope.state.error) {
+            $scope.save();
         }
-    );
+    });
 
-    messageHub.onDidReceiveMessage(
-        'editor.file.save.all',
-        function () {
-            if (!$scope.state.error && isFileChanged) {
-                let extension = JSON.stringify($scope.extension, null, 4);
-                if (contents !== extension) {
-                    $scope.save();
-                }
-            }
-        },
-        true,
-    );
-
-    messageHub.onDidReceiveMessage(
-        'editor.file.save',
-        function (msg) {
-            if (!$scope.state.error && isFileChanged) {
-                let file = msg.data && typeof msg.data === 'object' && msg.data.file;
-                if (file && file === $scope.dataParameters.file) $scope.save();
-            }
-        },
-        true,
-    );
-
-    messageHub.onDidReceiveMessage(
-        'csvEditor.contextmenu',
-        function (msg) {
-            if (msg.data.itemId === 'addColumn') {
-                $scope.addColumn();
-            } else if (msg.data.itemId === 'editColumn') {
-                $scope.editColumn();
-            } else if (msg.data.itemId === 'deleteColumn') {
-                $scope.deleteColumn();
-            } else if (msg.data.itemId === 'addRowAbove') {
-                $scope.addRowAbove();
-            } else if (msg.data.itemId === 'addRowBelow') {
-                $scope.addRowBelow();
-            } else if (msg.data.itemId === 'deleteRows') {
-                $scope.deleteRow();
-            } else if (msg.data.itemId === 'addRow') {
-                $scope.addRow();
+    workspaceHub.onSaveFile((data) => {
+        if (data.path && data.path === $scope.dataParameters.filePath) {
+            if ($scope.changed && !$scope.state.error) {
+                $scope.save();
             }
         }
-    );
+    });
 
     $scope.dataParameters = ViewParameters.get();
-    if (!$scope.dataParameters.hasOwnProperty('file')) {
+    if (!$scope.dataParameters.hasOwnProperty('filePath')) {
         $scope.state.error = true;
-        $scope.errorMessage = "The 'file' data parameter is missing.";
+        $scope.errorMessage = 'The \'filePath\' data parameter is missing.';
     } else if (!$scope.dataParameters.hasOwnProperty('contentType')) {
         $scope.state.error = true;
-        $scope.errorMessage = "The 'contentType' data parameter is missing.";
+        $scope.errorMessage = 'The \'contentType\' data parameter is missing.';
     } else {
         if ($scope.dataParameters.hasOwnProperty('header')) $scope.papaConfig.header = $scope.dataParameters.header;
         if ($scope.dataParameters.hasOwnProperty('quotechar')) $scope.papaConfig.quoteChar = $scope.dataParameters.quotechar;

@@ -546,12 +546,14 @@ gitProjectsView.controller('GitProjectsController', ($scope, StatusBar, Dialogs,
         WorkspaceService.listWorkspaceNames().then((response) => {
             $scope.$evalAsync(() => {
                 $scope.workspaceNames = response.data;
-                $scope.state.error = false;
+                $scope.reloadProjects(true);
             });
         }, (response) => {
             console.error(response);
-            $scope.state.error = true;
-            $scope.errorMessage = 'Unable to load workspace list.';
+            $scope.$evalAsync(() => {
+                $scope.state.error = true;
+                $scope.errorMessage = 'Unable to load workspace list.';
+            });
             Notifications.show({
                 type: 'negative',
                 title: 'Unable to load workspace list',
@@ -959,7 +961,7 @@ gitProjectsView.controller('GitProjectsController', ($scope, StatusBar, Dialogs,
 
     Workspace.onWorkspaceChanged((changed) => {
         if (changed.workspace === $scope.selectedWorkspace) {
-            if (changed.params && !changed.params.gitAction)
+            if (!$scope.state.error && changed.params && !changed.params.gitAction)
                 $scope.reloadProjects();
         }
     });
@@ -978,6 +980,5 @@ gitProjectsView.controller('GitProjectsController', ($scope, StatusBar, Dialogs,
     });
 
     // Initialization
-    $scope.reloadProjects(true);
     $scope.reloadWorkspaceList();
 });

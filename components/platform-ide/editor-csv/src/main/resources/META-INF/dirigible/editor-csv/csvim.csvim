@@ -1,0 +1,15 @@
+{
+  "files": [
+    {
+      "table": "jhkasd",
+      "schema": "asd",
+      "file": "/editor-csv/test.csv",
+      "header": true,
+      "useHeaderNames": false,
+      "delimField": ",",
+      "delimEnclosing": "\"",
+      "distinguishEmptyFromNull": true,
+      "version": ""
+    }
+  ]
+}

@@ -271,11 +271,15 @@
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.dirigible</groupId>
-			<artifactId>dirigible-components-editor-designer</artifactId>
+			<artifactId>dirigible-components-editor-entity</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.dirigible</groupId>
-			<artifactId>dirigible-components-editor-entity</artifactId>
+			<artifactId>dirigible-components-editor-csv</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-components-editor-csvim</artifactId>
 		</dependency>
 
 		<dependency>

@@ -16,7 +16,8 @@ projectsView.constant('Workspace', new WorkspaceHub());
 projectsView.constant('Layout', new LayoutHub());
 projectsView.constant('ContextMenu', new ContextMenuHub());
 projectsView.constant('MessageHub', new MessageHubApi());
-projectsView.controller('ProjectsViewController', function (
+projectsView.constant('Notifications', new NotificationHub());
+projectsView.controller('ProjectsViewController', (
     $scope,
     $document,
     $window,
@@ -26,6 +27,7 @@ projectsView.controller('ProjectsViewController', function (
     Layout,
     ContextMenu,
     MessageHub,
+    Notifications,
     WorkspaceService,
     Editors,
     PublisherService,
@@ -34,7 +36,7 @@ projectsView.controller('ProjectsViewController', function (
     TransportService,
     ActionsService,
     clientOS,
-    ButtonStates) {
+    ButtonStates) => {
     $scope.state = {
         isBusy: true,
         error: false,
@@ -1073,9 +1075,15 @@ projectsView.controller('ProjectsViewController', function (
             $scope.loadTemplates();
         }, (response) => {
             console.error(response);
-            $scope.state.error = true;
-            $scope.errorMessage = 'Unable to load workspace list.';
-            StatusBar.showError('Unable to load workspace list');
+            $scope.$evalAsync(() => {
+                $scope.state.error = true;
+                $scope.errorMessage = 'Unable to load workspace list.';
+            });
+            Notifications.show({
+                type: 'negative',
+                title: 'Unable to load workspace list',
+                description: 'There was an error while trying to load the workspace list.'
+            });
         });
     };
 
