@@ -21,8 +21,11 @@ import org.eclipse.dirigible.database.sql.builders.records.UpdateBuilder;
 import org.eclipse.dirigible.database.sql.builders.sequence.LastValueIdentityBuilder;
 import org.eclipse.dirigible.database.sql.builders.sequence.NextValueSequenceBuilder;
 
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.Arrays;
 import java.util.Collections;
@@ -481,6 +484,15 @@ public class DefaultSqlDialect<SELECT extends SelectBuilder, INSERT extends Inse
         return count(connection, null, table);
     }
 
+    /**
+     * Count.
+     *
+     * @param connection the connection
+     * @param schema the schema
+     * @param table the table
+     * @return the int
+     * @throws SQLException the SQL exception
+     */
     public int count(Connection connection, String schema, String table) throws SQLException {
         String sql = countQuery(schema, table);
         PreparedStatement statement = connection.prepareStatement(sql);
@@ -517,6 +529,13 @@ public class DefaultSqlDialect<SELECT extends SelectBuilder, INSERT extends Inse
         return countQuery(null, table);
     }
 
+    /**
+     * Count query.
+     *
+     * @param schema the schema
+     * @param table the table
+     * @return the string
+     */
     public String countQuery(String schema, String table) {
         String normalizeTableName = normalizeTableName(table);
         return new SelectBuilder(this).column("COUNT(*)")
@@ -573,6 +592,45 @@ public class DefaultSqlDialect<SELECT extends SelectBuilder, INSERT extends Inse
     @Override
     public void importData(Connection connection, String table, InputStream input) throws Exception {
         throw new SQLFeatureNotSupportedException();
+    }
+
+    /**
+     * Process SQL.
+     *
+     * @param connection the connection
+     * @param schema the schema
+     * @param is the is
+     * @throws Exception the exception
+     */
+    @Override
+    public void processSQL(Connection connection, String schema, InputStream is) throws Exception {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+        StringBuilder builder = new StringBuilder();
+        int ch;
+        while ((ch = reader.read()) != -1) {
+            if (ch == ';') {
+                executeUpdate(connection, builder.toString());
+                builder.setLength(0);
+            } else {
+                builder.append((char) ch);
+            }
+        }
+        if (builder.length() > 0) {
+            executeUpdate(connection, builder.toString());
+        }
+        reader.close();
+    }
+
+    /**
+     * Execute update.
+     *
+     * @param connection the connection
+     * @param sql the sql
+     * @throws SQLException the SQL exception
+     */
+    private void executeUpdate(Connection connection, String sql) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(sql);
+        statement.executeUpdate();
     }
 
 }

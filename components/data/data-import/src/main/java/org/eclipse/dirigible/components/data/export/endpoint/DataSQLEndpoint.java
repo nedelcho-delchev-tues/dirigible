@@ -31,14 +31,14 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Front facing REST service serving import data.
+ * Front facing REST service serving sql processing.
  */
 @RestController
-@RequestMapping(BaseEndpoint.PREFIX_ENDPOINT_DATA + "import")
-public class DataImportEndpoint {
+@RequestMapping(BaseEndpoint.PREFIX_ENDPOINT_DATA + "sql")
+public class DataSQLEndpoint {
 
     /** The constant logger. */
-    private static final Logger logger = LoggerFactory.getLogger(DataImportEndpoint.class);
+    private static final Logger logger = LoggerFactory.getLogger(DataSQLEndpoint.class);
 
     /**
      * The database metadata service.
@@ -56,48 +56,45 @@ public class DataImportEndpoint {
      * @param databaseMetadataService the database metadata service
      * @param dataImportService the data import service
      */
-    public DataImportEndpoint(DatabaseMetadataService databaseMetadataService, DataImportService dataImportService) {
+    public DataSQLEndpoint(DatabaseMetadataService databaseMetadataService, DataImportService dataImportService) {
         this.databaseMetadataService = databaseMetadataService;
         this.dataImportService = dataImportService;
     }
 
 
     /**
-     * Import data in table.
+     * Process SQL in schema.
      *
      * @param datasource the datasource
      * @param schema the schema
-     * @param table the table
      * @param file the file
      * @return the response entity
      * @throws Exception the exception
      */
-    @PostMapping(value = "/{datasource}/{schema}/{table}", consumes = "multipart/form-data", produces = "application/json")
+    @PostMapping(value = "/{datasource}/{schema}", consumes = "multipart/form-data", produces = "application/json")
     public ResponseEntity<?> importDataInTable(@Validated @PathVariable("datasource") String datasource,
-            @Validated @PathVariable("schema") String schema, @Validated @PathVariable("table") String table,
-            @Validated @RequestParam("file") MultipartFile file) throws Exception {
+            @Validated @PathVariable("schema") String schema, @Validated @RequestParam("file") MultipartFile file) throws Exception {
         try {
-            return importData(datasource, schema, table, file);
+            return processSQL(datasource, schema, file);
         } catch (IOException e) {
             if (logger.isErrorEnabled()) {
                 logger.error(e.getMessage(), e);
             }
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Data upload failed: " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "SQL upload failed: " + e.getMessage());
         }
     }
 
 
     /**
-     * Import data.
+     * Process SQL.
      *
      * @param datasource the datasource
      * @param schema the schema
-     * @param table the table
      * @param file the file
      * @return the response entity
      * @throws Exception the exception
      */
-    private ResponseEntity<?> importData(String datasource, String schema, String table, MultipartFile file) throws Exception {
+    private ResponseEntity<?> processSQL(String datasource, String schema, MultipartFile file) throws Exception {
 
         if (!databaseMetadataService.existsDataSourceMetadata(datasource)) {
             String error = format("Datasource {0} does not exist.", datasource);
@@ -105,7 +102,7 @@ public class DataImportEndpoint {
         }
 
         InputStream is = file.getInputStream();
-        dataImportService.importData(datasource, schema, table, is);
+        dataImportService.processSQL(datasource, schema, is);
         return ResponseEntity.ok()
                              .build();
     }
