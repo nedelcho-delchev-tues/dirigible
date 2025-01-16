@@ -343,7 +343,7 @@ database.controller('DatabaseController', function ($scope, $http, messageHub) {
 							}.bind(this)
 						};
 					}
-					
+
 					// Export metadata
 					ctxmenu.exportMetadata = {
 						"separator_before": true,
@@ -495,7 +495,7 @@ database.controller('DatabaseController', function ($scope, $http, messageHub) {
 						}.bind(this)
 					};
 				}
-				
+
 				// Collection related actions
 				if (node.original.kind === 'table' && node.original.type === 'collection') {
 					ctxmenu.showContents = {

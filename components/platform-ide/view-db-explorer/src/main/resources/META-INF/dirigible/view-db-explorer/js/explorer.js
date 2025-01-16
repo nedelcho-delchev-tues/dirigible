@@ -421,6 +421,16 @@ database.controller('DatabaseController', function ($scope, $http, MessageHub, N
 
 				// Schema related actions
 				if (node.original.kind === 'schema') {
+					ctxmenu.importScript = {
+						"separator_before": false,
+						"label": "Import SQL",
+						"action": function (data) {
+							let tree = $.jstree.reference(data.reference);
+							let node = tree.get_node(data.reference);
+							let sqlCommand = node.original.text;
+							MessageHub.postMessage({ topic: 'database.data.import.sql', data: sqlCommand });
+						}.bind(this)
+					};
 					ctxmenu.exportData = {
 						separator_before: false,
 						label: 'Export Data',

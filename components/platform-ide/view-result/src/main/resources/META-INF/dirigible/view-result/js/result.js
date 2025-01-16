@@ -91,10 +91,21 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                 tableName: $scope.tableName,
                 data: data.row
             };
-            if (data.type === 'update' || data.type === 'delete') {
+            let method = 'POST';
+            if (data.type === 'update') {
+                method = 'PUT';
+                requestBody['primaryKey'] = $scope.primaryKeyColumns;
+            } else if (data.type === 'update') {
+                method = 'DELETE';
                 requestBody['primaryKey'] = $scope.primaryKeyColumns;
             }
-            $http.post(`/services/js/view-result/js/crud.js/${data.type}`, requestBody).then(() => {
+            const url = `/services/js/view-result/js/databaseTable.js/${selectedDatabase.name}/${$scope.schemaName}/${$scope.tableName}`;
+            $http({
+                method: method,
+                url: url,
+                data: requestBody,
+                headers: { 'Content-Type': 'application/json' },
+            }).then(() => {
                 showContent({
                     schemaName: $scope.schemaName,
                     tableName: $scope.tableName
@@ -164,6 +175,29 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
         });
     };
 
+    function populateResultView(result) {
+        cleanScope();
+        if (result.data != null && result.data.length > 0) {
+            $scope.rows = result.data;
+            $scope.columns = [];
+            for (let i = 0; i < result.data.length; i++) {
+                for (let column in result.data[i]) {
+                    $scope.columns.push(column);
+                }
+                break;
+            }
+            $scope.hasResult = true;
+        } else if (result.data !== null && result.data.errorMessage !== null && result.data.errorMessage !== undefined) {
+            $scope.state.error = true;
+            $scope.errorMessage = result.data.errorMessage;
+            $scope.hasResult = false;
+        } else {
+            $scope.result = 'Empty result';
+            $scope.hasResult = false;
+        }
+        $scope.hideProgress();
+    }
+
     function executeQuery(command) {
         Layout.openView({ id: 'result' });
         $scope.state.error = false;
@@ -179,28 +213,7 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                     'Content-Type': 'text/plain',
                     'X-Requested-With': 'Fetch',
                 }
-            }).then((result) => {
-                cleanScope();
-                if (result.data != null && result.data.length > 0) {
-                    $scope.rows = result.data;
-                    $scope.columns = [];
-                    for (let i = 0; i < result.data.length; i++) {
-                        for (let column in result.data[i]) {
-                            $scope.columns.push(column);
-                        }
-                        break;
-                    }
-                    $scope.hasResult = true;
-                } else if (result.data !== null && result.data.errorMessage !== null && result.data.errorMessage !== undefined) {
-                    $scope.state.error = true;
-                    $scope.errorMessage = result.data.errorMessage;
-                    $scope.hasResult = false;
-                } else {
-                    $scope.result = 'Empty result';
-                    $scope.hasResult = false;
-                }
-                $scope.hideProgress();
-            }, (reject) => {
+            }).then(populateResultView, (reject) => {
                 cleanScope();
                 $scope.state.error = true;
                 $scope.errorMessage = reject.data.message;
@@ -363,9 +376,25 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                 const extractedKeys = extractSpecialAndPrimaryKeys($scope.metadata);
                 $scope.primaryKeyColumns = extractedKeys.primaryKeyColumns;
                 $scope.specialColumns = extractedKeys.specialColumns;
+
+                const url = `/services/js/view-result/js/databaseTable.js/${selectedDatabase.name}/${$scope.schemaName}/${$scope.tableName}`;
+                $http.get(url).then(populateResultView, (reject) => {
+                    cleanScope();
+                    console.error(reject);
+                    $scope.$evalAsync(() => {
+                        $scope.state.error = true;
+                        $scope.errorMessage = reject?.data?.message || 'Failed to get all rows';
+                        $scope.hideProgress();
+                    });
+                });
             })
             .catch((error) => {
                 console.error('Error fetching metadata:', error);
+                $scope.$evalAsync(() => {
+                    $scope.state.error = true;
+                    $scope.errorMessage = 'Error fetching metadata';
+                    $scope.hideProgress();
+                });
             });
     }
 
@@ -398,7 +427,24 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                     importType: 'data',
                     uploadPath: url,
                     workspace: '',
-                    table: selectedDatabase.name + ' -> ' + artifact[0] + ' -> ' + artifact[1],
+                    table: selectedDatabase.name + '.' + artifact[0] + '.' + artifact[1],
+                }
+            });
+        }
+    });
+
+    const importSqlListener = Dialogs.addMessageListener({
+        topic: 'database.data.import.sql',
+        handler: (command) => {
+            const artifact = command.split('.');
+            const url = '/services/data/sql/' + selectedDatabase.name + '/' + artifact[0];
+            Dialogs.showWindow({
+                id: 'import',
+                params: {
+                    importType: 'sql',
+                    uploadPath: url,
+                    workspace: '',
+                    schema: selectedDatabase.name + '.' + artifact[0],
                 }
             });
         }
@@ -577,6 +623,7 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
         Dialogs.removeMessageListener(showContentListener);
         Dialogs.removeMessageListener(executeListener);
         Dialogs.removeMessageListener(importArtifactListener);
+        Dialogs.removeMessageListener(importSqlListener);
         Dialogs.removeMessageListener(exportArtifactListener);
         Dialogs.removeMessageListener(exportSchemaListener);
         Dialogs.removeMessageListener(projectExportSchemaListener);

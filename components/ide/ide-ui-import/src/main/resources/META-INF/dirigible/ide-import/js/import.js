@@ -63,13 +63,13 @@ importView.controller('ImportViewController', [
                         $scope.dropAreaTitle = 'Import files';
                         $scope.dropAreaSubtitle = 'Drop file(s) here, or use the "+" button.';
                         $scope.dropAreaMore = `Files will be imported in "${params.uploadPath}"`;
-                    } if (params.importType === 'data') {
+                    } else if (params.importType === 'data') {
                         $scope.inputAccept = 'csv';
                         $scope.importType = params.importType;
                         $scope.dropAreaTitle = 'Import data files';
                         $scope.dropAreaSubtitle = 'Drop file(s) here, or use the "+" button.';
                         $scope.dropAreaMore = `Files will be imported in "${params.table}"`;
-                    } if (params.importType === 'sql') {
+                    } else if (params.importType === 'sql') {
                         $scope.inputAccept = 'sql';
                         $scope.importType = params.importType;
                         $scope.dropAreaTitle = 'Import SQL files';
