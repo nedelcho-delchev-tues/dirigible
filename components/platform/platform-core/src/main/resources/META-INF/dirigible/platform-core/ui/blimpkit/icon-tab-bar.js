@@ -404,7 +404,7 @@ blimpkit.directive('bkIconTabBar', function (classNames, $injector) {
     transclude: true,
     replace: true,
     scope: { alignRight: '<?' },
-    template: `<div class="bk-icon-tab-bar__item--buttons" ng-class="{true: 'bk-icon-tab-bar__item--buttons-right'}[align]" ng-transclude></div>`
+    template: `<div class="bk-icon-tab-bar__item--buttons" ng-class="{true: 'bk-icon-tab-bar__item--buttons-right'}[alignRight]" ng-transclude></div>`
 })).directive('bkIconTabBarPanel', () => ({
     restrict: 'E',
     transclude: true,

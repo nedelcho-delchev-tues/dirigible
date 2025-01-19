@@ -12,7 +12,7 @@
 div.fb-main-container {
     border: .25rem solid var(--sapBackgroundColor, #f7f7f7);
     border-radius: .188rem;
-    outline: .063rem dashed var(--sapTextColor, #e5e5e5);
+    outline: .063rem dashed var(--sapContent_NonInteractiveIconColor, #656565);
     padding-bottom: 2rem;
     margin: 0.5rem;
 }
@@ -43,8 +43,8 @@ div.fb-main-container[data-preview=true] div[data-type="container"]>div.fb-contr
     padding: 0;
 }
 
-div.fb-main-container[data-preview=true] div.dg-vbox,
-div.fb-main-container[data-preview=true] div.dg-hbox {
+div.fb-main-container[data-preview=true] div.bk-vbox,
+div.fb-main-container[data-preview=true] div.bk-hbox {
     gap: .5rem;
 }
 
@@ -74,32 +74,31 @@ div.fb-control-wrapper.is-selected:before {
     z-index: 1;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
-    background: var(--sapList_SelectionBackgroundColor, #e5f0fa);
-    border: var(--sapList_BorderWidth, 0.0625rem) solid var(--sapList_SelectionBorderColor, #0854a0);
-    opacity: .4;
+    background-color: var(--sapContent_Selected_Background, #fecc04);
+    opacity: .25;
 }
 
 div.fb-main-container[disabled] div.fb-control-wrapper.is-selected:before {
     border: var(--sapList_BorderWidth, 0.0625rem) solid var(--sapErrorBorderColor, #bb0000);
 }
 
-div.dg-hbox[data-type="container"] {
+div.bk-hbox[data-type="container"] {
     padding-right: 1rem;
 }
 
-div.dg-vbox[data-type="container"] {
+div.bk-vbox[data-type="container"] {
     padding-bottom: 1rem;
 }
 
-div.dg-hbox[data-type="container"],
-div.dg-vbox[data-type="container"] {
+div.bk-hbox[data-type="container"],
+div.bk-vbox[data-type="container"] {
     border: .25rem solid var(--sapBackgroundColor, #f7f7f7);
-    outline: .063rem dashed var(--sapTextColor, #e5e5e5);
+    outline: .063rem dashed var(--sapContent_NonInteractiveIconColor, #656565);
     outline-offset: -.25rem;
 }
 
-div.dg-hbox[data-type="container"]:empty,
-div.dg-vbox[data-type="container"]:empty {
+div.bk-hbox[data-type="container"]:empty,
+div.bk-vbox[data-type="container"]:empty {
     padding: 1rem;
     border: .5rem solid var(--sapBackgroundColor, #f7f7f7);
 }

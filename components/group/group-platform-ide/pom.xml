@@ -281,6 +281,10 @@
 			<groupId>org.eclipse.dirigible</groupId>
 			<artifactId>dirigible-components-editor-csvim</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-components-editor-form-builder</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.dirigible</groupId>
