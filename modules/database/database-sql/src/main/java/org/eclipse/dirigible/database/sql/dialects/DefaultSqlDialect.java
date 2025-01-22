@@ -9,7 +9,27 @@
  */
 package org.eclipse.dirigible.database.sql.dialects;
 
-import org.eclipse.dirigible.database.sql.*;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import org.eclipse.dirigible.database.sql.DataType;
+import org.eclipse.dirigible.database.sql.DatabaseArtifactTypes;
+import org.eclipse.dirigible.database.sql.DatabaseType;
+import org.eclipse.dirigible.database.sql.ISqlDialect;
+import org.eclipse.dirigible.database.sql.ISqlKeywords;
+import org.eclipse.dirigible.database.sql.SqlException;
 import org.eclipse.dirigible.database.sql.builders.AlterBranchingBuilder;
 import org.eclipse.dirigible.database.sql.builders.CreateBranchingBuilder;
 import org.eclipse.dirigible.database.sql.builders.DropBranchingBuilder;
@@ -20,17 +40,8 @@ import org.eclipse.dirigible.database.sql.builders.records.SelectBuilder;
 import org.eclipse.dirigible.database.sql.builders.records.UpdateBuilder;
 import org.eclipse.dirigible.database.sql.builders.sequence.LastValueIdentityBuilder;
 import org.eclipse.dirigible.database.sql.builders.sequence.NextValueSequenceBuilder;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.sql.*;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The Default SQL Dialect.
@@ -63,6 +74,8 @@ public class DefaultSqlDialect<SELECT extends SelectBuilder, INSERT extends Inse
             "cast", "coalesce", "connection_id", "conv", "convert", "current_user", "database", "if", "ifnull", "isnull", "last_insert_id",
             "nullif", "session_user", "system_user", "user", "version", "and", "or", "between", "binary", "case", "div", "in", "is", "not",
             "null", "like", "rlike", "xor")));
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultSqlDialect.class);
 
     /**
      * Select.
@@ -604,11 +617,28 @@ public class DefaultSqlDialect<SELECT extends SelectBuilder, INSERT extends Inse
      */
     @Override
     public void processSQL(Connection connection, String schema, InputStream is) throws Exception {
+        long startTime = System.currentTimeMillis();
+
         BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
         StringBuilder builder = new StringBuilder();
+
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escapeNextChar = false;
         int ch;
+
         while ((ch = reader.read()) != -1) {
-            if (ch == ';') {
+            if (escapeNextChar) {
+                escapeNextChar = false;
+            } else if (ch == '\\') {
+                escapeNextChar = true;
+            } else if (ch == '\'' && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+            } else if (ch == '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            if (ch == ';' && !inSingleQuote && !inDoubleQuote && !escapeNextChar) {
                 executeUpdate(connection, builder.toString());
                 builder.setLength(0);
             } else {
@@ -619,6 +649,8 @@ public class DefaultSqlDialect<SELECT extends SelectBuilder, INSERT extends Inse
             executeUpdate(connection, builder.toString());
         }
         reader.close();
+
+        logger.info("SQL dump processed for " + (System.currentTimeMillis() - startTime) / 1000 + " seconds");
     }
 
     /**
@@ -629,8 +661,11 @@ public class DefaultSqlDialect<SELECT extends SelectBuilder, INSERT extends Inse
      * @throws SQLException the SQL exception
      */
     private void executeUpdate(Connection connection, String sql) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement(sql);
-        statement.executeUpdate();
+        if (sql.trim()
+               .length() > 0) {
+            PreparedStatement statement = connection.prepareStatement(sql);
+            statement.executeUpdate();
+        }
     }
 
 }
