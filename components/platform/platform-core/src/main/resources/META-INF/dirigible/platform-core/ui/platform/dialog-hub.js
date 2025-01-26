@@ -18,6 +18,8 @@ const AlertTypes = {
 };
 
 class DialogHub extends MessageHubApi {
+    #reclaimFocus = window.frameElement ? () => window.focus() : () => { };
+
     constructor(viewId) {
         super();
         this.viewId = viewId || location.pathname;
@@ -54,6 +56,7 @@ class DialogHub extends MessageHubApi {
                     topic: callbackTopic,
                     handler: (data) => {
                         this.removeMessageListener(callbackListener);
+                        this.#reclaimFocus();
                         resolve(data);
                     }
                 });
@@ -105,6 +108,7 @@ class DialogHub extends MessageHubApi {
                     topic: callbackTopic,
                     handler: (data) => {
                         this.removeMessageListener(callbackListener);
+                        this.#reclaimFocus();
                         resolve(data);
                     }
                 });
@@ -213,6 +217,7 @@ class DialogHub extends MessageHubApi {
                 topic: callbackTopic,
                 handler: (data) => {
                     this.removeMessageListener(callbackListener);
+                    this.#reclaimFocus();
                     resolve(data);
                 }
             });
@@ -247,6 +252,7 @@ class DialogHub extends MessageHubApi {
      * @param {boolean} [closeButton=true] - Should the dialog have a close button in the title bar.
      */ // @ts-ignore
     showWindow({ hasHeader = true, header, title, subheader, id, path, params, width = '95%', height = '90%', maxWidth = '1280px', maxHeight = '768px', minWidth, minHeight, callbackTopic, closeButton = true } = {}) {
+        const closeTopic = `platform.${id || 'dialog'}.window.${new Date().valueOf()}`;
         this.postMessage({
             topic: 'platform.dialog.window',
             data: {
@@ -267,7 +273,15 @@ class DialogHub extends MessageHubApi {
                 maxHeight: maxHeight,
                 minWidth: minWidth,
                 minHeight: minHeight,
-                callbackTopic: callbackTopic,
+                closeTopic: closeTopic,
+            }
+        });
+        const closeListener = this.addMessageListener({
+            topic: closeTopic,
+            handler: () => {
+                this.removeMessageListener(closeListener);
+                if (callbackTopic) this.triggerEvent(callbackTopic);
+                window.focus();
             }
         });
     }

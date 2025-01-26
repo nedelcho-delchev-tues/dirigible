@@ -147,7 +147,7 @@ angular.module('platformDialogs', ['blimpKit', 'platformView']).directive('dialo
             } else scope.$apply(() => scope.dialogWindows.push(data));
         });
         scope.closeDialogWindow = () => {
-            if (scope.dialogWindows[0].callbackTopic) dialogHub.triggerEvent(scope.dialogWindows[0].callbackTopic);
+            dialogHub.triggerEvent(scope.dialogWindows[0].closeTopic);
             scope.dialogWindows.shift();
         };
 

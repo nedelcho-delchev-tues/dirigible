@@ -1352,6 +1352,7 @@ editorView.controller('DesignerController', ($scope, $window, $document, $timeou
 
     $scope.deleteFeed = (index) => {
         $scope.formData.feeds.splice(index, 1);
+        $scope.fileChanged();
     };
 
     $scope.addScript = () => {
@@ -1446,6 +1447,7 @@ editorView.controller('DesignerController', ($scope, $window, $document, $timeou
 
     $scope.deleteScript = (index) => {
         $scope.formData.scripts.splice(index, 1);
+        $scope.fileChanged();
     };
 
     $scope.isFormValid = () => {

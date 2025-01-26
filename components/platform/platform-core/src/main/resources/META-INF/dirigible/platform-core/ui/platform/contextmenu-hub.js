@@ -10,6 +10,8 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 class ContextMenuHub extends MessageHubApi {
+    #reclaimFocus = window.frameElement ? () => window.focus() : () => { };
+
     /**
      * Definition of a menu item object.
      * @typedef {Object} MenuItem
@@ -74,6 +76,7 @@ class ContextMenuHub extends MessageHubApi {
                 topic: callbackTopic,
                 handler: (data) => {
                     this.removeMessageListener(callbackListener);
+                    this.#reclaimFocus();
                     resolve(data);
                 }
             });

@@ -176,6 +176,9 @@
                         </tr>
                     </thead>
                     <tbody bk-table-body>
+                        <tr ng-if="formData.feeds.length === 0" bk-table-row>
+                            <td bk-table-cell no-data="true">No feeds.</td>
+                        </tr>
                         <tr bk-table-row hoverable="false" ng-repeat="feed in formData.feeds track by $index">
                             <td bk-table-cell>{{feed.name}}</td>
                             <td bk-table-cell>{{feed.url}}</td>
@@ -204,6 +207,9 @@
                         </tr>
                     </thead>
                     <tbody bk-table-body>
+                        <tr ng-if="formData.scripts.length === 0" bk-table-row>
+                            <td bk-table-cell no-data="true">No scripts.</td>
+                        </tr>
                         <tr bk-table-row hoverable="false" ng-repeat="script in formData.scripts track by $index">
                             <td bk-table-cell>{{script.name}}</td>
                             <td bk-table-cell>{{script.url}}</td>
