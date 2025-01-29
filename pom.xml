@@ -44,11 +44,14 @@
 		mvn javadoc:jar
 		mvn deploy -P release -DskipTests
 
-	Tests coverage report generation
+	Tests coverage report generation:
 		mvn clean -B package -P coverage
 
-	Static checks analysis
+	Static checks analysis:
 		mvn clean install -P spotbugs
+		
+	Integration tests:
+		mvn -f tests/pom.xml verify -P integration-tests -D selenide.headless=true
 
  -->
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

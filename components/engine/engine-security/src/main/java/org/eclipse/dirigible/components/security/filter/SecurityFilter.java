@@ -86,6 +86,9 @@ public class SecurityFilter implements Filter {
         ALLOWED_PREFIXES.add("/services/web/resources");
         ALLOWED_PREFIXES.add("/services/js/platform");
         ALLOWED_PREFIXES.add("/services/web/theme-blimpkit");
+        ALLOWED_PREFIXES.add("/public/web/resources");
+        ALLOWED_PREFIXES.add("/public/js/platform");
+        ALLOWED_PREFIXES.add("/public/web/theme-blimpkit");
     }
 
     /**
