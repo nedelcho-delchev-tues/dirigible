@@ -12,6 +12,7 @@ package org.eclipse.dirigible.components.data.management.format;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.sql.Blob;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -147,6 +148,10 @@ public class ResultSetJsonWriter extends AbstractResultSetWriter<String> {
                     jsonGenerator.writeNumber((Short) value);
                 } else if (value instanceof Boolean) {
                     jsonGenerator.writeBoolean((Boolean) value);
+                } else if (value instanceof Blob) {
+                    Blob blob = (Blob) value;
+                    int[] intArray = readBlob(blob);
+                    jsonGenerator.writeArray(intArray, 0, intArray.length - 1);
                 } else {
                     jsonGenerator.writeString(value == null ? null : value.toString());
                 }
@@ -161,6 +166,22 @@ public class ResultSetJsonWriter extends AbstractResultSetWriter<String> {
 
         jsonGenerator.writeEndArray();
         jsonGenerator.flush();
+    }
+
+    /**
+     * Read blob.
+     *
+     * @param blob the blob
+     * @return the int[]
+     * @throws SQLException the SQL exception
+     */
+    private int[] readBlob(Blob blob) throws SQLException {
+        int blobLength = (int) blob.length();
+        byte[] blobAsBytes = blob.getBytes(1, blobLength);
+        blob.free();
+        int[] intArray = new int[blobLength];
+        for (int j = 0; j < blobAsBytes.length; intArray[j] = blobAsBytes[j++]);
+        return intArray;
     }
 
 }
