@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -152,6 +153,10 @@ public class ResultSetJsonWriter extends AbstractResultSetWriter<String> {
                     Blob blob = (Blob) value;
                     int[] intArray = readBlob(blob);
                     jsonGenerator.writeArray(intArray, 0, intArray.length - 1);
+                } else if (value instanceof Clob) {
+                    Clob clob = (Clob) value;
+                    String clobValue = readClob(clob);
+                    jsonGenerator.writeString(clobValue);
                 } else {
                     jsonGenerator.writeString(value == null ? null : value.toString());
                 }
@@ -182,6 +187,22 @@ public class ResultSetJsonWriter extends AbstractResultSetWriter<String> {
         int[] intArray = new int[blobLength];
         for (int j = 0; j < blobAsBytes.length; intArray[j] = blobAsBytes[j++]);
         return intArray;
+    }
+
+    /**
+     * Read clob.
+     *
+     * @param clob the clob
+     * @return the string
+     * @throws SQLException the SQL exception
+     */
+    private String readClob(Clob clob) throws SQLException {
+        long clobLength = clob.length();
+        if (clobLength <= Integer.MAX_VALUE) {
+            String clobAsString = clob.getSubString(1, (int) clobLength);
+            return clobAsString;
+        }
+        return "The size of the CLOB is too big";
     }
 
 }
