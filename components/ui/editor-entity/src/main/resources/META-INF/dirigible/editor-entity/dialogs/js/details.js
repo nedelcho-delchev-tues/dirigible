@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Eclipse Dirigible contributors
+ * Copyright (c) 2025 Eclipse Dirigible contributors
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -224,7 +224,7 @@ angular.module('edmDetails', ['blimpKit', 'platformView'])
         $scope.cancel = () => {
             Dialogs.closeWindow();
         };
-        $scope.toggleDefaultRoles = function () {
+        $scope.toggleDefaultRoles = () => {
             if ($scope.dataParameters.generateDefaultRoles === 'true') {
                 $scope.dataParameters.roleRead = $scope.dataParameters.projectName + '.' + $scope.dataParameters.perspectiveName + '.' + $scope.dataParameters.name + "ReadOnly";
                 $scope.dataParameters.roleWrite = $scope.dataParameters.projectName + '.' + $scope.dataParameters.perspectiveName + '.' + $scope.dataParameters.name + "FullAccess";
