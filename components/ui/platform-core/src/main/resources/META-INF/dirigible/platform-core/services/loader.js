@@ -203,9 +203,9 @@ function getLocations(scriptId) {
         case 'perspective-css':
             return [...viewCss, '/platform-core/ui/styles/split.css', '/platform-core/ui/styles/layout.css']
         case 'code-editor-js':
-            return ['/editor-monaco/embeddable/editor.js', '/monaco-editor/0.40.0/min/vs/loader.js', '/monaco-editor/0.40.0/min/vs/editor/editor.main.nls.js', '/monaco-editor/0.40.0/min/vs/editor/editor.main.js'];
+            return ['/editor-monaco/embeddable/editor.js', '/monaco-editor/0.52.2/min/vs/loader.js', '/monaco-editor/0.52.2/min/vs/editor/editor.main.nls.js', '/monaco-editor/0.52.2/min/vs/editor/editor.main.js'];
         case 'code-editor-css':
-            return ['/editor-monaco/css/embeddable.css', '/monaco-editor/0.40.0/min/vs/editor/editor.main.css'];
+            return ['/editor-monaco/css/embeddable.css', '/monaco-editor/0.52.2/min/vs/editor/editor.main.css'];
         case 'cookies':
             return [cookies];
         case 'jstree-js':

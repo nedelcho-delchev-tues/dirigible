@@ -527,7 +527,7 @@ class EditorActionsProvider {
 }
 
 class DirigibleEditor {
-
+    static fileIO = new FileIO();
     static dirty = false;
     static lastSavedVersionId = undefined;
     static loadingOverview = document.getElementById('loadingOverview');
@@ -561,8 +561,7 @@ class DirigibleEditor {
     }
 
     static saveFileContent(editor) {
-        const fileIO = new FileIO();
-        fileIO.saveText(editor.getModel().getValue()).then(() => {
+        DirigibleEditor.fileIO.saveText(editor.getModel().getValue()).then(() => {
             DirigibleEditor.lastSavedVersionId = editor.getModel().getAlternativeVersionId();
             DirigibleEditor.dirty = false;
         });
@@ -877,8 +876,9 @@ class DirigibleEditor {
                 const filePath = getTypeScriptFileImport(model, position, fileObject);
                 if (filePath) {
                     layoutHub.openEditor({
-                        path: filePath,
-                        contentType: "typescript",
+                        path: DirigibleEditor.fileIO.getWorkspacePath(filePath),
+                        params: { resourceType: 'workspace' },
+                        contentType: "plain/text",
                     });
                 }
             }
