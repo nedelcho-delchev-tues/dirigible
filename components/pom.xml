@@ -213,10 +213,7 @@
 		<module>ui/view-preview</module>
 		<module>ui/view-problems</module>
 		<module>ui/view-properties</module>
-		<module>ui/view-git-branches</module>
-		<module>ui/view-git-staging</module>
-		<module>ui/view-git-history</module>
-		<module>ui/view-git-projects</module>
+		<module>ui/view-git</module>
 		<module>ui/view-terminal</module>
 		<module>ui/view-debugger</module>
 		<module>ui/view-databases</module>
@@ -1252,22 +1249,7 @@
 			</dependency>
 			<dependency>
 				<groupId>org.eclipse.dirigible</groupId>
-				<artifactId>dirigible-components-ui-view-git-branches</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.dirigible</groupId>
-				<artifactId>dirigible-components-ui-view-git-staging</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.dirigible</groupId>
-				<artifactId>dirigible-components-ui-view-git-history</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.dirigible</groupId>
-				<artifactId>dirigible-components-ui-view-git-projects</artifactId>
+				<artifactId>dirigible-components-ui-view-git</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
