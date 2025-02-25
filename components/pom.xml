@@ -217,8 +217,6 @@
 		<module>ui/view-terminal</module>
 		<module>ui/view-debugger</module>
 		<module>ui/view-databases</module>
-		<module>ui/view-db-explorer</module>
-		<module>ui/view-result</module>
 		<module>ui/view-sql</module>
 		<module>ui/view-transfer</module>
 		<module>ui/view-artefacts</module>
@@ -1265,16 +1263,6 @@
 			<dependency>
 				<groupId>org.eclipse.dirigible</groupId>
 				<artifactId>dirigible-components-ui-view-databases</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.dirigible</groupId>
-				<artifactId>dirigible-components-ui-view-db-explorer</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.dirigible</groupId>
-				<artifactId>dirigible-components-ui-view-result</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>

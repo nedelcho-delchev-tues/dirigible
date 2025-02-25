@@ -118,14 +118,6 @@
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.dirigible</groupId>
-			<artifactId>dirigible-components-ui-view-db-explorer</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.eclipse.dirigible</groupId>
-			<artifactId>dirigible-components-ui-view-result</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.eclipse.dirigible</groupId>
 			<artifactId>dirigible-components-ui-view-sql</artifactId>
 		</dependency>
 		<dependency>

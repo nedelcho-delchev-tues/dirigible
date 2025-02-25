@@ -99,7 +99,7 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                 method = 'DELETE';
                 requestBody['primaryKey'] = $scope.primaryKeyColumns;
             }
-            const url = `/services/js/view-result/js/databaseTable.js/${selectedDatabase.name}/${$scope.schemaName}/${$scope.tableName}`;
+            const url = `/services/js/view-databases/js/databaseTable.js/${selectedDatabase.name}/${$scope.schemaName}/${$scope.tableName}`;
             $http({
                 method: method,
                 url: url,
@@ -377,7 +377,7 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                 $scope.primaryKeyColumns = extractedKeys.primaryKeyColumns;
                 $scope.specialColumns = extractedKeys.specialColumns;
 
-                const url = `/services/js/view-result/js/databaseTable.js/${selectedDatabase.name}/${$scope.schemaName}/${$scope.tableName}`;
+                const url = `/services/js/view-databases/js/databaseTable.js/${selectedDatabase.name}/${$scope.schemaName}/${$scope.tableName}`;
                 $http.get(url).then(populateResultView, (reject) => {
                     cleanScope();
                     console.error(reject);

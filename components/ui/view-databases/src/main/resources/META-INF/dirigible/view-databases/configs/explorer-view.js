@@ -15,7 +15,7 @@ const viewData = {
 	region: 'left',
 	lazyLoad: false,
 	autoFocusTab: false,
-	path: '/services/web/view-db-explorer/explorer.html'
+	path: '/services/web/view-databases/explorer.html'
 };
 if (typeof exports !== 'undefined') {
 	exports.getView = () => viewData;
