@@ -16,6 +16,7 @@ import org.quartz.JobExecutionException;
 import org.quartz.SimpleScheduleBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,12 +36,13 @@ class TenantProvisioningJob extends SystemJob {
      *
      * @param tenantsProvisioner the tenants provisioner
      */
+    @Autowired
     TenantProvisioningJob(TenantsProvisioner tenantsProvisioner) {
         this.tenantsProvisioner = tenantsProvisioner;
     }
 
     @Override
-    public final void execute(JobExecutionContext context) throws JobExecutionException {
+    public void execute(JobExecutionContext context) throws JobExecutionException {
         LOGGER.debug("Triggered tenants provisioning job...");
         tenantsProvisioner.provision();
         LOGGER.debug("Tenants provisioning job has completed.");
