@@ -154,7 +154,7 @@ public class SynchronizationProcessor implements SynchronizationWalkerCallback, 
             logger.debug("Skipping synchronization since it is not needed...");
             return;
         }
-        logger.debug("Executing synchronization...");
+        logger.info("Executing synchronization...");
 
         processing.set(true);
         synchronizationWatcher.reset();
@@ -362,7 +362,7 @@ public class SynchronizationProcessor implements SynchronizationWalkerCallback, 
                 logger.error("Error occured during synchronization: [{}]", errMsg);
             });
 
-            logger.debug("Processing synchronizers completed!");
+            logger.info("Processing synchronizers completed!");
 
         } finally {
             if (logger.isDebugEnabled()) {

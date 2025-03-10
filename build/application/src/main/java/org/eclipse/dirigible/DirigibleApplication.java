@@ -31,7 +31,14 @@ import org.springframework.web.client.RestTemplate;
 @EnableScheduling
 public class DirigibleApplication {
 
+    private static long startedAt;
+
+    public static long getStartedAt() {
+        return startedAt;
+    }
+
     public static void main(String[] args) {
+        startedAt = System.currentTimeMillis();
         SpringApplication.run(DirigibleApplication.class, args);
     }
 
