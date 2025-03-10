@@ -138,7 +138,6 @@ public class DataSourceInitializer {
         config.setSchema(schema);
         config.setPoolName(name);
         config.setMaximumPoolSize(20);
-        config.setAutoCommit(true);
 
         config.setMinimumIdle(10);
 

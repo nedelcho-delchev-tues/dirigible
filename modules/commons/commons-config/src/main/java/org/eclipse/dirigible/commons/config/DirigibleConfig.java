@@ -133,7 +133,8 @@ public enum DirigibleConfig {
      */
     private static String fromBase64(String string) {
         return new String(Base64.getDecoder()
-                                .decode(string), StandardCharsets.UTF_8);
+                                .decode(string),
+                StandardCharsets.UTF_8);
     }
 
     /**
