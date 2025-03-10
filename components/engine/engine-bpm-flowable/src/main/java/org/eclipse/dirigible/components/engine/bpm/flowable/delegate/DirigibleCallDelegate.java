@@ -23,6 +23,7 @@ import org.flowable.engine.impl.el.FixedValue;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -204,7 +205,7 @@ public class DirigibleCallDelegate implements JavaDelegate {
      *
      * @param execution the execution
      */
-    // @Transactional
+    @Transactional
     @Override
     public void execute(DelegateExecution execution) {
         Tracer tracer = OpenTelemetryProvider.get()
