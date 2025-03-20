@@ -12,6 +12,7 @@ package org.eclipse.dirigible.tests.framework.impl;
 import com.codeborne.selenide.*;
 import com.codeborne.selenide.ex.ListSizeMismatch;
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.dirigible.tests.IntegrationTest;
 import org.eclipse.dirigible.tests.framework.Browser;
 import org.eclipse.dirigible.tests.framework.HtmlAttribute;
 import org.eclipse.dirigible.tests.framework.HtmlElementType;
@@ -48,12 +49,11 @@ class BrowserImpl implements Browser {
     private static final String PATH_SEPARATOR = "/";
 
     private static final int FRAME_SEARCH_TOTAL_SECONDS = 45;
-    private static final int ELEMENT_EXISTENCE_SEARCH_TIME_SECONDS = 10;
-    private static final int ELEMENT_SEARCH_IN_FRAME_MILLIS = 100;
+    private static final int ELEMENT_EXISTENCE_SEARCH_TIME_SECONDS = 5;
+    private static final int ELEMENT_SEARCH_IN_FRAME_MILLIS = 50;
 
     static {
         configureSelenide();
-
     }
 
     private final String protocol;
@@ -71,8 +71,19 @@ class BrowserImpl implements Browser {
         this.port = port;
     }
 
+    enum ProtocolType {
+        HTTP("http"), HTTPS("https");
+
+        private final String protocol;
+
+        ProtocolType(String protocol) {
+            this.protocol = protocol;
+        }
+    }
+
     private static void configureSelenide() {
         Configuration.timeout = TimeUnit.SECONDS.toMillis(15);
+        Configuration.headless = IntegrationTest.isHeadlessExecution();
         Configuration.browser = "chrome";
         Configuration.browserCapabilities = new ChromeOptions().addArguments("--remote-allow-origins=*");
     }
@@ -123,7 +134,7 @@ class BrowserImpl implements Browser {
     private Consumer<SelenideElement> enterTextInElement(String text) {
         return element -> {
             element.click();
-            LOGGER.info("Entering [{}] in [{}]", text, element);
+            LOGGER.debug("Entering [{}] in [{}]", text, element);
             element.setValue(text);
         };
     }
@@ -213,7 +224,6 @@ class BrowserImpl implements Browser {
                 .perform();
     }
 
-
     @Override
     public void type(String text) {
         Selenide.actions()
@@ -299,6 +309,11 @@ class BrowserImpl implements Browser {
         ElementsCollection iframes = Selenide.$$(iframeSelector);
         LOGGER.debug("Found [{}] iframes", iframes.size());
 
+        if (iframes.size() == 0) {
+            LOGGER.debug("Found zero iframes");
+            return Optional.empty();
+        }
+
         for (SelenideElement iframe : iframes) {
             Selenide.switchTo()
                     .frame(iframe);
@@ -348,17 +363,24 @@ class BrowserImpl implements Browser {
         } catch (ListSizeMismatch ex) {
             Serializable matchedElements = ex.getActual()
                                              .getValue();
-            boolean zeroMatches = Integer.valueOf(0)
-                                         .equals(matchedElements);
-            LOGGER.debug(
-                    "Found [{}] elements with selector [{}] and conditions [{}] but expected ONLY ONE. Consider using more precise selector and conditions.\nFound elements: {}.\nCause error message: {}",
-                    matchedElements, by, allConditions, describeCollection(by, foundElements, conditions), ex.getMessage());
-            if (zeroMatches) {
-                FileUtil.deleteFile(ex.getScreenshot()
-                                      .getImage());
-                FileUtil.deleteFile(ex.getScreenshot()
-                                      .getSource());
+            if (matchedElements instanceof Integer matchedElementsCount) {
+                if (matchedElementsCount == 0) {
+                    LOGGER.debug(
+                            "Found ZERO elements with selector [{}] and conditions [{}] but expected ONLY ONE. Consider using more precise selector and conditions.\nFound elements: {}.\nCause error message: {}",
+                            by, allConditions, describeCollection(by, foundElements, conditions), ex.getMessage());
+
+                    FileUtil.deleteFile(ex.getScreenshot()
+                                          .getImage());
+                    FileUtil.deleteFile(ex.getScreenshot()
+                                          .getSource());
+                }
+                if (matchedElementsCount > 1) {
+                    LOGGER.error(
+                            "Found MORE THAN ONE elements [{}] with selector [{}] and conditions [{}] but expected ONLY ONE. Consider using more precise selector and conditions.\nFound elements: {}.\nCause error message: {}",
+                            matchedElementsCount, by, allConditions, describeCollection(by, foundElements, conditions), ex.getMessage());
+                }
             }
+
             return Optional.empty();
         }
     }
@@ -548,7 +570,6 @@ class BrowserImpl implements Browser {
         handleElementInAllFrames(by, SelenideElement::click, Condition.visible);
     }
 
-
     @Override
     public void assertElementExistsByTypeAndContainsText(HtmlElementType htmlElementType, String text) {
         assertElementExistsByTypeAndContainsText(htmlElementType.getType(), text);
@@ -595,15 +616,5 @@ class BrowserImpl implements Browser {
     @Override
     public String getPageTitle() {
         return Selenide.title();
-    }
-
-    enum ProtocolType {
-        HTTP("http"), HTTPS("https");
-
-        private final String protocol;
-
-        ProtocolType(String protocol) {
-            this.protocol = protocol;
-        }
     }
 }
