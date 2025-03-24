@@ -12,6 +12,7 @@ package org.eclipse.dirigible.tests.framework.impl;
 import com.codeborne.selenide.*;
 import com.codeborne.selenide.ex.ListSizeMismatch;
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.dirigible.tests.IntegrationTest;
 import org.eclipse.dirigible.tests.framework.Browser;
 import org.eclipse.dirigible.tests.framework.HtmlAttribute;
 import org.eclipse.dirigible.tests.framework.HtmlElementType;
@@ -48,8 +49,8 @@ class BrowserImpl implements Browser {
     private static final String PATH_SEPARATOR = "/";
 
     private static final int FRAME_SEARCH_TOTAL_SECONDS = 45;
-    private static final int ELEMENT_EXISTENCE_SEARCH_TIME_SECONDS = 10;
-    private static final int ELEMENT_SEARCH_IN_FRAME_MILLIS = 100;
+    private static final int ELEMENT_EXISTENCE_SEARCH_TIME_SECONDS = 5;
+    private static final int ELEMENT_SEARCH_IN_FRAME_MILLIS = 50;
 
     static {
         configureSelenide();
@@ -82,6 +83,7 @@ class BrowserImpl implements Browser {
 
     private static void configureSelenide() {
         Configuration.timeout = TimeUnit.SECONDS.toMillis(15);
+        Configuration.headless = IntegrationTest.isHeadlessExecution();
         Configuration.browser = "chrome";
         Configuration.browserCapabilities = new ChromeOptions().addArguments("--remote-allow-origins=*");
     }
@@ -132,7 +134,7 @@ class BrowserImpl implements Browser {
     private Consumer<SelenideElement> enterTextInElement(String text) {
         return element -> {
             element.click();
-            LOGGER.info("Entering [{}] in [{}]", text, element);
+            LOGGER.debug("Entering [{}] in [{}]", text, element);
             element.setValue(text);
         };
     }
@@ -146,6 +148,15 @@ class BrowserImpl implements Browser {
     public By constructCssSelectorByTypeAndAttribute(String elementType, String attribute, String attributePattern) {
         String cssSelector = elementType + "[" + attribute + "*='" + attributePattern + "']";
         return Selectors.byCssSelector(cssSelector);
+    }
+
+    public By constructCssSelectorByTypeAndExactAttribute(String elementType, String attribute, String value) {
+        String cssSelector = elementType + "[" + attribute + "='" + value + "']";
+        return Selectors.byCssSelector(cssSelector);
+    }
+
+    public By constructCssSelectorByTypeAndExactAttribute(HtmlElementType elementType, HtmlAttribute attribute, String value) {
+        return constructCssSelectorByTypeAndExactAttribute(elementType.getType(), attribute.getAttribute(), value);
     }
 
     @Override
@@ -201,6 +212,15 @@ class BrowserImpl implements Browser {
     public void pressKey(Keys key) {
         Selenide.actions()
                 .sendKeys(key)
+                .perform();
+    }
+
+    @Override
+    public void pressMultipleKeys(Keys modifier, CharSequence charSequence) {
+        Selenide.actions()
+                .keyDown(modifier)
+                .sendKeys(charSequence)
+                .keyUp(modifier)
                 .perform();
     }
 
@@ -289,6 +309,11 @@ class BrowserImpl implements Browser {
         ElementsCollection iframes = Selenide.$$(iframeSelector);
         LOGGER.debug("Found [{}] iframes", iframes.size());
 
+        if (iframes.size() == 0) {
+            LOGGER.debug("Found zero iframes");
+            return Optional.empty();
+        }
+
         for (SelenideElement iframe : iframes) {
             Selenide.switchTo()
                     .frame(iframe);
@@ -338,17 +363,24 @@ class BrowserImpl implements Browser {
         } catch (ListSizeMismatch ex) {
             Serializable matchedElements = ex.getActual()
                                              .getValue();
-            boolean zeroMatches = Integer.valueOf(0)
-                                         .equals(matchedElements);
-            LOGGER.debug(
-                    "Found [{}] elements with selector [{}] and conditions [{}] but expected ONLY ONE. Consider using more precise selector and conditions.\nFound elements: {}.\nCause error message: {}",
-                    matchedElements, by, allConditions, describeCollection(by, foundElements, conditions), ex.getMessage());
-            if (zeroMatches) {
-                FileUtil.deleteFile(ex.getScreenshot()
-                                      .getImage());
-                FileUtil.deleteFile(ex.getScreenshot()
-                                      .getSource());
+            if (matchedElements instanceof Integer matchedElementsCount) {
+                if (matchedElementsCount == 0) {
+                    LOGGER.debug(
+                            "Found ZERO elements with selector [{}] and conditions [{}] but expected ONLY ONE. Consider using more precise selector and conditions.\nFound elements: {}.\nCause error message: {}",
+                            by, allConditions, describeCollection(by, foundElements, conditions), ex.getMessage());
+
+                    FileUtil.deleteFile(ex.getScreenshot()
+                                          .getImage());
+                    FileUtil.deleteFile(ex.getScreenshot()
+                                          .getSource());
+                }
+                if (matchedElementsCount > 1) {
+                    LOGGER.error(
+                            "Found MORE THAN ONE elements [{}] with selector [{}] and conditions [{}] but expected ONLY ONE. Consider using more precise selector and conditions.\nFound elements: {}.\nCause error message: {}",
+                            matchedElementsCount, by, allConditions, describeCollection(by, foundElements, conditions), ex.getMessage());
+                }
             }
+
             return Optional.empty();
         }
     }
@@ -375,8 +407,23 @@ class BrowserImpl implements Browser {
         handleElementInAllFrames(by, this::rightClickElement, Condition.visible, Condition.enabled);
     }
 
+    @Override
+    public void rightClickOnElementByText(HtmlElementType elementType, String text) {
+        rightClickOnElementByText(elementType.getType(), text);
+    }
+
+    @Override
+    public void rightClickOnElementByText(String elementType, String text) {
+        SelenideElement element = getElementByAttributeAndExactText(elementType, text);
+
+        element.shouldBe(Condition.visible);
+        element.shouldBe(Condition.exactText(text));
+
+        rightClickElement(element);
+    }
+
     private void rightClickElement(SelenideElement element) {
-        element.scrollIntoView(false)
+        element.scrollIntoView(true)
                .contextClick();
     }
 
@@ -441,6 +488,12 @@ class BrowserImpl implements Browser {
         element.doubleClick();
     }
 
+    private SelenideElement getElementByAttributeAndExactText(String elementType, String text) {
+        By selector = constructCssSelectorByType(elementType);
+
+        return findElementInAllFrames(selector, Condition.exist, Condition.exactText(text));
+    }
+
     private SelenideElement getElementByAttributeAndContainsText(String elementType, String text) {
         By selector = constructCssSelectorByType(elementType);
 
@@ -481,6 +534,12 @@ class BrowserImpl implements Browser {
     }
 
     @Override
+    public void clickOnElementWithExactClass(HtmlElementType elementType, String className) {
+        By by = constructCssSelectorByTypeAndExactAttribute(elementType, HtmlAttribute.CLASS, className);
+        handleElementInAllFrames(by, this::clickElement, Condition.visible, Condition.enabled);
+    }
+
+    @Override
     public void clickOnElementByAttributePattern(HtmlElementType elementType, HtmlAttribute attribute, String pattern) {
         clickOnElementByAttributePattern(elementType.getType(), attribute.getAttribute(), pattern);
     }
@@ -490,6 +549,25 @@ class BrowserImpl implements Browser {
         By by = constructCssSelectorByTypeAndAttribute(elementType, attribute, pattern);
 
         handleElementInAllFrames(by, SelenideElement::click);
+    }
+
+    @Override
+    public void clickElementByAttributes(HtmlElementType elementType, Map<HtmlAttribute, String> attributes) {
+        if (attributes.isEmpty()) {
+            throw new IllegalArgumentException("Attributes map cannot be empty");
+        }
+
+        StringBuilder cssSelector = new StringBuilder(elementType.getType());
+        attributes.forEach((attribute, value) -> {
+            cssSelector.append("[")
+                       .append(attribute.getAttribute())
+                       .append("='")
+                       .append(value)
+                       .append("']");
+        });
+
+        By by = Selectors.byCssSelector(cssSelector.toString());
+        handleElementInAllFrames(by, SelenideElement::click, Condition.visible);
     }
 
     @Override
