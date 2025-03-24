@@ -9,40 +9,45 @@
  */
 package org.eclipse.dirigible.integration.tests.ui.tests;
 
+import org.eclipse.dirigible.components.data.sources.manager.DataSourcesManager;
+import org.eclipse.dirigible.components.database.DatabaseSystem;
 import org.eclipse.dirigible.tests.DatabasePerspective;
 import org.eclipse.dirigible.tests.UserInterfaceIntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class DatabasePerspectiveIT extends UserInterfaceIntegrationTest {
-    private DatabasePerspective databasePerspective;
+
+    @Autowired
+    private DataSourcesManager dataSourcesManager;
 
     @Test
     void testDatabaseFunctionality() {
-        this.databasePerspective = ide.openDatabasePerspective();
+        boolean postgreSQL = dataSourcesManager.getDefaultDataSource()
+                                               .isOfType(DatabaseSystem.POSTGRESQL);
+        String schema = postgreSQL ? "public" : "PUBLIC";
+        DatabasePerspective databasePerspective = ide.openDatabasePerspective();
 
-        createTestTable(); // Creating test table first to show in the database view
+        createTestTable(databasePerspective); // Creating test table first to show in the database view
 
-        expandSubviews();
-        assertAvailabilityOfSubitems();
+        expandSubviews(schema, databasePerspective);
+        assertAvailabilityOfSubitems(databasePerspective);
 
-        databasePerspective.assertEmptyTable("STUDENT");
-        insertTestRecord();
-        assertInsertedRecord();
+        String tableName = postgreSQL ? "student" : "STUDENT";
+        databasePerspective.assertEmptyTable(tableName);
+        insertTestRecord(databasePerspective);
+        assertInsertedRecord(databasePerspective);
     }
 
-    private void expandSubviews() {
-        String url = System.getenv("DIRIGIBLE_DATASOURCE_DEFAULT_URL");
+    private void expandSubviews(String schema, DatabasePerspective databasePerspective) {
+        databasePerspective.refreshTables();
 
-        if (url != null && url.contains("postgresql"))
-            databasePerspective.expandSubmenu("public");
-        else
-            databasePerspective.expandSubmenu("PUBLIC");
+        databasePerspective.expandSubmenu(schema);
 
         databasePerspective.expandSubmenu("Tables");
-        databasePerspective.refreshTables();
     }
 
-    private void assertAvailabilityOfSubitems() {
+    private void assertAvailabilityOfSubitems(DatabasePerspective databasePerspective) {
         databasePerspective.assertSubmenu("Tables");
         databasePerspective.assertSubmenu("Views");
         databasePerspective.assertSubmenu("Procedures");
@@ -50,7 +55,7 @@ class DatabasePerspectiveIT extends UserInterfaceIntegrationTest {
         databasePerspective.assertSubmenu("Sequences");
     }
 
-    private void assertInsertedRecord() {
+    private void assertInsertedRecord(DatabasePerspective databasePerspective) {
         databasePerspective.showTableContents("STUDENT");
 
         // Assert if table id is 1 -> correct insertion
@@ -60,14 +65,13 @@ class DatabasePerspectiveIT extends UserInterfaceIntegrationTest {
         databasePerspective.assertRowHasColumnWithValue("STUDENT", 0, "NAME", "John Smith");
     }
 
-    private void createTestTable() {
+    private void createTestTable(DatabasePerspective databasePerspective) {
         databasePerspective.executeSql("CREATE TABLE IF NOT EXISTS STUDENT (" + " id SERIAL PRIMARY KEY, " + " name TEXT NOT NULL, "
                 + " address TEXT NOT NULL" + ");");
     }
 
-    private void insertTestRecord() {
+    private void insertTestRecord(DatabasePerspective databasePerspective) {
         databasePerspective.executeSql("INSERT INTO STUDENT VALUES (1, 'John Smith', 'Sofia, Bulgaria')");
     }
-
 
 }
