@@ -9,6 +9,7 @@
  */
 package org.eclipse.dirigible.tests;
 
+import jakarta.persistence.EntityManagerFactory;
 import org.eclipse.dirigible.commons.config.DirigibleConfig;
 import org.eclipse.dirigible.components.data.sources.manager.DataSourcesManager;
 import org.eclipse.dirigible.components.database.DatabaseSystem;
@@ -27,31 +28,31 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 class DirigibleCleaner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DirigibleCleaner.class);
 
-    private static final String[] SKIP_TABLE_PREFIXES = {"QRTZ_", "ACT_", "FLW_", "ACTIVEMQ_"};
-
     private final DataSourcesManager dataSourcesManager;
+    private final EntityManagerFactory entityManagerFactory;
 
-    DirigibleCleaner(DataSourcesManager dataSourcesManager) {
+    DirigibleCleaner(DataSourcesManager dataSourcesManager, EntityManagerFactory entityManagerFactory) {
         this.dataSourcesManager = dataSourcesManager;
+        this.entityManagerFactory = entityManagerFactory;
     }
 
     public void cleanup() {
-        DirigibleDataSource systemDataSource = dataSourcesManager.getDefaultDataSource();
-        dropAllTablesInSchema(systemDataSource, SKIP_TABLE_PREFIXES);
+        entityManagerFactory.getCache()
+                            .evictAll();
 
         DirigibleDataSource defaultDataSource = dataSourcesManager.getDefaultDataSource();
 
         if (defaultDataSource.isOfType(DatabaseSystem.POSTGRESQL)) {
             deleteSchemas(defaultDataSource);
+
+            createSchema(defaultDataSource, "public");
         }
         deleteDirigibleFolder();
     }
@@ -75,23 +76,6 @@ class DirigibleCleaner {
 
         LOGGER.debug("Will drop schemas [{}] from data source [{}]", schemas, dataSource);
         schemas.forEach(schema -> deleteSchema(schema, dataSource));
-
-        createSchema(dataSource, "public");
-    }
-
-    private void createSchema(DirigibleDataSource dataSource, String schemaName) {
-        LOGGER.debug("Will create schema [{}] in [{}]", schemaName, dataSource);
-        try (Connection connection = dataSource.getConnection()) {
-            ISqlDialect dialect = SqlDialectFactory.getDialect(dataSource);
-            String sql = dialect.create()
-                                .schema(schemaName)
-                                .generate();
-            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                preparedStatement.executeUpdate();
-            }
-        } catch (SQLException ex) {
-            throw new IllegalStateException("Failed to create schema [" + schemaName + "] in dataSource [" + dataSource + "] ", ex);
-        }
     }
 
     private Set<String> getSchemas(DirigibleDataSource dataSource) {
@@ -138,51 +122,18 @@ class DirigibleCleaner {
         }
     }
 
-    private void dropAllTablesInSchema(DirigibleDataSource dataSource, String... skipTablePrefixes) {
-        Set<String> tables = getAllTables(dataSource);
-        for (String skipTablePrefix : skipTablePrefixes) {
-            tables = tables.stream()
-                           .filter(t -> !t.startsWith(skipTablePrefix))
-                           .collect(Collectors.toSet());
-        }
-
-        LOGGER.debug("Will drop [{}] tables from data source [{}]. Tables: {}", tables.size(), dataSource, tables);
-
-        for (int idx = 0; idx < 4; idx++) { // execute it a few times due to constraint violations
-            Iterator<String> iterator = tables.iterator();
-            while (iterator.hasNext()) {
-                String tableName = iterator.next();
-                try (Connection connection = dataSource.getConnection()) {
-                    String sql = SqlDialectFactory.getDialect(dataSource)
-                                                  .drop()
-                                                  .table(tableName)
-                                                  .cascade(true)
-                                                  .build();
-                    try (PreparedStatement prepareStatement = connection.prepareStatement(sql)) {
-                        prepareStatement.executeUpdate();
-                        LOGGER.debug("Dropped table [{}]", tableName);
-                        iterator.remove();
-                    }
-                } catch (SQLException ex) {
-                    LOGGER.debug("Failed to drop table [{}] in data source [{}]", tableName, dataSource, ex);
-                }
+    private void createSchema(DirigibleDataSource dataSource, String schemaName) {
+        LOGGER.debug("Will create schema [{}] in [{}]", schemaName, dataSource);
+        try (Connection connection = dataSource.getConnection()) {
+            ISqlDialect dialect = SqlDialectFactory.getDialect(dataSource);
+            String sql = dialect.create()
+                                .schema(schemaName)
+                                .generate();
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                preparedStatement.executeUpdate();
             }
-        }
-
-    }
-
-    private Set<String> getAllTables(DataSource dataSource) {
-        Set<String> tables = new HashSet<>();
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement prepareStatement = connection.prepareStatement(
-                        "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='PUBLIC' OR TABLE_SCHEMA='public'")) {
-            ResultSet resultSet = prepareStatement.executeQuery();
-            while (resultSet.next()) {
-                tables.add(resultSet.getString(1));
-            }
-            return tables;
         } catch (SQLException ex) {
-            throw new IllegalStateException("Failed to get all tables in data source:" + dataSource, ex);
+            throw new IllegalStateException("Failed to create schema [" + schemaName + "] in dataSource [" + dataSource + "] ", ex);
         }
     }
 }
