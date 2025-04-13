@@ -13,12 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.sql.Timestamp;
-import java.util.Date;
 import java.util.Optional;
-import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -59,12 +56,11 @@ public class TaskStateRepositoryTest {
         taskStateRepository.deleteAll();
     }
 
-
     /**
      * Gets the one.
      *
      * @return the one
-     * @throws Exception
+     * @throws Exception the exception
      */
     @Test
     public void getOne() throws Exception {
@@ -73,10 +69,8 @@ public class TaskStateRepositoryTest {
 
         TaskState taskState = createSampleTaskState();
 
-        taskState.getInput()
-                 .add(new TaskStateVariable(taskState, "var1", "val1"));
-        taskState.getInput()
-                 .add(new TaskStateVariable(taskState, "var2", "val2"));
+        taskState.getInput().put("var1", "val1");
+        taskState.getInput().put("var2", "val2");
 
         taskStateRepository.save(taskState);
 
@@ -96,15 +90,15 @@ public class TaskStateRepositoryTest {
         assertEquals(0, result.getStatus()
                               .ordinal());
         assertNotNull(result.getInput());
-        assertEquals("var1", result.getInput()
-                                   .get(0)
-                                   .getName());
-        assertEquals("val1", result.getInput()
-                                   .get(0)
-                                   .getValue());
+        assertEquals("val1", result.getInput().get("var1"));
     }
 
 
+    /**
+     * Creates the sample task state.
+     *
+     * @return the task state
+     */
     public TaskState createSampleTaskState() {
         TaskState taskState = new TaskState();
         taskState.setType(TaskType.BPM);
@@ -134,10 +128,10 @@ public class TaskStateRepositoryTest {
     }
 
     /**
-     * Gets the one.
+     * Gets the input output.
      *
-     * @return the one
-     * @throws Exception
+     * @return the input output
+     * @throws Exception the exception
      */
     @Test
     public void getInputOutput() throws Exception {
@@ -146,17 +140,12 @@ public class TaskStateRepositoryTest {
 
         TaskState taskState = createSampleTaskState();
 
-        taskState.getInput()
-                 .add(new TaskStateVariable(taskState, "var1", "val1"));
-        taskState.getInput()
-                 .add(new TaskStateVariable(taskState, "var2", "val2"));
-        taskState.getOutput()
-                 .add(new TaskStateVariable(taskState, "var1", "val1"));
-        taskState.getOutput()
-                 .add(new TaskStateVariable(taskState, "var2", "val2"));
+        taskState.getInput().put("var1", "val1");
+        taskState.getInput().put("var2", "val2");
+        taskState.getOutput().put("var1", "val1");                 
+        taskState.getOutput().put("var2", "val2");
 
         taskStateRepository.save(taskState);
-
 
         Long id = taskStateRepository.findAll()
                                      .get(0)
@@ -166,18 +155,8 @@ public class TaskStateRepositoryTest {
         assertNotNull(result);
         assertNotNull(result.getInput());
         assertNotNull(result.getOutput());
-        assertEquals("var1", result.getInput()
-                                   .get(0)
-                                   .getName());
-        assertEquals("val1", result.getInput()
-                                   .get(0)
-                                   .getValue());
-        assertEquals("var1", result.getOutput()
-                                   .get(0)
-                                   .getName());
-        assertEquals("val1", result.getOutput()
-                                   .get(0)
-                                   .getValue());
+        assertEquals("val1", result.getInput().get("var1"));
+        assertEquals("val1", result.getOutput().get("var1"));
     }
 
     /**

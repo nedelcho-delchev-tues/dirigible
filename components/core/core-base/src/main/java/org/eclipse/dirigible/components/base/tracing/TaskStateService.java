@@ -1,7 +1,10 @@
 package org.eclipse.dirigible.components.base.tracing;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import org.eclipse.dirigible.commons.api.helpers.NameValuePair;
 import org.eclipse.dirigible.components.base.artefact.ArtefactRepository;
@@ -52,7 +55,7 @@ public class TaskStateService {
      * @param taskState the taskState
      * @return the taskState
      */
-    public TaskState save(TaskState taskState) {
+    private TaskState save(TaskState taskState) {
         return getRepository().saveAndFlush(taskState);
     }
 
@@ -63,6 +66,13 @@ public class TaskStateService {
      */
     public void delete(TaskState taskState) {
         getRepository().delete(taskState);
+    }
+    
+    /**
+     * Delete all.
+     */
+    public void deleteAll() {
+        getRepository().deleteAll();
     }
 
     /**
@@ -94,21 +104,17 @@ public class TaskStateService {
      * @param taskType the task type
      * @param execution the execution
      * @param step the step
-     * @param started the started
      * @param input the input
      * @return the task state
      */
-    public TaskState taskStarted(TaskType taskType, String execution, String step, Timestamp started, List<NameValuePair> input) {
+    public TaskState taskStarted(TaskType taskType, String execution, String step, Map<String, String> input) {
         TaskState taskState = new TaskState();
         taskState.setType(taskType);
         taskState.setExecution(execution);
         taskState.setStep(step);
         taskState.setStatus(TaskStatus.STARTED);
-        taskState.setStarted(started);
-        for (NameValuePair nv : input) {
-            taskState.getInput()
-                     .add(new TaskStateVariable(taskState, nv.getName(), nv.getValue()));
-        }
+        taskState.setStarted(Timestamp.from(Instant.now()));
+        taskState.getInput().putAll(input);
         taskState = save(taskState);
         return taskState;
     }
@@ -117,16 +123,12 @@ public class TaskStateService {
      * Task successful.
      *
      * @param taskState the task state
-     * @param ended the ended
      * @param output the output
      */
-    public void taskSuccessful(TaskState taskState, Timestamp ended, List<NameValuePair> output) {
+    public void taskSuccessful(TaskState taskState, Map<String, String> output) {
         taskState.setStatus(TaskStatus.SUCCESSFUL);
-        taskState.setEnded(ended);
-        for (NameValuePair nv : output) {
-            taskState.getOutput()
-                     .add(new TaskStateVariable(taskState, nv.getName(), nv.getValue()));
-        }
+        taskState.setEnded(Timestamp.from(Instant.now()));
+        taskState.getOutput().putAll(output);
         taskState = save(taskState);
     }
 
@@ -134,17 +136,14 @@ public class TaskStateService {
      * Task failed.
      *
      * @param taskState the task state
-     * @param ended the ended
      * @param output the output
      * @param error the error
      */
-    public void taskFailed(TaskState taskState, Timestamp ended, List<NameValuePair> output, String error) {
+    public void taskFailed(TaskState taskState, Map<String, String> output, String error) {
         taskState.setStatus(TaskStatus.FAILED);
-        taskState.setEnded(ended);
-        for (NameValuePair nv : output) {
-            taskState.getOutput()
-                     .add(new TaskStateVariable(taskState, nv.getName(), nv.getValue()));
-        }
+        taskState.setEnded(Timestamp.from(Instant.now()));
+        taskState.getOutput().putAll(output);
+        taskState.setError(error);
         taskState = save(taskState);
     }
 
