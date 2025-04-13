@@ -71,6 +71,7 @@ public class TaskState {
     protected String error;
     
     
+    /** The input. */
     @ElementCollection
     @CollectionTable(name = "DIRIGIBLE_TASK_STATE_INPUT", 
       joinColumns = {@JoinColumn(name = "TASKSTATEIN_TASKSTATE_ID", referencedColumnName = "TASKSTATE_ID")})
@@ -78,6 +79,7 @@ public class TaskState {
     @Column(name = "TASKSTATEIN_VALUE")
     private Map<String, String> input = new TreeMap<String, String>();
     
+    /** The output. */
     @ElementCollection
     @CollectionTable(name = "DIRIGIBLE_TASK_STATE_OUTPUT", 
       joinColumns = {@JoinColumn(name = "TASKSTATEOUT_TASKSTATE_ID", referencedColumnName = "TASKSTATE_ID")})
@@ -86,6 +88,8 @@ public class TaskState {
     private Map<String, String> output = new TreeMap<String, String>();
 
 	/**
+	 * Gets the id.
+	 *
 	 * @return the id
 	 */
 	public Long getId() {
@@ -93,6 +97,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the id.
+	 *
 	 * @param id the id to set
 	 */
 	public void setId(Long id) {
@@ -100,6 +106,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the type.
+	 *
 	 * @return the type
 	 */
 	public TaskType getType() {
@@ -107,6 +115,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the type.
+	 *
 	 * @param type the type to set
 	 */
 	public void setType(TaskType type) {
@@ -114,6 +124,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the execution.
+	 *
 	 * @return the execution
 	 */
 	public String getExecution() {
@@ -121,6 +133,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the execution.
+	 *
 	 * @param execution the execution to set
 	 */
 	public void setExecution(String execution) {
@@ -128,6 +142,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the step.
+	 *
 	 * @return the step
 	 */
 	public String getStep() {
@@ -135,6 +151,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the step.
+	 *
 	 * @param step the step to set
 	 */
 	public void setStep(String step) {
@@ -142,6 +160,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the started.
+	 *
 	 * @return the started
 	 */
 	public Timestamp getStarted() {
@@ -149,6 +169,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the started.
+	 *
 	 * @param started the started to set
 	 */
 	public void setStarted(Timestamp started) {
@@ -156,6 +178,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the ended.
+	 *
 	 * @return the ended
 	 */
 	public Timestamp getEnded() {
@@ -163,6 +187,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the ended.
+	 *
 	 * @param ended the ended to set
 	 */
 	public void setEnded(Timestamp ended) {
@@ -170,6 +196,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the status.
+	 *
 	 * @return the status
 	 */
 	public TaskStatus getStatus() {
@@ -177,6 +205,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the status.
+	 *
 	 * @param status the status to set
 	 */
 	public void setStatus(TaskStatus status) {
@@ -184,6 +214,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the error.
+	 *
 	 * @return the error
 	 */
 	public String getError() {
@@ -191,6 +223,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the error.
+	 *
 	 * @param error the error to set
 	 */
 	public void setError(String error) {
@@ -198,6 +232,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the input.
+	 *
 	 * @return the input
 	 */
 	public Map<String, String> getInput() {
@@ -205,6 +241,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the input.
+	 *
 	 * @param input the input to set
 	 */
 	public void setInput(Map<String, String> input) {
@@ -212,6 +250,8 @@ public class TaskState {
 	}
 
 	/**
+	 * Gets the output.
+	 *
 	 * @return the output
 	 */
 	public Map<String, String> getOutput() {
@@ -219,12 +259,19 @@ public class TaskState {
 	}
 
 	/**
+	 * Sets the output.
+	 *
 	 * @param output the output to set
 	 */
 	public void setOutput(Map<String, String> output) {
 		this.output = output;
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @return the string
+	 */
 	@Override
 	public String toString() {
 		return "TaskState [id=" + id + ", type=" + type + ", execution=" + execution + ", step=" + step + ", started="

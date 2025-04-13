@@ -56,6 +56,11 @@ public class TaskStateServiceTest {
         taskStateService.deleteAll();
     }
 
+    /**
+     * Start finish.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void startFinish() throws Exception {
 
@@ -86,6 +91,11 @@ public class TaskStateServiceTest {
         assertNull(result.getError());
     }
     
+    /**
+     * Start fail.
+     *
+     * @throws Exception the exception
+     */
     @Test
     public void startFail() throws Exception {
 
