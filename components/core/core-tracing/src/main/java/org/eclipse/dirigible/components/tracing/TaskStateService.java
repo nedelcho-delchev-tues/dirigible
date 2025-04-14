@@ -5,6 +5,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import org.javers.core.Javers;
+import org.javers.core.JaversBuilder;
+import org.javers.core.diff.Diff;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -94,8 +97,19 @@ public class TaskStateService {
      * @return the taskState
      */
     public TaskState findById(Long id) {
-        return getRepository().findById(id)
-                              .orElseThrow(() -> new IllegalArgumentException(this.getClass() + ": missing task state with [" + id + "]"));
+        TaskState taskState = getRepository().findById(id)
+                                             .orElseThrow(() -> new IllegalArgumentException(
+                                                     this.getClass() + ": missing task state with [" + id + "]"));
+
+        if (!TaskStatus.STARTED.equals(taskState.getStatus())) {
+            Javers javers = JaversBuilder.javers()
+                                         .build();
+            Diff diff = javers.compare(taskState.getInput(), taskState.getOutput());
+            // TODO to be extracted and printed even prettier
+            taskState.setDiff(diff.prettyPrint());
+        }
+
+        return taskState;
     }
 
     /**

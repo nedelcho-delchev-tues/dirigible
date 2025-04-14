@@ -70,7 +70,6 @@ public class TaskState {
     @Expose
     protected String error;
 
-
     /** The input. */
     @ElementCollection
     @CollectionTable(name = "DIRIGIBLE_TASK_STATE_INPUT",
@@ -86,6 +85,9 @@ public class TaskState {
     @MapKeyColumn(name = "TASKSTATEOUT_NAME")
     @Column(name = "TASKSTATEOUT_VALUE")
     private Map<String, String> output = new TreeMap<String, String>();
+
+    /** Differences between the input and output variables. */
+    private transient String diff;
 
     /**
      * Gets the id.
@@ -265,6 +267,24 @@ public class TaskState {
      */
     public void setOutput(Map<String, String> output) {
         this.output = output;
+    }
+
+    /**
+     * Gets the diff.
+     *
+     * @return the diff
+     */
+    public String getDiff() {
+        return diff;
+    }
+
+    /**
+     * Sets the diff.
+     *
+     * @param diff the new diff
+     */
+    public void setDiff(String diff) {
+        this.diff = diff;
     }
 
     /**
