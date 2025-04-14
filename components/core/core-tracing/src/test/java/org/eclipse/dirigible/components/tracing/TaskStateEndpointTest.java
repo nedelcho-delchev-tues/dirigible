@@ -89,7 +89,7 @@ public class TaskStateEndpointTest {
     public void setup() throws Exception {
 
         cleanup();
-        
+
         Map<String, String> vars = new TreeMap<String, String>();
         vars.put("n1", "v1");
         // create test task states
@@ -98,7 +98,7 @@ public class TaskStateEndpointTest {
         taskStateService.taskStarted(TaskType.BPM, "exec2", "step1", vars);
         taskStateService.taskStarted(TaskType.BPM, "exec2", "step2", vars);
         TaskState ts3 = taskStateService.taskStarted(TaskType.BPM, "exec3", "step1", vars);
-        
+
         taskStateService.taskSuccessful(ts1, vars);
         taskStateService.taskFailed(ts3, vars, "error1");
 
@@ -107,7 +107,7 @@ public class TaskStateEndpointTest {
         assertEquals(5L, list.getTotalElements());
 
         testTaskState = list.getContent()
-                                    .get(0);
+                            .get(0);
 
         entityManager.refresh(testTaskState);
     }

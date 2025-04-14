@@ -127,8 +127,8 @@ public class TaskStateService {
         taskState.setStatus(TaskStatus.STARTED);
         taskState.setStarted(Timestamp.from(Instant.now()));
         if (input != null) {
-        	taskState.getInput()
-                 .putAll(input);
+            taskState.getInput()
+                     .putAll(input);
         }
         taskState = save(taskState);
         return taskState;
@@ -141,17 +141,17 @@ public class TaskStateService {
      * @param output the output
      */
     public void taskSuccessful(TaskState taskState, Map<String, String> output) {
-    	if (TaskStatus.STARTED.equals(taskState.getStatus())) {
-	        taskState.setStatus(TaskStatus.SUCCESSFUL);
-	        taskState.setEnded(Timestamp.from(Instant.now()));
-	        if (output != null) {
-	        	taskState.getOutput()
-	                 .putAll(output);
-	        }
-	        taskState = save(taskState);
-    	} else {
-    		throw new IllegalArgumentException("Task State must be in status STARTED to be finished successfully");
-    	}
+        if (TaskStatus.STARTED.equals(taskState.getStatus())) {
+            taskState.setStatus(TaskStatus.SUCCESSFUL);
+            taskState.setEnded(Timestamp.from(Instant.now()));
+            if (output != null) {
+                taskState.getOutput()
+                         .putAll(output);
+            }
+            taskState = save(taskState);
+        } else {
+            throw new IllegalArgumentException("Task State must be in status STARTED to be finished successfully");
+        }
     }
 
     /**
@@ -162,18 +162,18 @@ public class TaskStateService {
      * @param error the error
      */
     public void taskFailed(TaskState taskState, Map<String, String> output, String error) {
-    	if (TaskStatus.STARTED.equals(taskState.getStatus())) {
-	        taskState.setStatus(TaskStatus.FAILED);
-	        taskState.setEnded(Timestamp.from(Instant.now()));
-	        if (output != null) {
-	        	taskState.getOutput()
-	                 .putAll(output);
-	        }
-	        taskState.setError(error);
-	        taskState = save(taskState);
-	    } else {
-	    	throw new IllegalArgumentException("Task State must be in status STARTED to be finished as failed");
-	    }
+        if (TaskStatus.STARTED.equals(taskState.getStatus())) {
+            taskState.setStatus(TaskStatus.FAILED);
+            taskState.setEnded(Timestamp.from(Instant.now()));
+            if (output != null) {
+                taskState.getOutput()
+                         .putAll(output);
+            }
+            taskState.setError(error);
+            taskState = save(taskState);
+        } else {
+            throw new IllegalArgumentException("Task State must be in status STARTED to be finished as failed");
+        }
     }
 
 }
