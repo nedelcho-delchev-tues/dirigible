@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.dirigible.commons.config.Configuration;
 import org.javers.core.Javers;
 import org.javers.core.JaversBuilder;
 import org.javers.core.diff.Diff;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TaskStateService {
 
     /** The Constant DIRIGIBLE_TRACING_TASK_ENABLED. */
-    public static final String DIRIGIBLE_TRACING_TASK_ENABLED = "DIRIGIBLE_TRACING_TASK_ENABLED";
+    private static final String DIRIGIBLE_TRACING_TASK_ENABLED = "DIRIGIBLE_TRACING_TASK_ENABLED";
 
     /** The repository. */
     private TaskStateRepository repository;
@@ -136,8 +137,8 @@ public class TaskStateService {
     public TaskState taskStarted(TaskType taskType, String execution, String step, Map<String, String> input) {
         TaskState taskState = new TaskState();
         taskState.setType(taskType);
-        taskState.setExecution(execution);
-        taskState.setStep(step);
+        taskState.setExecution(execution != null ? execution : "NONE");
+        taskState.setStep(step != null ? step : "NONE");
         taskState.setStatus(TaskStatus.STARTED);
         taskState.setStarted(Timestamp.from(Instant.now()));
         if (input != null) {
@@ -183,11 +184,34 @@ public class TaskStateService {
                 taskState.getOutput()
                          .putAll(output);
             }
-            taskState.setError(error);
+            taskState.setError(error != null ? error : "NONE");
             taskState = save(taskState);
         } else {
             throw new IllegalArgumentException("Task State must be in status STARTED to be finished as failed");
         }
+    }
+
+    /**
+     * Checks if is tracing enabled.
+     *
+     * @return true, if is tracing enabled
+     */
+    public boolean isTracingEnabled() {
+        return Boolean.parseBoolean(Configuration.get(TaskStateService.DIRIGIBLE_TRACING_TASK_ENABLED, "false"));
+    }
+
+    /**
+     * Enable tracing.
+     */
+    public void enableTracing() {
+        Configuration.set(TaskStateService.DIRIGIBLE_TRACING_TASK_ENABLED, "true");
+    }
+
+    /**
+     * Disable tracing.
+     */
+    public void disableTracing() {
+        Configuration.set(TaskStateService.DIRIGIBLE_TRACING_TASK_ENABLED, "true");
     }
 
 }

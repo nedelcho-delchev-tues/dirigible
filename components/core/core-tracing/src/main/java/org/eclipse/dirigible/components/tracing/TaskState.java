@@ -14,6 +14,7 @@ import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -49,6 +50,21 @@ public class TaskState {
     @Expose
     protected String step;
 
+    /** The execution definition. */
+    @Column(name = "TASKSTATE_DEFINITION", columnDefinition = "VARCHAR", nullable = true, length = 255)
+    @Expose
+    protected String definition;
+
+    /** The execution instance. */
+    @Column(name = "TASKSTATE_INSTANCE", columnDefinition = "VARCHAR", nullable = true, length = 255)
+    @Expose
+    protected String instance;
+
+    /** The execution tenant. */
+    @Column(name = "TASKSTATE_TENANT", columnDefinition = "VARCHAR", nullable = true, length = 255)
+    @Expose
+    protected String tenant;
+
     /** The execution started timestamp. */
     @Column(name = "TASKSTATE_STARTED", columnDefinition = "TIMESTAMP", nullable = false)
     @Expose
@@ -71,7 +87,7 @@ public class TaskState {
     protected String error;
 
     /** The input. */
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "DIRIGIBLE_TASK_STATE_INPUT",
             joinColumns = {@JoinColumn(name = "TASKSTATEIN_TASKSTATE_ID", referencedColumnName = "TASKSTATE_ID")})
     @MapKeyColumn(name = "TASKSTATEIN_NAME")
@@ -79,7 +95,7 @@ public class TaskState {
     private Map<String, String> input = new TreeMap<String, String>();
 
     /** The output. */
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "DIRIGIBLE_TASK_STATE_OUTPUT",
             joinColumns = {@JoinColumn(name = "TASKSTATEOUT_TASKSTATE_ID", referencedColumnName = "TASKSTATE_ID")})
     @MapKeyColumn(name = "TASKSTATEOUT_NAME")
@@ -159,6 +175,50 @@ public class TaskState {
      */
     public void setStep(String step) {
         this.step = step;
+    }
+
+    /**
+     * Gets the definition.
+     *
+     * @return the definition
+     */
+    public String getDefinition() {
+        return definition;
+    }
+
+    /**
+     * Sets the definition.
+     *
+     * @param definition the new definition
+     */
+    public void setDefinition(String definition) {
+        this.definition = definition;
+    }
+
+    /**
+     * Gets the single instance of TaskState.
+     *
+     * @return single instance of TaskState
+     */
+    public String getInstance() {
+        return instance;
+    }
+
+    /**
+     * Sets the instance.
+     *
+     * @param instance the new instance
+     */
+    public void setInstance(String instance) {
+        this.instance = instance;
+    }
+
+    public String getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(String tenant) {
+        this.tenant = tenant;
     }
 
     /**
@@ -294,9 +354,9 @@ public class TaskState {
      */
     @Override
     public String toString() {
-        return "TaskState [id=" + id + ", type=" + type + ", execution=" + execution + ", step=" + step + ", started=" + started
-                + ", ended=" + ended + ", status=" + status + ", error=" + error + ", input=" + StringUtils.join(input) + ", output="
-                + StringUtils.join(output) + "]";
+        return "TaskState [id=" + id + ", type=" + type + ", execution=" + execution + ", step=" + step + ", definition=" + definition
+                + ", instance=" + instance + ", tenant=" + tenant + ", started=" + started + ", ended=" + ended + ", status=" + status
+                + ", error=" + error + ", input=" + StringUtils.join(input) + ", output=" + StringUtils.join(output) + "]";
     }
 
 

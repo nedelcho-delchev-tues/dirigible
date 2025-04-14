@@ -15,6 +15,9 @@ public enum TaskType {
     JOB,
 
     /** The mq. */
-    MQ
+    MQ,
+
+    /** The other. */
+    OTHER
 
 }

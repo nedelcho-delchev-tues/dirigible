@@ -9,15 +9,23 @@
  */
 package org.eclipse.dirigible.components.listeners.service;
 
-import jakarta.jms.JMSException;
-import jakarta.jms.Message;
-import jakarta.jms.MessageListener;
-import jakarta.jms.TextMessage;
+import java.util.Map;
+import java.util.TreeMap;
+
 import org.eclipse.dirigible.components.base.tenant.TenantContext;
+import org.eclipse.dirigible.components.tracing.TaskState;
+import org.eclipse.dirigible.components.tracing.TaskStateService;
+import org.eclipse.dirigible.components.tracing.TaskType;
 import org.eclipse.dirigible.graalium.core.DirigibleJavascriptCodeRunner;
 import org.eclipse.dirigible.graalium.core.javascript.modules.Module;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageListener;
+import jakarta.jms.TextMessage;
 
 /**
  * The listener interface for receiving asynchronousMessage events. The class that is interested in
@@ -39,6 +47,10 @@ class AsynchronousMessageListener implements MessageListener {
 
     /** The tenant context. */
     private final TenantContext tenantContext;
+
+    /** The task state service. */
+    @Autowired
+    private TaskStateService taskStateService;
 
     /**
      * Instantiates a new asynchronous message listener.
@@ -90,11 +102,36 @@ class AsynchronousMessageListener implements MessageListener {
      */
     private void executeOnMessageHandler(TextMessage textMsg) {
         String extractedMsg = extractMessage(textMsg);
+
+        TaskState taskState = null;
+        if (taskStateService.isTracingEnabled()) {
+            try {
+                Map<String, String> input = new TreeMap<String, String>();
+                input.put("message", extractedMsg);
+                taskState =
+                        taskStateService.taskStarted(TaskType.MQ, textMsg.getJMSMessageID(), listenerDescriptor.getHandlerPath(), input);
+                taskState.setDefinition(listenerDescriptor.getDestination());
+            } catch (JMSException e) {
+                LOGGER.error("Error tracing the received message in [{}] by [{}]", listenerDescriptor.getDestination(),
+                        listenerDescriptor.getHandlerPath(), e);
+            }
+        }
+
         try (DirigibleJavascriptCodeRunner runner = createJSCodeRunner()) {
             String handlerPath = listenerDescriptor.getHandlerPath();
             Module module = runner.run(handlerPath);
             runner.runMethod(module, "onMessage", extractedMsg);
+
+            if (taskStateService.isTracingEnabled()) {
+                taskStateService.taskSuccessful(taskState, null);
+            }
+        } catch (Exception e) {
+            if (taskStateService.isTracingEnabled()) {
+                taskStateService.taskFailed(taskState, null, e.getMessage());
+            }
         }
+
+
     }
 
     /**
