@@ -7,7 +7,7 @@
  *
  * SPDX-FileCopyrightText: Eclipse Dirigible contributors SPDX-License-Identifier: EPL-2.0
  */
-package org.eclipse.dirigible.components.base.tracing;
+package org.eclipse.dirigible.components.tracing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -69,8 +69,10 @@ public class TaskStateRepositoryTest {
 
         TaskState taskState = createSampleTaskState();
 
-        taskState.getInput().put("var1", "val1");
-        taskState.getInput().put("var2", "val2");
+        taskState.getInput()
+                 .put("var1", "val1");
+        taskState.getInput()
+                 .put("var2", "val2");
 
         taskStateRepository.save(taskState);
 
@@ -90,7 +92,8 @@ public class TaskStateRepositoryTest {
         assertEquals(0, result.getStatus()
                               .ordinal());
         assertNotNull(result.getInput());
-        assertEquals("val1", result.getInput().get("var1"));
+        assertEquals("val1", result.getInput()
+                                   .get("var1"));
     }
 
 
@@ -140,10 +143,14 @@ public class TaskStateRepositoryTest {
 
         TaskState taskState = createSampleTaskState();
 
-        taskState.getInput().put("var1", "val1");
-        taskState.getInput().put("var2", "val2");
-        taskState.getOutput().put("var1", "val1");                 
-        taskState.getOutput().put("var2", "val2");
+        taskState.getInput()
+                 .put("var1", "val1");
+        taskState.getInput()
+                 .put("var2", "val2");
+        taskState.getOutput()
+                 .put("var1", "val1");
+        taskState.getOutput()
+                 .put("var2", "val2");
 
         taskStateRepository.save(taskState);
 
@@ -155,8 +162,10 @@ public class TaskStateRepositoryTest {
         assertNotNull(result);
         assertNotNull(result.getInput());
         assertNotNull(result.getOutput());
-        assertEquals("val1", result.getInput().get("var1"));
-        assertEquals("val1", result.getOutput().get("var1"));
+        assertEquals("val1", result.getInput()
+                                   .get("var1"));
+        assertEquals("val1", result.getOutput()
+                                   .get("var1"));
     }
 
     /**

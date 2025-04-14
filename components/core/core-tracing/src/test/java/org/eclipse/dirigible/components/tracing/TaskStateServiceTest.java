@@ -7,7 +7,7 @@
  *
  * SPDX-FileCopyrightText: Eclipse Dirigible contributors SPDX-License-Identifier: EPL-2.0
  */
-package org.eclipse.dirigible.components.base.tracing;
+package org.eclipse.dirigible.components.tracing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -69,28 +69,30 @@ public class TaskStateServiceTest {
         Map<String, String> input = new TreeMap<String, String>();
         input.put("var1", "val1");
         input.put("var2", "val2");
-        
+
         Map<String, String> output = new TreeMap<String, String>();
         output.put("var1", "val1_");
         output.put("var2", "val2_");
-        		
+
         TaskState taskState = taskStateService.taskStarted(TaskType.BPM, "exec1", "step1", input);
 
         Long id = taskStateService.getAll()
-                                     .get(0)
-                                     .getId();
+                                  .get(0)
+                                  .getId();
         TaskState result = taskStateService.findById(id);
         assertNotNull(result);
         assertNotNull(result.getInput());
         assertNotNull(result.getOutput());
-        assertEquals("val1", result.getInput().get("var1"));
-        
+        assertEquals("val1", result.getInput()
+                                   .get("var1"));
+
         taskStateService.taskSuccessful(taskState, output);
-        
-        assertEquals("val1_", result.getOutput().get("var1"));
+
+        assertEquals("val1_", result.getOutput()
+                                    .get("var1"));
         assertNull(result.getError());
     }
-    
+
     /**
      * Start fail.
      *
@@ -104,16 +106,16 @@ public class TaskStateServiceTest {
         Map<String, String> input = new TreeMap<String, String>();
         input.put("var1", "val1");
         input.put("var2", "val2");
-        
+
         Map<String, String> output = new TreeMap<String, String>();
         output.put("var1", "val1_");
         output.put("var2", "val2_");
-        		
+
         TaskState taskState = taskStateService.taskStarted(TaskType.BPM, "exec1", "step1", input);
 
         Long id = taskStateService.getAll()
-                                     .get(0)
-                                     .getId();
+                                  .get(0)
+                                  .getId();
         TaskState result = taskStateService.findById(id);
         assertNotNull(result);
         assertEquals(TaskType.BPM, result.getType());
@@ -121,14 +123,16 @@ public class TaskStateServiceTest {
         assertEquals("step1", result.getStep());
         assertNotNull(result.getInput());
         assertNotNull(result.getOutput());
-        assertEquals("val1", result.getInput().get("var1"));
-        
+        assertEquals("val1", result.getInput()
+                                   .get("var1"));
+
         taskStateService.taskFailed(taskState, output, "error1");
-        
-        assertEquals("val1_", result.getOutput().get("var1"));
+
+        assertEquals("val1_", result.getOutput()
+                                    .get("var1"));
         assertEquals("error1", result.getError());
-        
-        
+
+
     }
 
     /**

@@ -1,4 +1,4 @@
-package org.eclipse.dirigible.components.base.tracing;
+package org.eclipse.dirigible.components.tracing;
 
 /**
  * The Enum TaskType.

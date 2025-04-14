@@ -1,14 +1,13 @@
-package org.eclipse.dirigible.components.base.tracing;
+package org.eclipse.dirigible.components.tracing;
 
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
-import org.eclipse.dirigible.commons.api.helpers.NameValuePair;
-import org.eclipse.dirigible.components.base.artefact.ArtefactRepository;
 import org.springframework.data.domain.Example;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class TaskStateService {
+
+    /** The Constant DIRIGIBLE_TRACING_TASK_ENABLED. */
+    public static final String DIRIGIBLE_TRACING_TASK_ENABLED = "DIRIGIBLE_TRACING_TASK_ENABLED";
 
     /** The repository. */
     private TaskStateRepository repository;
@@ -50,6 +52,16 @@ public class TaskStateService {
     }
 
     /**
+     * Gets the pages.
+     *
+     * @param pageable the pageable
+     * @return the pages
+     */
+    public Page<TaskState> getPages(Pageable pageable) {
+        return getRepository().findAll(pageable);
+    }
+
+    /**
      * Save.
      *
      * @param taskState the taskState
@@ -67,7 +79,7 @@ public class TaskStateService {
     public void delete(TaskState taskState) {
         getRepository().delete(taskState);
     }
-    
+
     /**
      * Delete all.
      */
@@ -114,7 +126,10 @@ public class TaskStateService {
         taskState.setStep(step);
         taskState.setStatus(TaskStatus.STARTED);
         taskState.setStarted(Timestamp.from(Instant.now()));
-        taskState.getInput().putAll(input);
+        if (input != null) {
+        	taskState.getInput()
+                 .putAll(input);
+        }
         taskState = save(taskState);
         return taskState;
     }
@@ -126,10 +141,17 @@ public class TaskStateService {
      * @param output the output
      */
     public void taskSuccessful(TaskState taskState, Map<String, String> output) {
-        taskState.setStatus(TaskStatus.SUCCESSFUL);
-        taskState.setEnded(Timestamp.from(Instant.now()));
-        taskState.getOutput().putAll(output);
-        taskState = save(taskState);
+    	if (TaskStatus.STARTED.equals(taskState.getStatus())) {
+	        taskState.setStatus(TaskStatus.SUCCESSFUL);
+	        taskState.setEnded(Timestamp.from(Instant.now()));
+	        if (output != null) {
+	        	taskState.getOutput()
+	                 .putAll(output);
+	        }
+	        taskState = save(taskState);
+    	} else {
+    		throw new IllegalArgumentException("Task State must be in status STARTED to be finished successfully");
+    	}
     }
 
     /**
@@ -140,11 +162,18 @@ public class TaskStateService {
      * @param error the error
      */
     public void taskFailed(TaskState taskState, Map<String, String> output, String error) {
-        taskState.setStatus(TaskStatus.FAILED);
-        taskState.setEnded(Timestamp.from(Instant.now()));
-        taskState.getOutput().putAll(output);
-        taskState.setError(error);
-        taskState = save(taskState);
+    	if (TaskStatus.STARTED.equals(taskState.getStatus())) {
+	        taskState.setStatus(TaskStatus.FAILED);
+	        taskState.setEnded(Timestamp.from(Instant.now()));
+	        if (output != null) {
+	        	taskState.getOutput()
+	                 .putAll(output);
+	        }
+	        taskState.setError(error);
+	        taskState = save(taskState);
+	    } else {
+	    	throw new IllegalArgumentException("Task State must be in status STARTED to be finished as failed");
+	    }
     }
 
 }

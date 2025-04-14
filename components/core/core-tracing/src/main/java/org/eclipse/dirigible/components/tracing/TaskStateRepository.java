@@ -1,4 +1,4 @@
-package org.eclipse.dirigible.components.base.tracing;
+package org.eclipse.dirigible.components.tracing;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
