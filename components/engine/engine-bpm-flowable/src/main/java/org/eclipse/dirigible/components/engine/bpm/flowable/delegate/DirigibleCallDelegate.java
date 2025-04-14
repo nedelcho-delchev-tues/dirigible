@@ -19,9 +19,9 @@ import java.util.regex.Pattern;
 
 import org.eclipse.dirigible.components.open.telemetry.OpenTelemetryProvider;
 import org.eclipse.dirigible.components.tracing.TaskState;
-import org.eclipse.dirigible.components.tracing.TaskStateService;
 import org.eclipse.dirigible.components.tracing.TaskStateUtil;
 import org.eclipse.dirigible.components.tracing.TaskType;
+import org.eclipse.dirigible.components.tracing.TracingFacade;
 import org.eclipse.dirigible.graalium.core.DirigibleJavascriptCodeRunner;
 import org.eclipse.dirigible.repository.api.RepositoryPath;
 import org.flowable.engine.delegate.BpmnError;
@@ -30,7 +30,6 @@ import org.flowable.engine.delegate.JavaDelegate;
 import org.flowable.engine.impl.el.FixedValue;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,10 +48,6 @@ public class DirigibleCallDelegate implements JavaDelegate {
 
     /** The js expression regex. */
     private static final Pattern JS_EXPRESSION_REGEX = Pattern.compile("(.*\\.(?:m?js|ts))(?:\\/(\\w*))?(?:\\/(\\w*))?");
-
-    /** The task state service. */
-    @Autowired
-    private TaskStateService taskStateService;
 
     /**
      * The handler.
@@ -219,10 +214,10 @@ public class DirigibleCallDelegate implements JavaDelegate {
     @Override
     public void execute(DelegateExecution execution) {
         TaskState taskState = null;
-        if (taskStateService.isTracingEnabled()) {
+        if (TracingFacade.isTracingEnabled()) {
             Map<String, String> input = TaskStateUtil.getVariables(execution.getVariables());
             taskState =
-                    taskStateService.taskStarted(TaskType.BPM, execution.getProcessInstanceBusinessKey(), execution.getCurrentFlowElement()
+                    TracingFacade.taskStarted(TaskType.BPM, execution.getProcessInstanceBusinessKey(), execution.getCurrentFlowElement()
                                                                                                                    .getName(),
                             input);
             taskState.setDefinition(execution.getProcessDefinitionId());
@@ -238,14 +233,14 @@ public class DirigibleCallDelegate implements JavaDelegate {
 
             executeInternal(execution);
 
-            if (taskStateService.isTracingEnabled()) {
+            if (TracingFacade.isTracingEnabled()) {
                 Map<String, String> output = TaskStateUtil.getVariables(execution.getVariables());
-                taskStateService.taskSuccessful(taskState, output);
+                TracingFacade.taskSuccessful(taskState, output);
             }
         } catch (RuntimeException e) {
-            if (taskStateService.isTracingEnabled()) {
+            if (TracingFacade.isTracingEnabled()) {
                 Map<String, String> output = TaskStateUtil.getVariables(execution.getVariables());
-                taskStateService.taskFailed(taskState, output, e.getMessage());
+                TracingFacade.taskFailed(taskState, output, e.getMessage());
             }
             span.recordException(e);
             span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Exception occurred during task execution");

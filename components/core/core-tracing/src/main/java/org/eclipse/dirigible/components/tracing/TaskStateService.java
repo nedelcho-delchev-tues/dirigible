@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TaskStateService {
 
     /** The Constant DIRIGIBLE_TRACING_TASK_ENABLED. */
-    private static final String DIRIGIBLE_TRACING_TASK_ENABLED = "DIRIGIBLE_TRACING_TASK_ENABLED";
+    static final String DIRIGIBLE_TRACING_TASK_ENABLED = "DIRIGIBLE_TRACING_TASK_ENABLED";
 
     /** The repository. */
     private TaskStateRepository repository;
@@ -135,10 +135,16 @@ public class TaskStateService {
      * @return the task state
      */
     public TaskState taskStarted(TaskType taskType, String execution, String step, Map<String, String> input) {
+        if (!isTracingEnabled()) {
+            return null;
+        }
         TaskState taskState = new TaskState();
         taskState.setType(taskType);
         taskState.setExecution(execution != null ? execution : "NONE");
         taskState.setStep(step != null ? step : "NONE");
+        taskState.setThread(Thread.currentThread()
+                                  .getId()
+                + "");
         taskState.setStatus(TaskStatus.STARTED);
         taskState.setStarted(Timestamp.from(Instant.now()));
         if (input != null) {
@@ -156,6 +162,9 @@ public class TaskStateService {
      * @param output the output
      */
     public void taskSuccessful(TaskState taskState, Map<String, String> output) {
+        if (!isTracingEnabled()) {
+            return;
+        }
         if (TaskStatus.STARTED.equals(taskState.getStatus())) {
             taskState.setStatus(TaskStatus.SUCCESSFUL);
             taskState.setEnded(Timestamp.from(Instant.now()));
@@ -177,6 +186,9 @@ public class TaskStateService {
      * @param error the error
      */
     public void taskFailed(TaskState taskState, Map<String, String> output, String error) {
+        if (!isTracingEnabled()) {
+            return;
+        }
         if (TaskStatus.STARTED.equals(taskState.getStatus())) {
             taskState.setStatus(TaskStatus.FAILED);
             taskState.setEnded(Timestamp.from(Instant.now()));

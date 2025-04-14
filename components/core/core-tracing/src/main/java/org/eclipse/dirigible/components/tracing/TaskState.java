@@ -65,6 +65,11 @@ public class TaskState {
     @Expose
     protected String tenant;
 
+    /** The execution tenant. */
+    @Column(name = "TASKSTATE_THREAD", columnDefinition = "VARCHAR", nullable = true, length = 255)
+    @Expose
+    protected String thread;
+
     /** The execution started timestamp. */
     @Column(name = "TASKSTATE_STARTED", columnDefinition = "TIMESTAMP", nullable = false)
     @Expose
@@ -221,6 +226,14 @@ public class TaskState {
         this.tenant = tenant;
     }
 
+    public String getThread() {
+        return thread;
+    }
+
+    public void setThread(String thread) {
+        this.thread = thread;
+    }
+
     /**
      * Gets the started.
      *
@@ -355,8 +368,9 @@ public class TaskState {
     @Override
     public String toString() {
         return "TaskState [id=" + id + ", type=" + type + ", execution=" + execution + ", step=" + step + ", definition=" + definition
-                + ", instance=" + instance + ", tenant=" + tenant + ", started=" + started + ", ended=" + ended + ", status=" + status
-                + ", error=" + error + ", input=" + StringUtils.join(input) + ", output=" + StringUtils.join(output) + "]";
+                + ", instance=" + instance + ", tenant=" + tenant + ", thread=" + thread + ", started=" + started + ", ended=" + ended
+                + ", status=" + status + ", error=" + error + ", input=" + StringUtils.join(input) + ", output=" + StringUtils.join(output)
+                + "]";
     }
 
 
