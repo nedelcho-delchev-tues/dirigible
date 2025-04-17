@@ -216,8 +216,11 @@ public class DirigibleCallDelegate implements JavaDelegate {
         TaskState taskState = null;
         if (TracingFacade.isTracingEnabled()) {
             Map<String, String> input = TaskStateUtil.getVariables(execution.getVariables());
-            taskState = TracingFacade.taskStarted(TaskType.BPM, execution.getProcessInstanceBusinessKey() != null ? execution.getProcessInstanceBusinessKey() : execution.getProcessInstanceId(), execution.getCurrentFlowElement()
-                                                                                                                    .getName(),
+            taskState = TracingFacade.taskStarted(TaskType.BPM,
+                    execution.getProcessInstanceBusinessKey() != null ? execution.getProcessInstanceBusinessKey()
+                            : execution.getProcessInstanceId(),
+                    execution.getCurrentFlowElement()
+                             .getName(),
                     input);
             taskState.setDefinition(execution.getProcessDefinitionId());
             taskState.setInstance(execution.getProcessInstanceId());
