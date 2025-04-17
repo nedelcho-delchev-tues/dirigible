@@ -16,6 +16,7 @@ ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, 
     $scope.searchText = "";
     $scope.filterBy = "";
     $scope.displaySearch = false;
+    $scope.displayTracing = false;
     $scope.tasksList = [];
     $scope.pageSize = 10;
     $scope.currentPage = 1;
@@ -27,7 +28,6 @@ ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, 
             clearInterval($scope.currentFetchDataTask);
         }
 
-        // $scope.currentFetchDatadTask = setInterval(() => {
         const pageNumber = (args && args.pageNumber) || $scope.currentPage;
         const pageSize = (args && args.pageSize) || $scope.pageSize;
         const limit = pageNumber * pageSize;
@@ -38,26 +38,42 @@ ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, 
 
         $http.get('/services/core/tracing', { params: { 'condition': $scope.filterBy, 'limit': limit } })
             .then((response) => {
-                // if ($scope.tasksList.length < response.data.length) {
-                //     Notifications.show({
-                //         type: 'information',
-                //         title: 'Tasks states',
-                //         description: 'A new task state has been added.'
-                //     });
-                // }
                 $scope.tasksList = response.data;
             });
-        // }, 10000);
+
+
+        $http.get('/services/js/perspective-tracing/service/enable-tracing.js')
+            .then((response) => {
+                $scope.displayTracing = ('true' === response.data);
+            });
     }
 
     fetchData();
+
+    setInterval(() => {
+        fetchData();
+    }, 10000);
 
     $scope.reload = () => {
         fetchData();
     };
 
+    $scope.clean = () => {
+        $http.delete('/services/core/tracing')
+            .then((response) => {
+                $scope.tasksList = response.data;
+            });
+    };
+
     $scope.toggleSearch = () => {
         $scope.displaySearch = !$scope.displaySearch;
+    };
+
+    $scope.toggleTracing = () => {
+        $http.post('/services/js/perspective-tracing/service/enable-tracing.js')
+            .then((response) => {
+                $scope.displayTracing = ('true' === response.data);
+            });
     };
 
     $scope.selectAllChanged = () => {

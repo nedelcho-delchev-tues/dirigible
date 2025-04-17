@@ -28,9 +28,11 @@
     <body class="bk-vbox">
         <bk-toolbar compact="true">
             <bk-toolbar-spacer></bk-toolbar-spacer>
+            <bk-button state="transparent" toggled="displayTracing" glyph="sap-icon--log" title="Enable tracing" aria-label="Enable tracing" ng-click="toggleTracing()"></bk-button>
             <bk-button state="transparent" glyph="sap-icon--refresh" title="Refresh" aria-label="Refresh" ng-click="reload()"></bk-button>
-            <bk-toolbar-separator></bk-toolbar-separator>
             <bk-button state="transparent" toggled="displaySearch" glyph="sap-icon--search" title="Toggle search" aria-label="Toggle search" ng-click="toggleSearch()"></bk-button>
+            <bk-toolbar-separator></bk-toolbar-separator>
+            <bk-button state="transparent" glyph="sap-icon--delete" title="Clean" aria-label="Clean" ng-click="clean()"></bk-button>
         </bk-toolbar>
         <bk-toolbar ng-if="displaySearch">
             <bk-input type="search" placeholder="Search" ng-keyup="inputSearchKeyUp($event)" ng-model="searchText" bk-focus="true"></bk-input>
