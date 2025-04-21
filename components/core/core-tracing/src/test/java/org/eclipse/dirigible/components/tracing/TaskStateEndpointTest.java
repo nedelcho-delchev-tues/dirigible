@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.eclipse.dirigible.commons.config.Configuration;
 import org.eclipse.dirigible.components.base.endpoint.BaseEndpoint;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,6 +89,8 @@ public class TaskStateEndpointTest {
     @BeforeEach
     public void setup() throws Exception {
 
+        Configuration.set(TaskStateService.DIRIGIBLE_TRACING_TASK_ENABLED, "true");
+
         cleanup();
 
         Map<String, String> vars = new TreeMap<String, String>();
@@ -126,7 +129,7 @@ public class TaskStateEndpointTest {
      * Find all task states.
      */
     @Test
-    public void findAllDataSources() {
+    public void findAllTaskStates() {
         Integer size = 10;
         Integer page = 0;
         Pageable pageable = PageRequest.of(page, size);
@@ -184,7 +187,7 @@ public class TaskStateEndpointTest {
      * @throws Exception the exception
      */
     @Test
-    public void getAllDataSources() throws Exception {
+    public void getAllTaskStates() throws Exception {
         mockMvc.perform(get("/services/core/tracing"))
                .andDo(print())
                .andExpect(status().is2xxSuccessful());

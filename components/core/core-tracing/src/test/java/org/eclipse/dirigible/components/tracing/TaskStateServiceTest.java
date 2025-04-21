@@ -13,13 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import java.sql.Timestamp;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.TreeMap;
 
+import org.eclipse.dirigible.commons.config.Configuration;
+import org.eclipse.dirigible.components.base.endpoint.BaseEndpoint;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -27,9 +27,9 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
-
-import jakarta.persistence.EntityManager;
 
 /**
  * The Class TableRepositoryTest.
@@ -46,11 +46,22 @@ public class TaskStateServiceTest {
     private TaskStateService taskStateService;
 
     /**
+     * Setup.
+     *
+     * @throws Exception the exception
+     */
+    @BeforeEach
+    public void setup() throws Exception {
+        Configuration.set(TaskStateService.DIRIGIBLE_TRACING_TASK_ENABLED, "true");
+
+        cleanup();
+    }
+
+    /**
      * Cleanup.
      *
      * @throws Exception the exception
      */
-    @AfterEach
     public void cleanup() throws Exception {
         // delete test task states
         taskStateService.deleteAll();
