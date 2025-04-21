@@ -13,7 +13,7 @@ const ideTracingTasksView = angular.module('ide-tracing-tasks', ['platformView',
 ideTracingTasksView.constant('Notifications', new NotificationHub());
 ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, $timeout, Notifications) => {
     $scope.selectAll = false;
-    $scope.searchText = "";
+    $scope.searchField = { text: '' };
     $scope.filterBy = "";
     $scope.displaySearch = false;
     $scope.displayTracing = false;
@@ -36,10 +36,18 @@ ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, 
             return;
         }
 
-        $http.get('/services/core/tracing', { params: { 'condition': $scope.filterBy, 'limit': limit } })
-            .then((response) => {
-                $scope.tasksList = response.data;
-            });
+        if ($scope.filterBy && $scope.filterBy !== '') {
+            $http.get('/services/core/tracing/search', { params: { 'execution': $scope.filterBy } })
+                .then((response) => {
+                    $scope.tasksList = response.data;
+                });
+        } else {
+            $http.get('/services/core/tracing')
+                .then((response) => {
+                    $scope.tasksList = response.data;
+                });
+        }
+
 
 
         $http.get('/services/js/perspective-tracing/service/enable-tracing.js')
@@ -90,7 +98,7 @@ ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, 
     };
 
     $scope.clearSearch = () => {
-        $scope.searchText = "";
+        $scope.searchField.text = "";
         $scope.filterBy = "";
         fetchData();
     };
@@ -105,7 +113,7 @@ ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, 
     $scope.hasSelected = () => $scope.tasksList.some(x => x.selected);
 
     $scope.applyFilter = () => {
-        $scope.filterBy = $scope.searchText;
+        $scope.filterBy = $scope.searchField.text;
         fetchData();
     };
 
@@ -121,13 +129,14 @@ ideTracingTasksView.controller('IDETracingTasksViewController', ($scope, $http, 
 
         switch (e.key) {
             case 'Escape':
-                $scope.searchText = $scope.filterBy || '';
+                $scope.searchField.text = '';
+                $scope.applyFilter();
                 break;
             case 'Enter':
                 $scope.applyFilter();
                 break;
             default:
-                if ($scope.filterBy !== $scope.searchText) {
+                if ($scope.filterBy !== $scope.searchField.text) {
                     $scope.lastSearchKeyUp = $timeout(() => {
                         $scope.lastSearchKeyUp = null;
                         $scope.applyFilter();

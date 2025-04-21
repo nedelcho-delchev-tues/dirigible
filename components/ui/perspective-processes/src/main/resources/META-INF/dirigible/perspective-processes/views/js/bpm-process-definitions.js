@@ -13,7 +13,7 @@ const ideBpmProcessDefinitionsView = angular.module('ide-bpm-process-definitions
 ideBpmProcessDefinitionsView.constant('Notifications', new NotificationHub());
 ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController', ($scope, $http, $timeout, Notifications) => {
     $scope.selectAll = false;
-    $scope.searchText = "";
+    $scope.searchField = { text: '' };
     $scope.filterBy = "";
     $scope.displaySearch = false;
     $scope.definitionsList = [];
@@ -35,7 +35,7 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
             return;
         }
 
-        $http.get('/services/bpm/bpm-processes/definitions', { params: { 'condition': $scope.filterBy, 'limit': limit } })
+        $http.get('/services/bpm/bpm-processes/definitions', { params: { 'key': $scope.filterBy } })
             .then((response) => {
                 if ($scope.definitionsList.length < response.data.length) {
                     Notifications.show({
@@ -49,7 +49,7 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
     }
 
     fetchData();
-    
+
     setInterval(() => {
         fetchData();
     }, 10000);
@@ -76,7 +76,7 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
     };
 
     $scope.clearSearch = () => {
-        $scope.searchText = "";
+        $scope.searchField.text = "";
         $scope.filterBy = "";
         fetchData();
     };
@@ -91,7 +91,7 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
     $scope.hasSelected = () => $scope.definitionsList.some(x => x.selected);
 
     $scope.applyFilter = () => {
-        $scope.filterBy = $scope.searchText;
+        $scope.filterBy = $scope.searchField.text;
         fetchData();
     };
 
@@ -107,13 +107,14 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
 
         switch (e.key) {
             case 'Escape':
-                $scope.searchText = $scope.filterBy || '';
+                $scope.searchField.text = '';
+                $scope.applyFilter();
                 break;
             case 'Enter':
                 $scope.applyFilter();
                 break;
             default:
-                if ($scope.filterBy !== $scope.searchText) {
+                if ($scope.filterBy !== $scope.searchField.text) {
                     $scope.lastSearchKeyUp = $timeout(() => {
                         $scope.lastSearchKeyUp = null;
                         $scope.applyFilter();

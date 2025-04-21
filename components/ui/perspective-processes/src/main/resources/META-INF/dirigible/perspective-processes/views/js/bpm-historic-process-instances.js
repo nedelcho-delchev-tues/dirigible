@@ -14,15 +14,14 @@ ideBpmHistoricProcessInstancesView.constant('Notifications', new NotificationHub
 ideBpmHistoricProcessInstancesView.constant('Dialogs', new DialogHub());
 ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesViewController', ($scope, $http, Notifications, Dialogs) => {
     $scope.instances = [];
-    $scope.model = {};
-    $scope.model.searchText = '';
+    $scope.searchField = { text: '' };
     $scope.displaySearch = false;
     $scope.selectedProcessDefinitionKey = null;
 
     setInterval(() => { $scope.fetchData() }, 5000);
 
     $scope.fetchData = () => {
-        $http.get('/services/bpm/bpm-processes/historic-instances', { params: { 'businessKey': $scope.model.searchText, 'definitionKey': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
+        $http.get('/services/bpm/bpm-processes/historic-instances', { params: { 'businessKey': $scope.searchField.text, 'definitionKey': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
             .then((response) => {
                 $scope.instances = response.data;
             });
@@ -37,7 +36,7 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
     };
 
     $scope.applyFilter = () => {
-        $http.get('/services/bpm/bpm-processes/historic-instances', { params: { 'businessKey': $scope.model.searchText, 'definitionKey': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
+        $http.get('/services/bpm/bpm-processes/historic-instances', { params: { 'businessKey': $scope.searchField.text, 'definitionKey': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
             .then((response) => {
                 $scope.instances = response.data;
             });
@@ -65,7 +64,8 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
     $scope.inputSearchKeyUp = (e) => {
         switch (e.key) {
             case 'Escape':
-                $scope.model.searchText = '';
+                $scope.searchField.text = '';
+                $scope.applyFilter();
                 break;
             case 'Enter':
                 $scope.applyFilter();

@@ -16,6 +16,10 @@ public class TaskStateUtil {
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             if (entry.getValue() instanceof String) {
                 result.put(entry.getKey(), (String) entry.getValue());
+            } else {
+                result.put(entry.getKey(), entry.getValue() != null ? entry.getValue()
+                                                                           .toString()
+                        : "null");
             }
         }
         return result;
