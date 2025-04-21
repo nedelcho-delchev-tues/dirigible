@@ -7,7 +7,7 @@
 }
 
 .stencil-stroke {
-    stroke: var(--sapLinkColor, #0a6ed1);
+    stroke: var(--sapTextColor, #32363a);
 }
 
 .stencil-stroke-text {
@@ -19,11 +19,11 @@
 }
 
 .stencil-fill {
-    fill: var(--sapLinkColor, #0a6ed1);
+    fill: var(--sapTextColor, #0a6ed1);
 }
 
 text tspan {
-    fill: var(--sapLinkColor, #0a6ed1);
+    fill: var(--sapTextColor, #0a6ed1);
 }
 
 .stencil-color1 {
