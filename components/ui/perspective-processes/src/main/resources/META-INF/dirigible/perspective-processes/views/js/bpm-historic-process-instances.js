@@ -10,8 +10,9 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 const ideBpmHistoricProcessInstancesView = angular.module('ide-bpm-historic-process-instances', ['platformView', 'blimpKit']);
+ideBpmHistoricProcessInstancesView.constant('Notifications', new NotificationHub());
 ideBpmHistoricProcessInstancesView.constant('Dialogs', new DialogHub());
-ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesViewController', ($scope, $http, Dialogs) => {
+ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesViewController', ($scope, $http, Notifications, Dialogs) => {
     $scope.instances = [];
     $scope.model = {};
     $scope.model.searchText = '';
@@ -28,7 +29,7 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
     };
 
     $scope.selectionChanged = (instance) => {
-        MessageHub.postMessage({ topic: 'bpm.historic.instance.selected', data: { instance: instance.id } });
+        Notifications.postMessage({ topic: 'bpm.historic.instance.selected', data: { instance: instance.id } });
     };
 
     $scope.toggleSearch = () => {

@@ -120,8 +120,8 @@ ideBpmProcessInstancesView.controller('IDEBpmProcessInstancesViewController', ($
         handler: (data) => {
             $scope.$evalAsync(() => {
                 if (data.hasOwnProperty('definition')) {
-                    $scope.instances.selectedProcessDefinitionKey = data.definition;
-                    $scope.instances.applyFilter();
+                    $scope.selectedProcessDefinitionKey = data.definition;
+                    $scope.applyFilter();
                 } else {
                     Dialogs.showAlert({
                         title: 'Missing data',

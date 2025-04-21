@@ -27,30 +27,32 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
             clearInterval($scope.currentFetchDataDefinition);
         }
 
-        $scope.currentFetchDatadDefinition = setInterval(() => {
-            const pageNumber = (args && args.pageNumber) || $scope.currentPage;
-            const pageSize = (args && args.pageSize) || $scope.pageSize;
-            const limit = pageNumber * pageSize;
-            const startIndex = (pageNumber - 1) * pageSize;
-            if (startIndex >= $scope.totalRows) {
-                return;
-            }
+        const pageNumber = (args && args.pageNumber) || $scope.currentPage;
+        const pageSize = (args && args.pageSize) || $scope.pageSize;
+        const limit = pageNumber * pageSize;
+        const startIndex = (pageNumber - 1) * pageSize;
+        if (startIndex >= $scope.totalRows) {
+            return;
+        }
 
-            $http.get('/services/bpm/bpm-processes/definitions', { params: { 'condition': $scope.filterBy, 'limit': limit } })
-                .then((response) => {
-                    if ($scope.definitionsList.length < response.data.length) {
-                        Notifications.show({
-                            type: 'information',
-                            title: 'User definitions',
-                            description: 'A new user task has been added.'
-                        });
-                    }
-                    $scope.definitionsList = response.data;
-                });
-        }, 10000);
+        $http.get('/services/bpm/bpm-processes/definitions', { params: { 'condition': $scope.filterBy, 'limit': limit } })
+            .then((response) => {
+                if ($scope.definitionsList.length < response.data.length) {
+                    Notifications.show({
+                        type: 'information',
+                        title: 'User definitions',
+                        description: 'A new user task has been added.'
+                    });
+                }
+                $scope.definitionsList = response.data;
+            });
     }
 
     fetchData();
+    
+    setInterval(() => {
+        fetchData();
+    }, 10000);
 
     $scope.reload = () => {
         fetchData();
