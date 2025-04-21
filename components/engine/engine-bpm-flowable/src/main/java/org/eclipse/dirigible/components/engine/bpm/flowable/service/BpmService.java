@@ -199,12 +199,12 @@ public class BpmService {
         ProcessEngine processEngine = ((ProcessEngine) getBpmProviderFlowable().getProcessEngine());
 
         ProcessDefinitionQuery processDefinitionsQuery = processEngine.getRepositoryService()
-                                                                  .createProcessDefinitionQuery();
+                                                                      .createProcessDefinitionQuery();
         if (key.isPresent() && !key.get()
-		                .isEmpty()) {
-        	processDefinitionsQuery.processDefinitionKey(key.get());
-		}
-        
+                                   .isEmpty()) {
+            processDefinitionsQuery.processDefinitionKey(key.get());
+        }
+
         List<ProcessDefinition> processDefinitions = processDefinitionsQuery.list();
 
         List<ProcessDefinitionData> results = new ArrayList<ProcessDefinitionData>();

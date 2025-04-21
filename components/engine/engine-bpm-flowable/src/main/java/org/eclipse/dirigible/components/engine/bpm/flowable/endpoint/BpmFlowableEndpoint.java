@@ -196,8 +196,8 @@ public class BpmFlowableEndpoint extends BaseEndpoint {
      * @return the process definitions
      */
     @GetMapping(value = "/bpm-processes/definitions")
-    public ResponseEntity<List<ProcessDefinitionData>> getProcessDefinitions() {
-        return ResponseEntity.ok(getBpmService().getProcessDefinitions());
+    public ResponseEntity<List<ProcessDefinitionData>> getProcessDefinitions(@Nullable @RequestParam("key") Optional<String> key) {
+        return ResponseEntity.ok(getBpmService().getProcessDefinitions(key));
     }
 
     /**
@@ -226,8 +226,8 @@ public class BpmFlowableEndpoint extends BaseEndpoint {
      * @return the processes keys
      */
     @GetMapping(value = "/bpm-processes/instances")
-    public ResponseEntity<List<ProcessInstanceData>> getProcessesInstances(@Nullable @RequestParam("businessKey") Optional<String> businessKey,
-            @Nullable @RequestParam("key") Optional<String> key) {
+    public ResponseEntity<List<ProcessInstanceData>> getProcessesInstances(
+            @Nullable @RequestParam("businessKey") Optional<String> businessKey, @Nullable @RequestParam("key") Optional<String> key) {
         return ResponseEntity.ok(getBpmService().getProcessInstances(key, businessKey));
     }
 
