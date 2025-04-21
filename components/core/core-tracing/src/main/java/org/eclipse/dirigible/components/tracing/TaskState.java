@@ -227,18 +227,38 @@ public class TaskState {
         this.instance = instance;
     }
 
+    /**
+     * Gets the tenant.
+     *
+     * @return the tenant
+     */
     public String getTenant() {
         return tenant;
     }
 
+    /**
+     * Sets the tenant.
+     *
+     * @param tenant the new tenant
+     */
     public void setTenant(String tenant) {
         this.tenant = tenant;
     }
 
+    /**
+     * Gets the thread.
+     *
+     * @return the thread
+     */
     public String getThread() {
         return thread;
     }
 
+    /**
+     * Sets the thread.
+     *
+     * @param thread the new thread
+     */
     public void setThread(String thread) {
         this.thread = thread;
     }

@@ -84,7 +84,7 @@ public class TaskStateEndpoint extends BaseEndpoint {
     /**
      * Find by name.
      *
-     * @param name the name
+     * @param execution the execution
      * @return the response entity
      */
     @GetMapping("/search")

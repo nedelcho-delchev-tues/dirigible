@@ -12,12 +12,15 @@ package org.eclipse.dirigible.components.tracing;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * The Class TaskStateUtil.
+ */
 public class TaskStateUtil {
 
     /**
      * Gets the variables.
      *
-     * @param context the context
+     * @param map the map
      * @return the variables
      */
     public static final Map<String, String> getVariables(Map<String, Object> map) {
