@@ -12,6 +12,9 @@ package org.eclipse.dirigible.components.engine.bpm.flowable.endpoint;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import jakarta.annotation.security.RolesAllowed;
+
 import org.apache.commons.io.IOUtils;
 import org.eclipse.dirigible.components.api.security.UserFacade;
 import org.eclipse.dirigible.components.base.endpoint.BaseEndpoint;
@@ -63,6 +66,7 @@ import static org.eclipse.dirigible.components.engine.bpm.flowable.service.task.
 @CrossOrigin
 @RestController
 @RequestMapping(BaseEndpoint.PREFIX_ENDPOINT_BPM)
+@RolesAllowed({"ADMINISTRATOR", "DEVELOPER", "OPERATOR"})
 public class BpmFlowableEndpoint extends BaseEndpoint {
 
     /**
