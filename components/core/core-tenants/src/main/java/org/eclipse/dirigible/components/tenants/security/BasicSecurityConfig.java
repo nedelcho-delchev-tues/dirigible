@@ -29,10 +29,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 @ConditionalOnProperty(name = "basic.enabled", havingValue = "true")
-@EnableMethodSecurity(
-	    securedEnabled = false,
-	    jsr250Enabled = true,
-	    prePostEnabled = false)
+@EnableMethodSecurity(securedEnabled = false, jsr250Enabled = true, prePostEnabled = false)
 public class BasicSecurityConfig {
 
     /**
