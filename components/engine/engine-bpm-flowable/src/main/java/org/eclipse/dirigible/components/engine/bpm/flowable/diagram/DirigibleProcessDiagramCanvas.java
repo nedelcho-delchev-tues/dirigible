@@ -63,16 +63,16 @@ public class DirigibleProcessDiagramCanvas {
     protected static final int LINE_HEIGHT = FONT_SIZE + FONT_SPACING;
 
     // Colors
-    protected static final Color TASK_BOX_COLOR = new Color(249, 249, 249);
-    protected static final Color SUBPROCESS_BOX_COLOR = new Color(204, 204, 204);
-    protected static final Color EVENT_COLOR = new Color(249, 249, 249);
-    protected static final Color CONNECTION_COLOR = new Color(140, 140, 140);
-    protected static final Color CONDITIONAL_INDICATOR_COLOR = new Color(204, 204, 204);
+    protected static final Color TASK_BOX_COLOR = Color.gray; // Color.white; //new Color(249, 249, 249);
+    protected static final Color SUBPROCESS_BOX_COLOR = Color.gray; // Color.white; //new Color(204, 204, 204);
+    protected static final Color EVENT_COLOR = Color.gray; // Color.white; //new Color(249, 249, 249);
+    protected static final Color CONNECTION_COLOR = Color.gray; // Color.black; //new Color(140, 140, 140);
+    protected static final Color CONDITIONAL_INDICATOR_COLOR = Color.gray; // Color.white; //new Color(204, 204, 204);
     protected static final Color HIGHLIGHT_COLOR = Color.RED;
-    protected static final Color LABEL_COLOR = new Color(112, 146, 190);
-    protected static final Color TASK_BORDER_COLOR = new Color(140, 140, 140);
-    protected static final Color EVENT_BORDER_COLOR = new Color(140, 140, 140);
-    protected static final Color SUBPROCESS_BORDER_COLOR = new Color(64, 64, 64);
+    protected static final Color LABEL_COLOR = Color.gray; // new Color(112, 146, 190);
+    protected static final Color TASK_BORDER_COLOR = Color.gray; // Color.black; //new Color(140, 140, 140);
+    protected static final Color EVENT_BORDER_COLOR = Color.gray; // Color.black; //new Color(140, 140, 140);
+    protected static final Color SUBPROCESS_BORDER_COLOR = Color.gray; // new Color(64, 64, 64);
 
     // Fonts
     protected static Font LABEL_FONT;
@@ -200,7 +200,7 @@ public class DirigibleProcessDiagramCanvas {
         }
 
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setPaint(Color.black);
+        g.setPaint(TASK_BORDER_COLOR);
 
         Font font = new Font(activityFontName, Font.BOLD, FONT_SIZE);
         g.setFont(font);
@@ -310,7 +310,7 @@ public class DirigibleProcessDiagramCanvas {
         g.setPaint(EVENT_COLOR);
         g.setStroke(EVENT_STROKE);
         Ellipse2D circle = new Ellipse2D.Double(graphicInfo.getX(), graphicInfo.getY(), graphicInfo.getWidth(), graphicInfo.getHeight());
-        g.fill(circle);
+        // g.fill(circle);
         g.setPaint(EVENT_BORDER_COLOR);
         g.draw(circle);
         g.setPaint(originalPaint);
@@ -328,7 +328,7 @@ public class DirigibleProcessDiagramCanvas {
         Stroke originalStroke = g.getStroke();
         g.setPaint(EVENT_COLOR);
         Ellipse2D circle = new Ellipse2D.Double(graphicInfo.getX(), graphicInfo.getY(), graphicInfo.getWidth(), graphicInfo.getHeight());
-        g.fill(circle);
+        // g.fill(circle);
         g.setPaint(EVENT_BORDER_COLOR);
         if (scaleFactor == 1.0) {
             g.setStroke(END_EVENT_STROKE);
@@ -409,7 +409,7 @@ public class DirigibleProcessDiagramCanvas {
         Paint originalPaint = g.getPaint();
         Stroke originalStroke = g.getStroke();
         g.setPaint(EVENT_COLOR);
-        g.fill(outerCircle);
+        // g.fill(outerCircle);
 
         g.setPaint(EVENT_BORDER_COLOR);
         if (!isInterrupting) {
@@ -766,7 +766,7 @@ public class DirigibleProcessDiagramCanvas {
 
         // shape
         RoundRectangle2D rect = new RoundRectangle2D.Double(x, y, width, height, arcR, arcR);
-        g.fill(rect);
+        // g.fill(rect);
         g.setPaint(TASK_BORDER_COLOR);
         g.setStroke(TASK_BORDER_STROKE);
 
@@ -803,7 +803,7 @@ public class DirigibleProcessDiagramCanvas {
         // Create an attributed string based in input text
         AttributedString attributedString = new AttributedString(text);
         attributedString.addAttribute(TextAttribute.FONT, g.getFont());
-        attributedString.addAttribute(TextAttribute.FOREGROUND, Color.black);
+        attributedString.addAttribute(TextAttribute.FOREGROUND, TASK_BORDER_COLOR);
 
         AttributedCharacterIterator characterIterator = attributedString.getIterator();
 
@@ -948,7 +948,7 @@ public class DirigibleProcessDiagramCanvas {
         } else {
             Paint originalPaint = g.getPaint();
             g.setPaint(SUBPROCESS_BOX_COLOR);
-            g.fill(rect);
+            // g.fill(rect);
             g.setPaint(SUBPROCESS_BORDER_COLOR);
             g.draw(rect);
             g.setPaint(originalPaint);
@@ -966,11 +966,11 @@ public class DirigibleProcessDiagramCanvas {
                 graphicInfo.getHeight() + 6, 8, 8);
         Paint originalPaint = g.getPaint();
         g.setPaint(SUBPROCESS_BOX_COLOR);
-        g.fill(outerRect);
+        // g.fill(outerRect);
         g.setPaint(SUBPROCESS_BORDER_COLOR);
         g.draw(outerRect);
         g.setPaint(SUBPROCESS_BOX_COLOR);
-        g.fill(rect);
+        // g.fill(rect);
         g.setPaint(SUBPROCESS_BORDER_COLOR);
         g.draw(rect);
         g.setPaint(originalPaint);
