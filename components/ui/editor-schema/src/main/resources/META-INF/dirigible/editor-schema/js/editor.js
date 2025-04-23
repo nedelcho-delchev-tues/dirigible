@@ -316,8 +316,10 @@ angular.module('ui.schema.modeler', ['blimpKit', 'platformView', 'WorkspaceServi
 					} else {
 						label += '<i class="dsm-table-spacer"></i>';
 					}
-					let suffix = ': ' + mxUtils.htmlEntities(cell.value.type, false) + (cell.value.columnLength ?
-						'(' + cell.value.columnLength + ')' : '');
+					debugger
+					let suffix = ': ' + mxUtils.htmlEntities(cell.value.type, false) + (cell.value.columnLength && !cell.value.precision ?
+						'(' + cell.value.columnLength + ')' : '') + (cell.value.precision && cell.value.scale ?
+							'(' + cell.value.precision + ',' + cell.value.scale + ')' : '');
 					suffix = cell.value.isSQL ? '' : suffix;
 					return label + mxUtils.htmlEntities(cell.value.name, false) + suffix;
 				}
