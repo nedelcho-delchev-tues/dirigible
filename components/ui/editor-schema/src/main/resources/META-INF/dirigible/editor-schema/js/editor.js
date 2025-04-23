@@ -316,7 +316,6 @@ angular.module('ui.schema.modeler', ['blimpKit', 'platformView', 'WorkspaceServi
 					} else {
 						label += '<i class="dsm-table-spacer"></i>';
 					}
-					debugger
 					let suffix = ': ' + mxUtils.htmlEntities(cell.value.type, false) + (cell.value.columnLength && !cell.value.precision ?
 						'(' + cell.value.columnLength + ')' : '') + (cell.value.precision && cell.value.scale ?
 							'(' + cell.value.precision + ',' + cell.value.scale + ')' : '');
