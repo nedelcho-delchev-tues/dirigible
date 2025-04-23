@@ -149,12 +149,9 @@ export class ${name}Repository {
         this.dao = daoApi.create(${name}Repository.DEFINITION, undefined, dataSource);
     }
 
-    public findAll(options?: ${name}EntityOptions): ${name}Entity[] {
+    public findAll(options: ${name}EntityOptions = {}): ${name}Entity[] {
 #if ($dataOrderBy)
-        if (options === undefined) {
-            options = {};
-        }
-        if (options.$sort === undefined && options.$order) {
+        if (options.$sort === undefined && options.$order === undefined) {
             options.$sort = "${dataOrderBySort}";
             options.$order = "${dataOrderBy}";
         }
