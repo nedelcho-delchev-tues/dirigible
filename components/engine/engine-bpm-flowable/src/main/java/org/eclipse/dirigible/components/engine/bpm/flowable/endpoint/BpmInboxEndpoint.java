@@ -49,11 +49,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Front facing REST service serving the BPM related resources and operations.
+ * Front facing REST service serving the BPM Inbox related resources and operations.
  */
 @CrossOrigin
 @RestController
-@RequestMapping(BaseEndpoint.PREFIX_ENDPOINT_BPM)
+@RequestMapping(BaseEndpoint.PREFIX_ENDPOINT_INBOX)
 public class BpmInboxEndpoint extends BaseEndpoint {
 
     /**
@@ -70,7 +70,7 @@ public class BpmInboxEndpoint extends BaseEndpoint {
     @Autowired
     private TaskQueryExecutor taskQueryExecutor;
 
-    @GetMapping(value = "/bpm-inbox/instance/{id}/tasks")
+    @GetMapping(value = "/instance/{id}/tasks")
     public ResponseEntity<List<TaskDTO>> getProcessInstanceTasks(@PathVariable("id") String id,
             @RequestParam(value = "type", required = false) String type) {
         List<TaskDTO> taskDTOS = taskQueryExecutor.findTasks(id, extractPrincipalType(type))
@@ -117,7 +117,7 @@ public class BpmInboxEndpoint extends BaseEndpoint {
                          .getTaskService();
     }
 
-    @GetMapping(value = "/bpm-inbox/tasks")
+    @GetMapping(value = "/tasks")
     public ResponseEntity<List<TaskDTO>> getTasks(@RequestParam(value = "type", required = false) String type) {
         List<TaskDTO> taskDTOS = taskQueryExecutor.findTasks(extractPrincipalType(type))
                                                   .stream()
@@ -126,7 +126,7 @@ public class BpmInboxEndpoint extends BaseEndpoint {
         return ResponseEntity.ok(taskDTOS);
     }
 
-    @GetMapping(value = "/bpm-inbox/tasks/{taskId}/variables")
+    @GetMapping(value = "/tasks/{taskId}/variables")
     public ResponseEntity<?> getTaskVariables(@PathVariable("taskId") String taskId) {
         TaskService taskService = getTaskService();
 
@@ -142,7 +142,7 @@ public class BpmInboxEndpoint extends BaseEndpoint {
         }
     }
 
-    @PostMapping(value = "/bpm-inbox/tasks/{id}")
+    @PostMapping(value = "/tasks/{id}")
     public ResponseEntity<String> executeTaskAction(@PathVariable("id") String id, @RequestBody TaskActionData actionData) {
         verifyCurrentUserHasPermissionForTask(id);
 
