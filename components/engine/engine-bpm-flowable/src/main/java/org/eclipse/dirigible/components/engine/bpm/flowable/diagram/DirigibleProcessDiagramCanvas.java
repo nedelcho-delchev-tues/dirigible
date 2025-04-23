@@ -63,15 +63,15 @@ public class DirigibleProcessDiagramCanvas {
     protected static final int LINE_HEIGHT = FONT_SIZE + FONT_SPACING;
 
     // Colors
-    protected static final Color TASK_BOX_COLOR = Color.gray; // Color.white; //new Color(249, 249, 249);
-    protected static final Color SUBPROCESS_BOX_COLOR = Color.gray; // Color.white; //new Color(204, 204, 204);
-    protected static final Color EVENT_COLOR = Color.gray; // Color.white; //new Color(249, 249, 249);
-    protected static final Color CONNECTION_COLOR = Color.gray; // Color.black; //new Color(140, 140, 140);
-    protected static final Color CONDITIONAL_INDICATOR_COLOR = Color.gray; // Color.white; //new Color(204, 204, 204);
+    protected static final Color TASK_BOX_COLOR = Color.white; // new Color(249, 249, 249);
+    protected static final Color SUBPROCESS_BOX_COLOR = Color.white; // new Color(204, 204, 204);
+    protected static final Color EVENT_COLOR = Color.white; // new Color(249, 249, 249);
+    protected static final Color CONNECTION_COLOR = Color.black; // new Color(140, 140, 140);
+    protected static final Color CONDITIONAL_INDICATOR_COLOR = Color.white; // new Color(204, 204, 204);
     protected static final Color HIGHLIGHT_COLOR = Color.RED;
-    protected static final Color LABEL_COLOR = Color.gray; // new Color(112, 146, 190);
-    protected static final Color TASK_BORDER_COLOR = Color.gray; // Color.black; //new Color(140, 140, 140);
-    protected static final Color EVENT_BORDER_COLOR = Color.gray; // Color.black; //new Color(140, 140, 140);
+    protected static final Color LABEL_COLOR = Color.black; // new Color(112, 146, 190);
+    protected static final Color TASK_BORDER_COLOR = Color.black; // new Color(140, 140, 140);
+    protected static final Color EVENT_BORDER_COLOR = Color.black; // new Color(140, 140, 140);
     protected static final Color SUBPROCESS_BORDER_COLOR = Color.gray; // new Color(64, 64, 64);
 
     // Fonts
