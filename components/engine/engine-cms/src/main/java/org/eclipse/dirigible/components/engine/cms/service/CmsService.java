@@ -19,7 +19,6 @@ import org.eclipse.dirigible.commons.config.ResourcesCache;
 import org.eclipse.dirigible.commons.config.ResourcesCache.Cache;
 import org.eclipse.dirigible.components.engine.cms.CmisDocument;
 import org.eclipse.dirigible.components.engine.cms.CmisObject;
-import org.eclipse.dirigible.components.engine.cms.CmisSession;
 import org.eclipse.dirigible.components.engine.cms.CmisSessionFactory;
 import org.eclipse.dirigible.components.engine.cms.ObjectType;
 import org.slf4j.Logger;
@@ -55,12 +54,6 @@ public class CmsService {
     /** The request. */
     @Autowired
     private HttpServletRequest request;
-
-    private CmisSession session;
-
-    public CmsService() {
-        this.session = CmisSessionFactory.getSession();
-    }
 
     /**
      * Gets the resource.
@@ -98,7 +91,7 @@ public class CmsService {
         String errorMessage = "Resource not found or cannot be loaded: " + path;
         CmisObject cmisObject;
         try {
-            cmisObject = session.getObjectByPath(path);
+            cmisObject = CmisSessionFactory.getSession().getObjectByPath(path);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, errorMessage);
         }
