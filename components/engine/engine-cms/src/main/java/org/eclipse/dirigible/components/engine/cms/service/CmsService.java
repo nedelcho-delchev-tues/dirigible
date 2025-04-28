@@ -91,7 +91,8 @@ public class CmsService {
         String errorMessage = "Resource not found or cannot be loaded: " + path;
         CmisObject cmisObject;
         try {
-            cmisObject = CmisSessionFactory.getSession().getObjectByPath(path);
+            cmisObject = CmisSessionFactory.getSession()
+                                           .getObjectByPath(path);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, errorMessage);
         }
