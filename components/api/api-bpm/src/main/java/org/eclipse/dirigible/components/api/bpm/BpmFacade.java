@@ -203,7 +203,7 @@ public class BpmFacade implements InitializingBean {
      *
      * @param taskId the task id
      * @param variableName the variable name
-     * @param variables serialized as JSON string
+     * @param variable the variable
      */
     public static void setTaskVariable(String taskId, String variableName, Object variable) {
         BpmFacade.get()
@@ -215,7 +215,7 @@ public class BpmFacade implements InitializingBean {
      * Set the task's variables.
      *
      * @param taskId the task id
-     * @param variables serialized as JSON string
+     * @param variables the variables
      */
     public static void setTaskVariables(String taskId, Map<String, Object> variables) {
         BpmFacade.get()
