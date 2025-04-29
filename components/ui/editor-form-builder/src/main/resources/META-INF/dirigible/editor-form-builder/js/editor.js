@@ -803,7 +803,7 @@ editorView.controller('DesignerController', ($scope, $window, $document, $timeou
                     label: 'Header',
                     icon: 'sap-icon--heading-1',
                     description: 'Text header',
-                    template: `<div class="fb-control-wrapper" ng-click="showProps($event)" data-id="{{id}}"><h1 bk-title header-size="props.size.value">{{props.title.value}}</h1></div>`,
+                    template: `<div class="fb-control-wrapper" ng-click="showProps($event)" data-id="{{id}}"><h1 bk-title header-size="props.headerSize.value">{{props.title.value}}</h1></div>`,
                     props: {
                         title: {
                             type: 'text',
@@ -811,7 +811,7 @@ editorView.controller('DesignerController', ($scope, $window, $document, $timeou
                             value: 'Title',
                             required: true
                         },
-                        size: {
+                        headerSize: {
                             type: 'number',
                             label: 'Size',
                             value: 1,

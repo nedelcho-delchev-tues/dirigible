@@ -20,7 +20,7 @@
 #macro(formWidgets $elements)
 #foreach($element in $elements)
 	#if($element.controlId == "header")
-			<h5 fd-title header-size="$element.size">$element.title</h5>
+			<h$element.headerSize.intValue() bk-title header-size="$element.headerSize.intValue()">$element.title</h$element.headerSize.intValue()>
 	#elseif($element.controlId == "image")
 			#if($element.link)
 			<a href="$element.link">
