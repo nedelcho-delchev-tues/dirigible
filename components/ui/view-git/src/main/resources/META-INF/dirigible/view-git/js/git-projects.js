@@ -736,65 +736,67 @@ gitProjectsView.controller('GitProjectsController', ($scope, StatusBar, Dialogs,
             submitLabel: 'Push',
             cancelLabel: 'Cancel'
         }).then((form) => {
-            $scope.$evalAsync(() => {
-                $scope.state.busyText = 'Pushing...';
-                $scope.state.isBusy = true;
-            });
-            $scope.credentials.username = form['puni'] ?? '';
-            $scope.credentials.email = form['pei'] ?? '';
-            $scope.credentials.password = form['cpwi'] ?? '';
-            if (multiple) {
-                GitService.pushAllRepositories(
-                    $scope.selectedWorkspace,
-                    $scope.credentials.username,
-                    $scope.credentials.email,
-                    $scope.credentials.password,
-                ).then(() => {
-                    Notifications.show({
-                        type: 'positive',
-                        title: 'Push successful',
-                        description: `Pushed all repositories in '${$scope.selectedWorkspace}'.`
-                    });
-                }, (response) => {
-                    console.error(response);
-                    Notifications.show({
-                        type: 'negative',
-                        title: 'Could not push repositories',
-                        description: response.message || 'There was an error while pushing the repositories.',
-                    });
-                }).finally(() => {
-                    $scope.$evalAsync(() => {
-                        $scope.state.busyText = 'Loading...';
-                        $scope.state.isBusy = false;
-                    });
+            if (form) {
+                $scope.$evalAsync(() => {
+                    $scope.state.busyText = 'Pushing...';
+                    $scope.state.isBusy = true;
                 });
-            } else {
-                GitService.pushRepository(
-                    $scope.selectedWorkspace,
-                    $scope.selectedRepository.name,
-                    form['cbi'] ?? '',
-                    $scope.credentials.username,
-                    $scope.credentials.email,
-                    $scope.credentials.password,
-                ).then(() => {
-                    Notifications.show({
-                        type: 'positive',
-                        title: 'Push successful',
-                        description: `Pushed '${$scope.selectedRepository.name}'.`
+                $scope.credentials.username = form['puni'] ?? '';
+                $scope.credentials.email = form['pei'] ?? '';
+                $scope.credentials.password = form['cpwi'] ?? '';
+                if (multiple) {
+                    GitService.pushAllRepositories(
+                        $scope.selectedWorkspace,
+                        $scope.credentials.username,
+                        $scope.credentials.email,
+                        $scope.credentials.password,
+                    ).then(() => {
+                        Notifications.show({
+                            type: 'positive',
+                            title: 'Push successful',
+                            description: `Pushed all repositories in '${$scope.selectedWorkspace}'.`
+                        });
+                    }, (response) => {
+                        console.error(response);
+                        Notifications.show({
+                            type: 'negative',
+                            title: 'Could not push repositories',
+                            description: response.message || 'There was an error while pushing the repositories.',
+                        });
+                    }).finally(() => {
+                        $scope.$evalAsync(() => {
+                            $scope.state.busyText = 'Loading...';
+                            $scope.state.isBusy = false;
+                        });
                     });
-                }, (response) => {
-                    console.error(response);
-                    Notifications.show({
-                        type: 'negative',
-                        title: 'Could not push repository',
-                        description: response.message || 'There was an error while pushing the repository.'
+                } else {
+                    GitService.pushRepository(
+                        $scope.selectedWorkspace,
+                        $scope.selectedRepository.name,
+                        form['cbi'] ?? '',
+                        $scope.credentials.username,
+                        $scope.credentials.email,
+                        $scope.credentials.password,
+                    ).then(() => {
+                        Notifications.show({
+                            type: 'positive',
+                            title: 'Push successful',
+                            description: `Pushed '${$scope.selectedRepository.name}'.`
+                        });
+                    }, (response) => {
+                        console.error(response);
+                        Notifications.show({
+                            type: 'negative',
+                            title: 'Could not push repository',
+                            description: response.message || 'There was an error while pushing the repository.'
+                        });
+                    }).finally(() => {
+                        $scope.$evalAsync(() => {
+                            $scope.state.busyText = 'Loading...';
+                            $scope.state.isBusy = false;
+                        });
                     });
-                }).finally(() => {
-                    $scope.$evalAsync(() => {
-                        $scope.state.busyText = 'Loading...';
-                        $scope.state.isBusy = false;
-                    });
-                });
+                }
             }
         }, (error) => {
             console.error(error);
@@ -821,75 +823,77 @@ gitProjectsView.controller('GitProjectsController', ($scope, StatusBar, Dialogs,
             submitLabel: 'Pull',
             cancelLabel: 'Cancel'
         }).then((form) => {
-            $scope.$evalAsync(() => {
-                $scope.state.busyText = 'Pulling...';
-                $scope.state.isBusy = true;
-            });
-            $scope.credentials.username = form['puni'] ?? '';
-            $scope.credentials.password = form['ppwi'] ?? '';
-            if (multiple) {
-                const projects = [];
-                for (let i = 0; i < $scope.projects.length; i++) {
-                    projects.push($scope.projects[i].text);
-                }
-                GitService.pullRepositories(
-                    $scope.selectedWorkspace,
-                    projects,
-                    $scope.credentials.username,
-                    $scope.credentials.password,
-                    (response) => {
-                        if (response.status !== 200) {
-                            Notifications.show({
-                                type: 'negative',
-                                title: 'Could not pull repositories',
-                                description: response.message || 'There was an error while pulling the repositories.',
-                            });
-                        } else {
-                            Notifications.show({
-                                type: 'positive',
-                                title: 'Pull successful',
-                                description: 'Pulled all repositories.',
-                            });
-                            Workspace.announceWorkspaceChanged({
-                                workspace: $scope.selectedWorkspace,
-                                params: { gitAction: 'pull' },
+            if (form) {
+                $scope.$evalAsync(() => {
+                    $scope.state.busyText = 'Pulling...';
+                    $scope.state.isBusy = true;
+                });
+                $scope.credentials.username = form['puni'] ?? '';
+                $scope.credentials.password = form['ppwi'] ?? '';
+                if (multiple) {
+                    const projects = [];
+                    for (let i = 0; i < $scope.projects.length; i++) {
+                        projects.push($scope.projects[i].text);
+                    }
+                    GitService.pullRepositories(
+                        $scope.selectedWorkspace,
+                        projects,
+                        $scope.credentials.username,
+                        $scope.credentials.password,
+                        (response) => {
+                            if (response.status !== 200) {
+                                Notifications.show({
+                                    type: 'negative',
+                                    title: 'Could not pull repositories',
+                                    description: response.message || 'There was an error while pulling the repositories.',
+                                });
+                            } else {
+                                Notifications.show({
+                                    type: 'positive',
+                                    title: 'Pull successful',
+                                    description: 'Pulled all repositories.',
+                                });
+                                Workspace.announceWorkspaceChanged({
+                                    workspace: $scope.selectedWorkspace,
+                                    params: { gitAction: 'pull' },
+                                });
+                            }
+                            $scope.$evalAsync(() => {
+                                $scope.state.busyText = 'Loading...';
+                                $scope.state.isBusy = false;
                             });
                         }
+                    );
+                } else {
+                    GitService.pullRepository(
+                        $scope.selectedWorkspace,
+                        $scope.selectedRepository.name,
+                        '',
+                        $scope.credentials.username,
+                        $scope.credentials.password,
+                    ).then(() => {
+                        Notifications.show({
+                            type: 'positive',
+                            title: 'Pull successful',
+                            description: `Pulled '${$scope.selectedRepository.name}'.`,
+                        });
+                        Workspace.announceWorkspaceChanged({
+                            workspace: $scope.selectedWorkspace,
+                            params: { gitAction: 'pull' },
+                        });
+                    }, (response) => {
+                        Notifications.show({
+                            type: 'negative',
+                            title: 'Could not pull repository',
+                            description: response.message || 'There was an error while pulling the repository.',
+                        });
+                    }).finally(() => {
                         $scope.$evalAsync(() => {
                             $scope.state.busyText = 'Loading...';
                             $scope.state.isBusy = false;
                         });
-                    }
-                );
-            } else {
-                GitService.pullRepository(
-                    $scope.selectedWorkspace,
-                    $scope.selectedRepository.name,
-                    '',
-                    $scope.credentials.username,
-                    $scope.credentials.password,
-                ).then(() => {
-                    Notifications.show({
-                        type: 'positive',
-                        title: 'Pull successful',
-                        description: `Pulled '${$scope.selectedRepository.name}'.`,
                     });
-                    Workspace.announceWorkspaceChanged({
-                        workspace: $scope.selectedWorkspace,
-                        params: { gitAction: 'pull' },
-                    });
-                }, (response) => {
-                    Notifications.show({
-                        type: 'negative',
-                        title: 'Could not pull repository',
-                        description: response.message || 'There was an error while pulling the repository.',
-                    });
-                }).finally(() => {
-                    $scope.$evalAsync(() => {
-                        $scope.state.busyText = 'Loading...';
-                        $scope.state.isBusy = false;
-                    });
-                });
+                }
             }
         }, (error) => {
             console.error(error);
