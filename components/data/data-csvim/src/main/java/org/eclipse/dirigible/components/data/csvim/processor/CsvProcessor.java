@@ -85,7 +85,7 @@ public class CsvProcessor {
         if (null != schema) {
             connection.setSchema(schema);
         }
-        logger.info("Will insert data into table [{}] in schema [{}]", tableMetadata.getName(), schema);
+        logger.info("Will insert [{}] data records into table [{}] in schema [{}]", csvRecords.size(), tableMetadata.getName(), schema);
         List<ColumnMetadata> availableTableColumns = tableMetadata.getColumns();
         InsertBuilder insertBuilder = new InsertBuilder(SqlFactory.deriveDialect(connection));
         insertBuilder.into(tableMetadata.getName());
@@ -106,6 +106,8 @@ public class CsvProcessor {
                                                                                                                                 Collectors.toList()),
                     tableMetadata.getName());
             preparedStatement.executeBatch();
+            logger.info("Successfully inserted [{}] data records into table [{}] in schema [{}]", csvRecords.size(),
+                    tableMetadata.getName(), schema);
         } catch (Throwable t) {
             String errorMessage = String.format(
                     "Error occurred while trying to BATCH INSERT CSV records [%s] into table [%s].", csvRecords.stream()

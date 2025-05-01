@@ -208,8 +208,10 @@ public class CsvimProcessor {
                 }
                 if (countBatch >= batchSize) {
                     countBatch = 0;
-                    insertCsvRecords(connection, targetSchema, tableMetadata, recordsToInsert, csvParser.getHeaderNames(), csvFile);
-                    if (Boolean.TRUE.equals(csvFile.getUpsert())) {
+                    if (recordsToInsert.size() > 0) {
+                        insertCsvRecords(connection, targetSchema, tableMetadata, recordsToInsert, csvParser.getHeaderNames(), csvFile);
+                    }
+                    if (Boolean.TRUE.equals(csvFile.getUpsert()) && recordsToUpdate.size() > 0) {
                         updateCsvRecords(connection, targetSchema, tableMetadata, recordsToUpdate, csvParser.getHeaderNames(), pkName,
                                 csvFile);
                     }
