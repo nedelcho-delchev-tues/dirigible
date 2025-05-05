@@ -9,6 +9,25 @@
  */
 package org.eclipse.dirigible.components.api.db;
 
+import static java.text.MessageFormat.format;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.sql.DataSource;
 import org.apache.commons.io.output.WriterOutputStream;
 import org.eclipse.dirigible.commons.api.helpers.GsonHelper;
 import org.eclipse.dirigible.components.base.logging.LoggingExecutor;
@@ -17,6 +36,7 @@ import org.eclipse.dirigible.components.data.management.helpers.DatabaseResultSe
 import org.eclipse.dirigible.components.data.management.helpers.ResultParameters;
 import org.eclipse.dirigible.components.data.management.service.DatabaseDefinitionService;
 import org.eclipse.dirigible.components.data.sources.manager.DataSourcesManager;
+import org.eclipse.dirigible.components.database.DatabaseParameters;
 import org.eclipse.dirigible.components.database.DirigibleConnection;
 import org.eclipse.dirigible.components.database.DirigibleDataSource;
 import org.eclipse.dirigible.components.database.NamedParameterStatement;
@@ -27,14 +47,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.sql.*;
-import java.util.*;
-
-import static java.text.MessageFormat.format;
 
 /**
  * The Class DatabaseFacade.
@@ -674,7 +686,34 @@ public class DatabaseFacade implements InitializingBean {
     private static void createSequenceInternal(String sequence, final Integer seqStart, Connection connection, String tableName)
             throws SQLException {
         Integer sequenceStart = seqStart;
+        Integer sequenceMaxStart = seqStart;
+        Integer sequenceCountStart = seqStart;
+
         if (sequenceStart == null && tableName != null) {
+            try {
+
+                ResultSet primaryKeysResultSet = connection.getMetaData()
+                                                           .getPrimaryKeys(connection.getCatalog(), null, tableName);
+                if (primaryKeysResultSet.next()) {
+                    String columnName = primaryKeysResultSet.getString(DatabaseParameters.JDBC_COLUMN_NAME_PROPERTY);
+                    String maxSql = SqlFactory.getNative(connection)
+                                              .select()
+                                              .column("max(" + columnName + ")")
+                                              .from(tableName)
+                                              .build();
+                    try (PreparedStatement countPreparedStatement = connection.prepareStatement(maxSql)) {
+                        ResultSet rs = countPreparedStatement.executeQuery();
+                        if (rs.next()) {
+                            sequenceMaxStart = rs.getInt(1);
+                            sequenceMaxStart++;
+                        }
+                    } catch (SQLException e) {
+                        // Do nothing
+                    }
+                }
+            } catch (SQLException e) {
+                // Do nothing, fall back to the count approach
+            }
             String countSql = SqlFactory.getNative(connection)
                                         .select()
                                         .column("count(*)")
@@ -683,12 +722,19 @@ public class DatabaseFacade implements InitializingBean {
             try (PreparedStatement countPreparedStatement = connection.prepareStatement(countSql)) {
                 ResultSet rs = countPreparedStatement.executeQuery();
                 if (rs.next()) {
-                    sequenceStart = rs.getInt(1);
-                    sequenceStart++;
+                    sequenceCountStart = rs.getInt(1);
+                    sequenceCountStart++;
                 }
             } catch (SQLException e) {
                 // Do nothing
             }
+        }
+
+        if (sequenceStart == null || sequenceMaxStart > sequenceStart) {
+            sequenceStart = sequenceMaxStart;
+        }
+        if (sequenceStart == null || sequenceCountStart > sequenceStart) {
+            sequenceStart = sequenceCountStart;
         }
 
         String sql = SqlFactory.getNative(connection)
