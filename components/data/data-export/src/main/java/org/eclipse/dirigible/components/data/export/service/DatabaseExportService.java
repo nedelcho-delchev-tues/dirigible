@@ -178,7 +178,7 @@ public class DatabaseExportService {
                             }
                             ZipEntry zipEntry = new ZipEntry(schema + "." + artifact + ".csv");
                             zipOutputStream.putNextEntry(zipEntry);
-                            databaseExecutionService.executeStatement(dataSource, sql, true, false, true, true, zipOutputStream);
+                            databaseExecutionService.executeStatement(dataSource, sql, true, false, true, false, zipOutputStream);
                             zipOutputStream.closeEntry();
                         }
                     }
