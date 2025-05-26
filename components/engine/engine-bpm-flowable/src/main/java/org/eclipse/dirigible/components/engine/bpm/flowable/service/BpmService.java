@@ -32,6 +32,7 @@ import org.flowable.bpmn.model.BpmnModel;
 import org.flowable.common.engine.impl.util.io.InputStreamSource;
 import org.flowable.editor.language.json.converter.BpmnJsonConverter;
 import org.flowable.engine.ProcessEngine;
+import org.flowable.engine.RuntimeService;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.history.HistoricProcessInstanceQuery;
 import org.flowable.engine.repository.ProcessDefinition;
@@ -275,6 +276,19 @@ public class BpmService {
             return "Error reading BPMN file for: " + id;
         }
         return xml;
+    }
+
+    /**
+     * Gets the process instance active activity ids by instance id.
+     *
+     * @param id the instance id
+     * @return the process instance active activity ids
+     */
+    public List<String> getProcessInstanceActiveActivityIds(String id) {
+        ProcessEngine processEngine = ((ProcessEngine) getBpmProviderFlowable().getProcessEngine());
+        ProcessInstanceData processInstanceData = getProcessInstanceById(id);
+        RuntimeService runtimeService = processEngine.getRuntimeService();
+        return runtimeService.getActiveActivityIds(processInstanceData.getId());
     }
 
     /**

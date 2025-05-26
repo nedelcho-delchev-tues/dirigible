@@ -336,6 +336,11 @@ public class BpmFlowableEndpoint extends BaseEndpoint {
         return ResponseEntity.ok(taskDTOS);
     }
 
+    @GetMapping(value = "/bpm-processes/instance/{id}/active")
+    public ResponseEntity<List<String>> getProcessInstanceActiveActivityIds(@PathVariable("id") String id) {
+        return ResponseEntity.ok(bpmService.getProcessInstanceActiveActivityIds(id));
+    }
+
     private static Type extractPrincipalType(String type) {
         Type principalType;
         try {
