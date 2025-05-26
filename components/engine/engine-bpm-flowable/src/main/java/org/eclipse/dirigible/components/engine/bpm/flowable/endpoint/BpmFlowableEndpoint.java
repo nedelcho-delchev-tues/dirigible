@@ -9,24 +9,49 @@
  */
 package org.eclipse.dirigible.components.engine.bpm.flowable.endpoint;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import static java.text.MessageFormat.format;
+import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActionData.Action.RETRY;
+import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActionData.Action.SKIP;
+import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskActionData.TaskAction.CLAIM;
+import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskActionData.TaskAction.COMPLETE;
+import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskActionData.TaskAction.UNCLAIM;
+import static org.eclipse.dirigible.components.engine.bpm.flowable.service.BpmService.DIRIGIBLE_BPM_INTERNAL_SKIP_STEP;
 
-import jakarta.annotation.security.RolesAllowed;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.dirigible.components.api.security.UserFacade;
 import org.eclipse.dirigible.components.base.endpoint.BaseEndpoint;
-import org.eclipse.dirigible.components.engine.bpm.flowable.dto.*;
+import org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActionData;
+import org.eclipse.dirigible.components.engine.bpm.flowable.dto.ProcessDefinitionData;
+import org.eclipse.dirigible.components.engine.bpm.flowable.dto.ProcessInstanceData;
+import org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskActionData;
+import org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskDTO;
+import org.eclipse.dirigible.components.engine.bpm.flowable.dto.VariableData;
 import org.eclipse.dirigible.components.engine.bpm.flowable.provider.BpmProviderFlowable;
 import org.eclipse.dirigible.components.engine.bpm.flowable.service.BpmService;
 import org.eclipse.dirigible.components.engine.bpm.flowable.service.task.TaskQueryExecutor;
+import org.eclipse.dirigible.components.engine.bpm.flowable.service.task.TaskQueryExecutor.Type;
 import org.eclipse.dirigible.components.ide.workspace.service.WorkspaceService;
 import org.eclipse.dirigible.repository.api.RepositoryNotFoundException;
 import org.flowable.bpmn.model.BpmnModel;
 import org.flowable.common.engine.api.FlowableObjectNotFoundException;
-import org.flowable.engine.*;
+import org.flowable.engine.ProcessEngine;
+import org.flowable.engine.ProcessEngineConfiguration;
+import org.flowable.engine.RepositoryService;
+import org.flowable.engine.RuntimeService;
+import org.flowable.engine.TaskService;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.identitylink.api.IdentityLink;
@@ -43,22 +68,21 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import static java.text.MessageFormat.format;
-import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActionData.Action.RETRY;
-import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActionData.Action.SKIP;
-import static org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskActionData.TaskAction.*;
-import static org.eclipse.dirigible.components.engine.bpm.flowable.service.BpmService.DIRIGIBLE_BPM_INTERNAL_SKIP_STEP;
-import static org.eclipse.dirigible.components.engine.bpm.flowable.service.task.TaskQueryExecutor.Type;
+import jakarta.annotation.security.RolesAllowed;
 
 /**
  * Front facing REST service serving the BPM related resources and operations.
@@ -220,6 +244,17 @@ public class BpmFlowableEndpoint extends BaseEndpoint {
             return ResponseEntity.ok(getBpmService().getProcessDefinitionById(id.get()));
         }
         return null;
+    }
+
+    /**
+     * Gets the process definition xml.
+     *
+     * @param id the id
+     * @return the process definition xml
+     */
+    @GetMapping(value = "/bpm-processes/definition/bpmn")
+    public ResponseEntity<String> getProcessDefinitionXml(@RequestParam("id") Optional<String> id) {
+        return ResponseEntity.ok(getBpmService().getProcessDefinitionXmlById(id.get()));
     }
 
     /**

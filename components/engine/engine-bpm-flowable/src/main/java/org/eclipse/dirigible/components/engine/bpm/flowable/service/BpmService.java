@@ -14,6 +14,7 @@ import static java.text.MessageFormat.format;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -255,6 +256,25 @@ public class BpmService {
             return processDefinitionData;
         }
         return null;
+    }
+
+    /**
+     * Gets the process definition XML by id.
+     *
+     * @param id the id
+     * @return the process definition XML by id
+     */
+    public String getProcessDefinitionXmlById(String id) {
+        ProcessEngine processEngine = ((ProcessEngine) getBpmProviderFlowable().getProcessEngine());
+        String xml;
+        try {
+            xml = IOUtils.toString(processEngine.getRepositoryService()
+                                                .getProcessModel(id),
+                    StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return "Error reading BPMN file for: " + id;
+        }
+        return xml;
     }
 
     /**
