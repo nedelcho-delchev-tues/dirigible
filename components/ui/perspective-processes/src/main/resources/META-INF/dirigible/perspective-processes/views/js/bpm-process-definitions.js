@@ -37,7 +37,7 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
 
         $http.get('/services/bpm/bpm-processes/definitions', { params: { 'key': $scope.filterBy } })
             .then((response) => {
-                if ($scope.definitionsList.length && $scope.definitionsList.length < response.data.length) {
+                if ($scope.definitionsList.length < response.data.length) {
                     Notifications.show({
                         type: 'information',
                         title: 'Process definitions',
