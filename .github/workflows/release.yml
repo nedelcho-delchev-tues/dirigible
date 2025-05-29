@@ -344,6 +344,8 @@ jobs:
           
           cp uploaded-artifacts/sast_docker_scout_sarif.json/sast_docker_scout_sarif.json release_files/sast_docker_scout_sarif.json
           
+          cp uploaded-artifacts/dast_zap_report/report_html.html release_files/dast_zap_report.html
+          
           cp uploaded-artifacts/application-all/application-all.zip release_files/application-all.zip
 
       - name: Create GitHub Release
