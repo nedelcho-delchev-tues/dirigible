@@ -12,9 +12,11 @@ on:
         required: true
         default: 12.0.0-SNAPSHOT
       code-scans:
+        description: Perform SAST and DAST code scans
         type: boolean
         default: true
       upload-scanned-sarif-report:
+        description: Upload SAST and DAST code scans to Github Security
         type: boolean
         default: true
 
@@ -134,7 +136,7 @@ jobs:
       - name: Upload fat JAR as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: application-all.zip
+          name: application-all
           path: application-all.zip
 
   sast-docker-scout-analyze:
@@ -303,7 +305,7 @@ jobs:
           
           cp uploaded-artifacts/sast_docker_scout_sarif.json/sast_docker_scout_sarif.json release_files/sast_docker_scout_sarif.json
           
-          cp uploaded-artifacts/application-all.zip release_files/application-all.zip
+          cp uploaded-artifacts/application-all/application-all.zip release_files/application-all.zip
 
       - name: Create GitHub Release
         id: create_release
