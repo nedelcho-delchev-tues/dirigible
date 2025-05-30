@@ -37,7 +37,7 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
 
         $http.get('/services/bpm/bpm-processes/definitions', { params: { 'key': $scope.filterBy } })
             .then((response) => {
-                if ($scope.definitionsList.length < response.data.length) {
+                if ($scope.definitionsList.length && $scope.definitionsList.length < response.data.length) {
                     Notifications.show({
                         type: 'information',
                         title: 'Process definitions',
@@ -62,11 +62,11 @@ ideBpmProcessDefinitionsView.controller('IDEBpmProcessDefinitionsViewController'
         $scope.displaySearch = !$scope.displaySearch;
     };
 
-    $scope.selectAllChanged = () => {
-        for (let definition of $scope.definitionsList) {
-            definition.selected = $scope.selectAll;
-        }
-    };
+    // $scope.selectAllChanged = () => {
+    //     for (let definition of $scope.definitionsList) {
+    //         definition.selected = $scope.selectAll;
+    //     }
+    // };
 
     $scope.selectionChanged = (definition) => {
         $scope.selectAll = $scope.definitionsList.every(x => x.selected = false);

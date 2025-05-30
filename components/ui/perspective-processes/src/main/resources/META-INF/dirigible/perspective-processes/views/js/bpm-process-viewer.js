@@ -11,7 +11,7 @@
  */
 const bpmProcessViewer = angular.module('bpm-process-viewer', ['platformView', 'blimpKit']);
 bpmProcessViewer.constant('MessageHub', new MessageHubApi());
-bpmProcessViewer.controller('BpmProcessViewerController', ($scope, MessageHub) => {
+bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, MessageHub) => {
     $scope.state = {
         isBusy: false,
         error: false,
@@ -20,6 +20,7 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, MessageHub) =
 
     $scope.processId = '';
     let instanceId = '';
+    const activities = [];
 
     const bpmnVisualization = new bpmnvisu.BpmnVisualization({ container: 'bpmn-container', navigation: { enabled: true } });
     let style = bpmnVisualization.graph.getStylesheet().getDefaultVertexStyle();
@@ -39,14 +40,21 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, MessageHub) =
     style[bpmnvisu.mxgraph.mxConstants.STYLE_ARCSIZE] = '12';
     style[bpmnvisu.mxgraph.mxConstants.STYLE_ROUNDED] = true;
 
-    function loadActivities() {
-        fetch(`/services/bpm/bpm-processes/instance/${encodeURIComponent(instanceId)}/active`).then(response => {
-            if (!response.ok) {
-                throw new Error(`Failed to fetch active activities for process instance: ${instanceId}`);
+    function loadActivities(historic = false) {
+        let endpoint;
+        if (historic) endpoint = `/services/bpm/bpm-processes/historic-instances/${instanceId}/variables`;
+        else endpoint = `/services/bpm/bpm-processes/instance/${instanceId}/active`;
+        $http.get(endpoint).then((response) => {
+            if (historic) {
+                // TODO
+            } else {
+                activities.forEach((activity) => bpmnVisualization.bpmnElementsRegistry.removeCssClasses(activity, ['highlight']));
+                activities.length = 0;
+                activities.push(...response.data);
+                activities.forEach((activity) => bpmnVisualization.bpmnElementsRegistry.addCssClasses(activity, ['highlight']));
             }
-            return response.text();
-        }).then(activities => {
-            JSON.parse(activities).forEach((activity) => bpmnVisualization.bpmnElementsRegistry.addCssClasses(activity, ['highlight']))
+        }, (error) => {
+            console.error(`Failed to fetch active activities for process instance: ${instanceId}`, error);
         }).finally(() => {
             $scope.$evalAsync(() => {
                 $scope.state.isBusy = false;
@@ -54,15 +62,20 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, MessageHub) =
         });
     }
 
+    function prepareXmlString(raw) {
+        const parser = new DOMParser();
+        const bpmn = parser.parseFromString(raw, 'application/xml');
+        const subprocesses = bpmn.querySelectorAll('subProcess');
+        for (let i = 0; i < subprocesses.length; i++) {
+            let bpmnElement = bpmn.querySelector(`[bpmnElement="${subprocesses[i].id}"]`);
+            bpmnElement.setAttribute('isExpanded', 'true');
+        }
+        return new XMLSerializer().serializeToString(bpmn);
+    }
+
     function loadBpmnFromApi() {
-        const endpoint = `/services/bpm/bpm-processes/definition/bpmn?id=${encodeURIComponent($scope.processId)}`;
-        fetch(endpoint).then(response => {
-            if (!response.ok) {
-                throw new Error(`Failed to fetch BPMN XML for process definition id: ${$scope.processId}`);
-            }
-            return response.text();
-        }).then(bpmnXml => {
-            bpmnVisualization.load(bpmnXml, { fit: { type: bpmnvisu.FitType.Center, margin: 16 } });
+        $http.get(`/services/bpm/bpm-processes/definition/bpmn?id=${$scope.processId}`).then((response) => {
+            bpmnVisualization.load(prepareXmlString(response.data), { fit: { type: bpmnvisu.FitType.None, margin: 16 } });
             if (instanceId) {
                 loadActivities();
             } else {
@@ -70,35 +83,21 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, MessageHub) =
                     $scope.state.isBusy = false;
                 });
             }
-        }).catch(error => {
-            console.error('Error loading BPMN:', error);
+        }, (error) => {
+            console.error(`Failed to fetch active activities for process instance: ${instanceId}`, error);
+            $scope.$evalAsync(() => {
+                $scope.state.isBusy = false;
+            });
         });
     }
 
-    $scope.zoomIn = () => {
-        bpmnVisualization.navigation.graph.zoomIn();
-    };
+    $scope.zoomIn = () => bpmnVisualization.navigation.graph.zoomIn();
 
-    $scope.zoomOut = () => {
-        bpmnVisualization.navigation.graph.zoomOut();
-    };
+    $scope.zoomOut = () => bpmnVisualization.navigation.graph.zoomOut();
 
-    $scope.fit = () => {
-        bpmnVisualization.navigation.fit({ type: bpmnvisu.FitType.Center, margin: 16 });
-    };
+    $scope.actualSize = () => bpmnVisualization.navigation.graph.zoomActual();
 
-    $scope.actualSize = () => {
-        bpmnVisualization.navigation.graph.zoomActual();
-    };
-
-    $scope.collapseAll = () => {
-
-    };
-
-    $scope.expandAll = () => {
-        // bpmnVisualization.graph.model.execute('expandAll');
-        console.log(bpmnVisualization)
-    };
+    $scope.fit = () => bpmnVisualization.navigation.fit({ type: bpmnvisu.FitType.Center, margin: 16 });
 
     MessageHub.addMessageListener({
         topic: 'bpm.diagram.definition',
@@ -121,15 +120,32 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, MessageHub) =
     MessageHub.addMessageListener({
         topic: 'bpm.diagram.instance',
         handler: (data) => {
-            $scope.$evalAsync(() => {
+            if ($scope.processId) $scope.$evalAsync(() => {
                 $scope.state.isBusy = true;
                 if (!data.hasOwnProperty('instance')) {
                     $scope.state.error = true;
-                    $scope.errorMessage = 'The \'definition\' parameter is missing.';
+                    $scope.errorMessage = 'The \'instance\' parameter is missing.';
                 } else {
                     instanceId = data.instance;
                     $scope.state.error = false;
                     loadActivities();
+                }
+            });
+        }
+    });
+
+    MessageHub.addMessageListener({
+        topic: 'bpm.historic.instance.selected',
+        handler: (data) => {
+            if ($scope.processId === data.definition) $scope.$evalAsync(() => {
+                $scope.state.isBusy = true;
+                if (!data.hasOwnProperty('instance')) {
+                    $scope.state.error = true;
+                    $scope.errorMessage = 'The \'instance\' parameter is missing.';
+                } else {
+                    instanceId = data.instance;
+                    $scope.state.error = false;
+                    loadActivities(true);
                 }
             });
         }
