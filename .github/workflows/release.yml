@@ -285,12 +285,15 @@ jobs:
           issue_title: '[DAST] ZAP Full Scan Report'
 
   generate-git-security-report:
+    if: always() # Runs even if previous jobs were skipped or failed
     needs:
       - sast-codeql-scan
       - sast-docker-scout-scan
       - dast-scan
     runs-on: ubuntu-latest
-    if: always() # Runs even if previous jobs were skipped or failed
+    permissions:
+      security-events: read
+
     steps:
       - name: Create dummy reports folder
         run: mkdir reports
@@ -303,7 +306,7 @@ jobs:
           sarifReportDir: "reports"
           outputDir: "security-report"
 
-      - name: Upload Generated CodeQL Analysis Security Report as Artifact
+      - name: Upload Generated GitHub Security Report as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: security_report
