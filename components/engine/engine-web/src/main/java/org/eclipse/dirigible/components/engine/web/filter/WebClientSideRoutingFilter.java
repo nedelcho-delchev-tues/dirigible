@@ -91,7 +91,7 @@ public class WebClientSideRoutingFilter implements Filter {
         HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 
         String path =
-                !"".equals(httpServletRequest.getServletPath()) ? httpServletRequest.getServletPath() : IRepositoryStructure.SEPARATOR;
+                (httpServletRequest.getServletPath() == null || httpServletRequest.getServletPath().isEmpty()) ? IRepositoryStructure.SEPARATOR : httpServletRequest.getServletPath();
 
         for (String prefix : VALID_PREFIXES) {
             if (path.startsWith(prefix)) {
