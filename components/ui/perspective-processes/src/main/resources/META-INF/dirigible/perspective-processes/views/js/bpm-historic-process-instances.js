@@ -17,7 +17,7 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
     $scope.searchField = { text: '' };
     $scope.displaySearch = false;
     $scope.selectedProcessDefinitionKey = null;
-    $scope.selectedId;
+    $scope.selectedId = null;
 
     setInterval(() => { $scope.fetchData() }, 5000);
 
