@@ -86,7 +86,7 @@ public class CmsClientSideRoutingFilter implements Filter {
         HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 
         String path =
-                !"".equals(httpServletRequest.getServletPath()) ? httpServletRequest.getServletPath() : IRepositoryStructure.SEPARATOR;
+                httpServletRequest.getServletPath().length() > 0 ? httpServletRequest.getServletPath() : IRepositoryStructure.SEPARATOR;
 
         for (String prefix : VALID_PREFIXES) {
             if (path.startsWith(prefix)) {
