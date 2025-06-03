@@ -137,16 +137,12 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Messag
     MessageHub.addMessageListener({
         topic: 'bpm.historic.instance.selected',
         handler: (data) => {
-            if ($scope.processId === data.definition) $scope.$evalAsync(() => {
+            $scope.$evalAsync(() => {
+                $scope.processId === data.definition
                 $scope.state.isBusy = true;
-                if (!data.hasOwnProperty('instance')) {
-                    $scope.state.error = true;
-                    $scope.errorMessage = 'The \'instance\' parameter is missing.';
-                } else {
-                    instanceId = data.instance;
-                    $scope.state.error = false;
-                    loadActivities(true);
-                }
+                instanceId = '';
+                $scope.state.error = false;
+                loadBpmnFromApi();
             });
         }
     });

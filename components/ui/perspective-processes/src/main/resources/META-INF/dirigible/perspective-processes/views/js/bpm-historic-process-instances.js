@@ -39,22 +39,13 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
         $scope.displaySearch = !$scope.displaySearch;
     };
 
-    $scope.applyFilter = () => {
-        $http.get('/services/bpm/bpm-processes/historic-instances', { params: { 'businessKey': $scope.searchField.text, 'definitionKey': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
-            .then((response) => {
-                $scope.instances = response.data;
-            }, (error) => {
-                console.error(error);
-            });
-    };
-
     Dialogs.addMessageListener({
         topic: 'bpm.definition.selected',
         handler: (data) => {
             $scope.$evalAsync(() => {
                 if (data.hasOwnProperty('definition')) {
                     $scope.selectedProcessDefinitionKey = data.definition;
-                    $scope.applyFilter();
+                    $scope.fetchData();
                 } else {
                     Dialogs.showAlert({
                         title: 'Missing data',
@@ -71,10 +62,10 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
         switch (e.key) {
             case 'Escape':
                 $scope.searchField.text = '';
-                $scope.applyFilter();
+                $scope.fetchData();
                 break;
             case 'Enter':
-                $scope.applyFilter();
+                $scope.fetchData();
                 break;
         }
     };

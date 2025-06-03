@@ -9,57 +9,147 @@
  * SPDX-FileCopyrightText: Eclipse Dirigible contributors
  * SPDX-License-Identifier: EPL-2.0
  */
-const ideBpmProcessInstancesView = angular.module('ide-bpm-process-instances', ['platformView', 'blimpKit']);
-ideBpmProcessInstancesView.constant('Notifications', new NotificationHub());
-ideBpmProcessInstancesView.constant('Dialogs', new DialogHub());
-ideBpmProcessInstancesView.controller('IDEBpmProcessInstancesViewController', ($scope, $http, Notifications, Dialogs) => {
-
+const processInstances = angular.module('process-instances', ['platformView', 'blimpKit']);
+processInstances.constant('Notifications', new NotificationHub());
+processInstances.constant('Dialogs', new DialogHub());
+processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notifications, Dialogs) => {
     $scope.selectAll = false;
     $scope.searchField = { text: '' };
     $scope.displaySearch = false;
     $scope.instancesList = [];
+    let definitions = [];
+    $scope.definitionsList = [];
+    $scope.definitionVersions = [];
     $scope.pageSize = 10;
     $scope.currentPage = 1;
-    $scope.selectedProcessInstanceId = null;
-    $scope.selectedProcessDefinitionKey = null;
+    $scope.selected = {
+        definitionKey: null,
+        definitionId: null,
+        instanceId: null
+    };
 
-    $scope.currentFetchDataInstance = null;
+    let currentFetchDataInstance = null;
+    let currentFetchDataDefinition = null;
 
-    const fetchData = (args) => {
-        if ($scope.currentFetchDataInstance) {
-            clearInterval($scope.currentFetchDataInstance);
-        }
-
-        $scope.currentFetchDataInstance = setInterval(() => {
-            const pageNumber = (args && args.pageNumber) || $scope.currentPage;
-            const pageSize = (args && args.pageSize) || $scope.pageSize;
-            // const limit = pageNumber * pageSize;
-            const startIndex = (pageNumber - 1) * pageSize;
-            if (startIndex >= $scope.totalRows) {
-                return;
+    const fetchDefinitions = (initialLoad = false) => {
+        $http.get('/services/bpm/bpm-processes/definitions').then((response) => {
+            if (!initialLoad && definitions.length && definitions.length < response.data.length) {
+                Notifications.show({
+                    type: 'information',
+                    title: 'Process definitions',
+                    description: 'A new process definition has been added.'
+                });
             }
-
-            $http.get('/services/bpm/bpm-processes/instances', { params: { 'businessKey': $scope.searchField.text, 'key': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
-                .then((response) => {
-                    if ($scope.instancesList.length < response.data.length) {
-                        Notifications.show({
-                            type: 'information',
-                            title: 'Process instances',
-                            description: 'A new process instance has been started.'
+            if (definitions.length !== response.data.length) {
+                definitions.length = 0;
+                definitions.push(...response.data);
+                $scope.definitionsList.length = 0;
+                for (let i = 0; i < response.data.length; i++) {
+                    if (!$scope.definitionsList.some(e => e.value === response.data[i].key)) {
+                        $scope.definitionsList.push({
+                            value: response.data[i].key,
+                            text: response.data[i].name,
+                            secondaryText: response.data[i].key,
                         });
                     }
-                    $scope.instancesList = response.data;
-                }, (error) => {
-                    console.error(error);
+                }
+                if (!$scope.selected.definitionKey && $scope.definitionsList.length) {
+                    $scope.selected.definitionKey = $scope.definitionsList[0].value;
+                    $scope.definitionSelected(initialLoad);
+                }
+                if (!currentFetchDataInstance) {
+                    getInstances({ initialLoad: initialLoad });
+                }
+            }
+        }, (error) => {
+            console.error(error);
+            if (initialLoad) Dialogs.showAlert({
+                title: 'Definitions load failed',
+                message: 'Could not load definitions. See console for more information.',
+                type: AlertTypes.Error,
+                preformatted: false,
+            });
+        });
+    };
+
+    const getDefinitions = (initialLoad = false) => {
+        if (currentFetchDataDefinition) {
+            currentFetchDataDefinition = clearInterval(currentFetchDataDefinition);
+        }
+
+        fetchDefinitions(initialLoad);
+
+        currentFetchDataDefinition = setInterval(fetchDefinitions, 10000);
+    };
+
+    const fetchInstances = (initialLoad = false) => {
+        $http.get('/services/bpm/bpm-processes/instances', { params: { 'businessKey': $scope.searchField.text, 'key': $scope.selected.definitionKey, 'limit': 100 } })
+            .then((response) => {
+                if (!initialLoad && $scope.instancesList.length < response.data.length) {
+                    Notifications.show({
+                        type: 'information',
+                        title: 'Process instances',
+                        description: 'A new process instance has been started.'
+                    });
+                }
+                if ($scope.instancesList.length !== response.data.length) {
+                    $scope.instancesList.length = 0;
+                    $scope.instancesList.push(...response.data);
+                }
+            }, (error) => {
+                console.error(error);
+                if (initialLoad) Dialogs.showAlert({
+                    title: 'Instances load failed',
+                    message: 'Could not load instances. See console for more information.',
+                    type: AlertTypes.Error,
+                    preformatted: false,
                 });
-        }, 5000);
+            });
+    };
 
-    }
+    const getInstances = ({ pageNumber = $scope.currentPage, pageSize = $scope.pageSize, initialLoad = false } = {}) => {
+        const startIndex = (pageNumber - 1) * pageSize;
+        if (startIndex >= $scope.totalRows) return;
 
-    fetchData();
+        if (currentFetchDataInstance) {
+            currentFetchDataInstance = clearInterval(currentFetchDataInstance);
+        }
+
+        fetchInstances(initialLoad);
+
+        currentFetchDataInstance = setInterval(fetchInstances, 5000);
+    };
 
     $scope.reload = () => {
-        fetchData();
+        if (currentFetchDataDefinition) {
+            currentFetchDataDefinition = clearInterval(currentFetchDataDefinition);
+        }
+        if (currentFetchDataInstance) {
+            currentFetchDataInstance = clearInterval(currentFetchDataInstance);
+        }
+        getDefinitions();
+    };
+
+    $scope.definitionSelected = (initialLoad = false) => {
+        $scope.definitionVersions.length = 0;
+        for (let i = 0; i < definitions.length; i++) {
+            if (definitions[i].key === $scope.selected.definitionKey) {
+                $scope.definitionVersions.push({
+                    id: definitions[i].id,
+                    label: definitions[i].version
+                });
+            }
+        }
+        if ($scope.definitionVersions.length) {
+            $scope.selected.definitionId = $scope.definitionVersions[0].id;
+            $scope.versionSelected();
+        }
+        if (!initialLoad) getInstances();
+    };
+
+    $scope.versionSelected = () => {
+        Notifications.postMessage({ topic: 'bpm.diagram.definition', data: { definition: $scope.selected.definitionId } });
+        Notifications.postMessage({ topic: 'bpm.definition.selected', data: { definition: $scope.selected.definitionKey } });
     };
 
     $scope.toggleSearch = () => {
@@ -75,11 +165,9 @@ ideBpmProcessInstancesView.controller('IDEBpmProcessInstancesViewController', ($
     };
 
     $scope.executeAction = (requestBody, actionName) => {
-        const apiUrl = '/services/bpm/bpm-processes/instance/' + $scope.selectedProcessInstanceId;
-
         $http({
             method: 'POST',
-            url: apiUrl,
+            url: `/services/bpm/bpm-processes/instance/${$scope.selected.instanceId}`,
             data: requestBody,
             headers: { 'Content-Type': 'application/json' }
         }).then(() => {
@@ -98,57 +186,12 @@ ideBpmProcessInstancesView.controller('IDEBpmProcessInstancesViewController', ($
                 preformatted: false,
             });
         });
-    }
-
-    // $scope.selectAllChanged = () => {
-    //     for (let instance of $scope.instancesList) {
-    //         instance.selected = $scope.selectAll;
-    //     }
-    // };
+    };
 
     $scope.selectionChanged = (instance) => {
-        $scope.selectAll = $scope.instancesList.every(x => x.selected = false);
         Notifications.postMessage({ topic: 'bpm.diagram.instance', data: { instance: instance.id } });
         Notifications.postMessage({ topic: 'bpm.instance.selected', data: { instance: instance.id } });
-        instance.selected = true;
-        $scope.selectedProcessInstanceId = instance.id;
-    };
-
-    Notifications.addMessageListener({
-        topic: 'bpm.definition.selected',
-        handler: (data) => {
-            $scope.$evalAsync(() => {
-                if (data.hasOwnProperty('definition')) {
-                    $scope.selectedProcessDefinitionKey = data.definition;
-                    $scope.applyFilter();
-                } else {
-                    Dialogs.showAlert({
-                        title: 'Missing data',
-                        message: 'Process definition is missing from event!',
-                        type: AlertTypes.Error,
-                        preformatted: false,
-                    });
-                }
-            });
-        }
-    });
-
-    $scope.getSelectedCount = () => {
-        return $scope.instancesList.reduce((c, instance) => {
-            if (instance.selected) c++;
-            return c;
-        }, 0);
-    };
-
-    $scope.hasSelected = () => $scope.instancesList.some(x => x.selected);
-
-    $scope.applyFilter = () => {
-        $http.get('/services/bpm/bpm-processes/instances', { params: { 'businessKey': $scope.searchField.text, 'key': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
-            .then((response) => {
-                $scope.instancesList = response.data;
-            }, (error) => {
-                console.error(error);
-            });
+        $scope.selected.instanceId = instance.id;
     };
 
     $scope.getNoDataMessage = () => {
@@ -159,24 +202,25 @@ ideBpmProcessInstancesView.controller('IDEBpmProcessInstancesViewController', ($
         switch (e.key) {
             case 'Escape':
                 $scope.searchField.text = '';
-                $scope.applyFilter();
+                toggleSearch();
+                getInstances();
                 break;
             case 'Enter':
-                $scope.applyFilter();
+                getInstances();
                 break;
         }
-    }
+    };
+
+    $scope.search = () => {
+        getInstances();
+    };
 
     $scope.onPageChange = (pageNumber) => {
-        fetchData({ pageNumber });
+        getInstances({ pageNumber });
     };
 
     $scope.onItemsPerPageChange = (itemsPerPage) => {
-        fetchData({ pageSize: itemsPerPage });
-    };
-
-    $scope.refresh = () => {
-        fetchData();
+        getInstances({ pageSize: itemsPerPage });
     };
 
     $scope.deleteSelected = () => {
@@ -185,4 +229,6 @@ ideBpmProcessInstancesView.controller('IDEBpmProcessInstancesViewController', ($
             return ret;
         }, []);
     };
+
+    getDefinitions(true);
 });
