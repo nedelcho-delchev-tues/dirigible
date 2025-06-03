@@ -24,6 +24,10 @@
         <link type="text/css" rel="stylesheet" href="/services/js/platform-core/services/loader.js?id=view-css" />
         <script type="text/javascript" src="/services/web/perspective-processes/views/js/bpm-process-instances.js"></script>
         <style>
+            .combo-toolbar {
+                --sapElement_Height: 2rem;
+            }
+
             .combo-toolbar .fd-select,
             .combo-toolbar .fd-select>button,
             .combo-toolbar .fd-input-group {
@@ -40,7 +44,8 @@
     </head>
 
     <body class="bk-vbox">
-        <bk-toolbar compact="true">
+        <bk-busy-indicator-extended class="bk-fill-parent" ng-hide="!state.isBusy" size="l">Loading...</bk-busy-indicator-extended>
+        <bk-toolbar compact="true" ng-show="!state.isBusy">
             <bk-toolbar-spacer></bk-toolbar-spacer>
             <bk-button state="transparent" glyph="sap-icon--refresh" title="Refresh" aria-label="Refresh" ng-click="reload()"></bk-button>
             <bk-toolbar-separator></bk-toolbar-separator>
@@ -50,15 +55,15 @@
             <bk-toolbar-separator></bk-toolbar-separator>
             <bk-button state="transparent" ng-disabled="selected.instanceId === null" glyph="sap-icon--process" title="Skip" aria-label="Skip" ng-click="skip()"></bk-button>
         </bk-toolbar>
-        <div class="bk-hbox bk-border--bottom combo-toolbar">
-            <bk-combobox-input class="bk-full-width bk-border--right" compact="true" dropdown-items="definitionsList" ng-model="selected.definitionKey" ng-change="definitionSelected()" placeholder="Definitions"
+        <div class="bk-hbox combo-toolbar" ng-show="!state.isBusy">
+            <bk-combobox-input class="bk-full-width bk-border--right" dropdown-items="definitionsList" ng-model="selected.definitionKey" ng-change="definitionSelected()" placeholder="Definitions"
                 btn-aria-label="show/hide definition options" list-aria-label="definition options">
             </bk-combobox-input>
-            <bk-select title="Definition versions" placeholder="Versions" style="max-width: 5.125rem;" compact="true" ng-model="selected.definitionId" ng-change="versionSelected()">
+            <bk-select title="Definition versions" placeholder="Versions" style="max-width: 5.125rem;" ng-model="selected.definitionId" ng-change="versionSelected()">
                 <bk-option ng-repeat="ver in definitionVersions track by ver.id" text="{{ver.label}}" value="ver.id"></bk-option>
             </bk-select>
         </div>
-        <bk-toolbar ng-if="displaySearch" compact="true">
+        <bk-toolbar ng-if="displaySearch && !state.isBusy" compact="true">
             <bk-input-group>
                 <bk-input type="search" placeholder="Search by Business Key" ng-keyup="inputSearchKeyUp($event)" ng-model="searchField.text" bk-focus="true"></bk-input>
                 <bk-input-group-addon>
@@ -66,14 +71,14 @@
                 </bk-input-group-addon>
             </bk-input-group>
         </bk-toolbar>
-        <bk-scrollbar class="bk-fill-parent">
-            <table bk-table outer-borders="bottom" display-mode="compact">
+        <bk-scrollbar class="bk-fill-parent" ng-show="!state.isBusy">
+            <table bk-table outer-borders="horizontal" display-mode="compact">
                 <thead bk-table-header sticky="true" interactive="false">
                     <tr bk-table-row>
                         <th bk-table-header-cell>Id</th>
                         <th bk-table-header-cell>Business Key</th>
                         <th bk-table-header-cell>Business Status</th>
-                        <th bk-table-header-cell>Process Definition</th>
+                        <!-- <th bk-table-header-cell>Process Definition</th> -->
                         <th bk-table-header-cell>Name</th>
                     </tr>
                 </thead>
@@ -82,7 +87,7 @@
                         <td bk-table-cell>{{next.id}}</td>
                         <td bk-table-cell>{{next.businessKey}}</td>
                         <td bk-table-cell>{{next.businessStatus}}</td>
-                        <td bk-table-cell>{{next.processDefinitionKey}}</td>
+                        <!-- <td bk-table-cell>{{next.processDefinitionKey}}</td> -->
                         <td bk-table-cell>{{next.name}}</td>
                     </tr>
                     <tr ng-if="instancesList.length === 0" bk-table-row>
@@ -91,8 +96,8 @@
                 </tbody>
             </table>
         </bk-scrollbar>
-        <bk-pagination ng-if="totalRows > 0" current-page="currentPage" total-items="totalRows" items-per-page="pageSize" items-per-page-options="[10, 20, 50, 100]" items-per-page-placement="top-start" display-total-items="true"
-            compact="true" page-change="onPageChange(pageNumber)" items-per-page-change="onItemsPerPageChange(itemsPerPage)">
+        <bk-pagination ng-if="totalRows > 0 && !state.isBusy" current-page="currentPage" total-items="totalRows" items-per-page="pageSize" items-per-page-options="[10, 20, 50, 100]" items-per-page-placement="top-start"
+            display-total-items="true" compact="true" page-change="onPageChange(pageNumber)" items-per-page-change="onItemsPerPageChange(itemsPerPage)">
         </bk-pagination>
         <theme></theme>
     </body>

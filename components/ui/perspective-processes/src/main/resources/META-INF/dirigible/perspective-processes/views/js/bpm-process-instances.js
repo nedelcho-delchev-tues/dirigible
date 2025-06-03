@@ -13,6 +13,9 @@ const processInstances = angular.module('process-instances', ['platformView', 'b
 processInstances.constant('Notifications', new NotificationHub());
 processInstances.constant('Dialogs', new DialogHub());
 processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notifications, Dialogs) => {
+    $scope.state = {
+        isBusy: true,
+    };
     $scope.selectAll = false;
     $scope.searchField = { text: '' };
     $scope.displaySearch = false;
@@ -33,36 +36,32 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
 
     const fetchDefinitions = (initialLoad = false) => {
         $http.get('/services/bpm/bpm-processes/definitions').then((response) => {
-            if (!initialLoad && definitions.length && definitions.length < response.data.length) {
-                Notifications.show({
-                    type: 'information',
-                    title: 'Process definitions',
-                    description: 'A new process definition has been added.'
-                });
-            }
-            if (definitions.length !== response.data.length) {
+            if (!angular.equals(definitions, response.data)) {
                 definitions.length = 0;
                 definitions.push(...response.data);
                 $scope.definitionsList.length = 0;
-                for (let i = 0; i < response.data.length; i++) {
-                    if (!$scope.definitionsList.some(e => e.value === response.data[i].key)) {
+                for (let i = 0; i < definitions.length; i++) {
+                    if (!$scope.definitionsList.some(e => e.value === definitions[i].key)) {
                         $scope.definitionsList.push({
-                            value: response.data[i].key,
-                            text: response.data[i].name,
-                            secondaryText: response.data[i].key,
+                            value: definitions[i].key,
+                            text: definitions[i].name,
+                            secondaryText: definitions[i].key,
                         });
                     }
                 }
-                if (!$scope.selected.definitionKey && $scope.definitionsList.length) {
+                if ($scope.definitionsList.length && (!$scope.selected.definitionKey || !$scope.definitionsList.some(e => e.value === $scope.selected.definitionKey))) {
                     $scope.selected.definitionKey = $scope.definitionsList[0].value;
                     $scope.definitionSelected(initialLoad);
                 }
-                if (!currentFetchDataInstance) {
-                    getInstances({ initialLoad: initialLoad });
-                }
+            }
+            if (!currentFetchDataInstance) {
+                getInstances({ initialLoad: initialLoad });
+            } else {
+                $scope.state.isBusy = false;
             }
         }, (error) => {
             console.error(error);
+            $scope.state.isBusy = false;
             if (initialLoad) Dialogs.showAlert({
                 title: 'Definitions load failed',
                 message: 'Could not load definitions. See console for more information.',
@@ -85,14 +84,7 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
     const fetchInstances = (initialLoad = false) => {
         $http.get('/services/bpm/bpm-processes/instances', { params: { 'businessKey': $scope.searchField.text, 'key': $scope.selected.definitionKey, 'limit': 100 } })
             .then((response) => {
-                if (!initialLoad && $scope.instancesList.length < response.data.length) {
-                    Notifications.show({
-                        type: 'information',
-                        title: 'Process instances',
-                        description: 'A new process instance has been started.'
-                    });
-                }
-                if ($scope.instancesList.length !== response.data.length) {
+                if (!angular.equals($scope.instancesList, response.data)) {
                     $scope.instancesList.length = 0;
                     $scope.instancesList.push(...response.data);
                 }
@@ -103,6 +95,10 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
                     message: 'Could not load instances. See console for more information.',
                     type: AlertTypes.Error,
                     preformatted: false,
+                });
+            }).finally(() => {
+                $scope.$evalAsync(() => {
+                    $scope.state.isBusy = false;
                 });
             });
     };
@@ -121,6 +117,10 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
     };
 
     $scope.reload = () => {
+        $scope.state.isBusy = true;
+        definitions.length = 0;
+        $scope.instancesList.length = 0;
+        $scope.selected.instanceId = null;
         if (currentFetchDataDefinition) {
             currentFetchDataDefinition = clearInterval(currentFetchDataDefinition);
         }
@@ -132,6 +132,7 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
 
     $scope.definitionSelected = (initialLoad = false) => {
         $scope.definitionVersions.length = 0;
+        $scope.selected.instanceId = null;
         for (let i = 0; i < definitions.length; i++) {
             if (definitions[i].key === $scope.selected.definitionKey) {
                 $scope.definitionVersions.push({
@@ -148,8 +149,8 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
     };
 
     $scope.versionSelected = () => {
-        Notifications.postMessage({ topic: 'bpm.diagram.definition', data: { definition: $scope.selected.definitionId } });
-        Notifications.postMessage({ topic: 'bpm.definition.selected', data: { definition: $scope.selected.definitionKey } });
+        Dialogs.postMessage({ topic: 'bpm.diagram.definition', data: { definition: $scope.selected.definitionId } });
+        Dialogs.postMessage({ topic: 'bpm.definition.selected', data: { definition: $scope.selected.definitionKey } });
     };
 
     $scope.toggleSearch = () => {
@@ -173,7 +174,7 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
         }).then(() => {
             Notifications.show({
                 title: 'Action confirmation',
-                description: actionName + " triggered successfully!",
+                description: `${actionName} triggered successfully!`,
                 type: 'positive',
             });
             $scope.reload();
@@ -181,7 +182,7 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
             console.error('Error making POST request:', error);
             Dialogs.showAlert({
                 title: 'Action failed',
-                message: actionName + ' operation failed. Error message ' + error.message,
+                message: `${actionName} operation failed. Error message ${error.message}`,
                 type: AlertTypes.Error,
                 preformatted: false,
             });
@@ -189,8 +190,8 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
     };
 
     $scope.selectionChanged = (instance) => {
-        Notifications.postMessage({ topic: 'bpm.diagram.instance', data: { instance: instance.id } });
-        Notifications.postMessage({ topic: 'bpm.instance.selected', data: { instance: instance.id } });
+        Dialogs.postMessage({ topic: 'bpm.diagram.instance', data: { instance: instance.id } });
+        Dialogs.postMessage({ topic: 'bpm.instance.selected', data: { instance: instance.id } });
         $scope.selected.instanceId = instance.id;
     };
 

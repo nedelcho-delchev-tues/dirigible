@@ -9,10 +9,9 @@
  * SPDX-FileCopyrightText: Eclipse Dirigible contributors
  * SPDX-License-Identifier: EPL-2.0
  */
-const ideBpmHistoricProcessInstancesView = angular.module('ide-bpm-historic-process-instances', ['platformView', 'blimpKit']);
-ideBpmHistoricProcessInstancesView.constant('Notifications', new NotificationHub());
-ideBpmHistoricProcessInstancesView.constant('Dialogs', new DialogHub());
-ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesViewController', ($scope, $http, Notifications, Dialogs) => {
+const historicProcessInstances = angular.module('historic-process-instances', ['platformView', 'blimpKit']);
+historicProcessInstances.constant('Dialogs', new DialogHub());
+historicProcessInstances.controller('BpmHistoricProcessInstancesView', ($scope, $http, Dialogs) => {
     $scope.instances = [];
     $scope.searchField = { text: '' };
     $scope.displaySearch = false;
@@ -32,7 +31,7 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
 
     $scope.selectionChanged = (instance) => {
         $scope.selectedId = instance.id;
-        Notifications.postMessage({ topic: 'bpm.historic.instance.selected', data: { instance: instance.id, definition: instance.processDefinitionId } });
+        Dialogs.postMessage({ topic: 'bpm.historic.instance.selected', data: { instance: instance.id, definition: instance.processDefinitionId } });
     };
 
     $scope.toggleSearch = () => {
@@ -62,6 +61,7 @@ ideBpmHistoricProcessInstancesView.controller('IDEBpmHistoricProcessInstancesVie
         switch (e.key) {
             case 'Escape':
                 $scope.searchField.text = '';
+                toggleSearch();
                 $scope.fetchData();
                 break;
             case 'Enter':
