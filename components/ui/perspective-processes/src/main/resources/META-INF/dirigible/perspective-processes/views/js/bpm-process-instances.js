@@ -190,9 +190,14 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
     };
 
     $scope.selectionChanged = (instance) => {
-        Dialogs.postMessage({ topic: 'bpm.diagram.instance', data: { instance: instance.id } });
-        Dialogs.postMessage({ topic: 'bpm.instance.selected', data: { instance: instance.id } });
-        $scope.selected.instanceId = instance.id;
+        if ($scope.selected.instanceId === instance.id) {
+            Dialogs.postMessage({ topic: 'bpm.diagram.instance', data: { deselect: true, instance: instance.id } });
+            $scope.selected.instanceId = null;
+        } else {
+            Dialogs.postMessage({ topic: 'bpm.diagram.instance', data: { instance: instance.id } });
+            Dialogs.postMessage({ topic: 'bpm.instance.selected', data: { instance: instance.id } });
+            $scope.selected.instanceId = instance.id;
+        }
     };
 
     $scope.getNoDataMessage = () => {

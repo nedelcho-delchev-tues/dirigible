@@ -76,6 +76,7 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Messag
     function loadBpmnFromApi() {
         $http.get(`/services/bpm/bpm-processes/definition/bpmn?id=${$scope.processId}`).then((response) => {
             bpmnVisualization.load(prepareXmlString(response.data), { fit: { type: bpmnvisu.FitType.None, margin: 16 } });
+            // getBadges();
             if (instanceId) {
                 loadActivities();
             } else {
@@ -89,6 +90,44 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Messag
                 $scope.state.isBusy = false;
             });
         });
+    }
+
+    function getBadges() {
+        // TODO
+        for (const [key, value] of Object.entries(response)) {
+            setBadges(key, getBadgeConfig(value))
+        }
+    }
+
+    function getBadgeConfig(data) {
+        let badges = [];
+        if (data.negative) {
+            badges.push({
+                position: 'middle-left',
+                label: data.negative.toString(),
+                style: {
+                    font: { color: 'var(--font_color)', size: 14 },
+                    fill: { color: 'var(--badgeNegative)' },
+                    stroke: { color: 'var(--badgeNegative)' }
+                }
+            });
+        }
+        if (data.positive) {
+            badges.push({
+                position: 'top-left',
+                label: data.positive.toString(),
+                style: {
+                    font: { color: 'var(--font_color)', size: 14 },
+                    fill: { color: 'var(--badgePositive)' },
+                    stroke: { color: 'var(--badgePositive)' }
+                }
+            });
+        }
+        return badges;
+    }
+
+    function setBadges(id, badges) {
+        bpmnVisualization.bpmnElementsRegistry.addOverlays(id, badges);
     }
 
     $scope.zoomIn = () => bpmnVisualization.navigation.graph.zoomIn();
@@ -121,14 +160,18 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Messag
         topic: 'bpm.diagram.instance',
         handler: (data) => {
             if ($scope.processId) $scope.$evalAsync(() => {
-                $scope.state.isBusy = true;
-                if (!data.hasOwnProperty('instance')) {
-                    $scope.state.error = true;
-                    $scope.errorMessage = 'The \'instance\' parameter is missing.';
+                if (data.deselect) {
+                    activities.forEach((activity) => bpmnVisualization.bpmnElementsRegistry.removeCssClasses(activity, ['highlight']));
                 } else {
-                    instanceId = data.instance;
-                    $scope.state.error = false;
-                    loadActivities();
+                    $scope.state.isBusy = true;
+                    if (!data.hasOwnProperty('instance')) {
+                        $scope.state.error = true;
+                        $scope.errorMessage = 'The \'instance\' parameter is missing.';
+                    } else {
+                        instanceId = data.instance;
+                        $scope.state.error = false;
+                        loadActivities();
+                    }
                 }
             });
         }
