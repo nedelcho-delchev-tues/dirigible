@@ -17,6 +17,7 @@ import org.eclipse.dirigible.components.base.tenant.Tenant;
 import org.eclipse.dirigible.components.base.tenant.TenantContext;
 import org.eclipse.dirigible.components.engine.bpm.BpmProvider;
 import org.eclipse.dirigible.components.engine.bpm.flowable.diagram.DirigibleProcessDiagramGenerator;
+import org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActivityStatusData;
 import org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskData;
 import org.eclipse.dirigible.components.engine.bpm.flowable.service.PrincipalType;
 import org.eclipse.dirigible.repository.api.IRepository;
@@ -52,6 +53,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * The Class BpmProviderFlowable. NOTE! - all methods in the class should be tenant aware
@@ -832,13 +834,104 @@ public class BpmProviderFlowable implements BpmProvider {
 
     }
 
-    public List<String> getProcessInstanceActiveActivityIds(String processInstanceId) {
+    public Map<String, ActivityStatusData> getProcessInstanceActiveActivityIds(String processInstanceId) {
         ProcessEngine processEngine = getProcessEngine();
         ProcessInstance processInstance = getProcessInstance(processInstanceId);
         if (null == processInstance) {
-            return Collections.emptyList();
+            return Collections.emptyMap();
         }
         RuntimeService runtimeService = processEngine.getRuntimeService();
-        return runtimeService.getActiveActivityIds(processInstance.getId());
+        List<String> positiveActiveActivityIds = runtimeService.getActiveActivityIds(processInstance.getId());
+
+        List<Job> jobs = processEngine.getManagementService()
+                                      .createDeadLetterJobQuery()
+                                      .processInstanceId(processInstanceId)
+                                      .list();
+
+        List<String> negativeActiveActivityIds = jobs.stream()
+                                                     .map(Job::getElementId)
+                                                     .collect(Collectors.toList());
+
+        Map<String, ActivityStatusData> statuses = new HashMap<>();
+        for (String positive : positiveActiveActivityIds) {
+            ActivityStatusData data = statuses.get(positive);
+            if (data == null) {
+                data = new ActivityStatusData();
+                data.positive = 1;
+                statuses.put(positive, data);
+                continue;
+            }
+            data.positive += 1;
+        }
+        for (String negative : negativeActiveActivityIds) {
+            ActivityStatusData data = statuses.get(negative);
+            if (data == null) {
+                data = new ActivityStatusData();
+                data.negative = 1;
+                statuses.put(negative, data);
+                continue;
+            }
+            data.negative += 1;
+        }
+
+        return statuses;
     }
+
+    public Map<String, ActivityStatusData> getProcessDefinitionActiveActivityIds(String processDefinitionId) {
+        ProcessEngine processEngine = getProcessEngine();
+        ProcessDefinition processDefinition = getProcessDefinitionById(processDefinitionId);
+        if (null == processDefinition) {
+            return Collections.emptyMap();
+        }
+
+        processEngine.getTaskService()
+                     .createTaskQuery()
+                     .processDefinitionId(processDefinitionId)
+                     .suspended()
+                     .list();
+
+        RuntimeService runtimeService = processEngine.getRuntimeService();
+        List<Execution> executions = runtimeService.createExecutionQuery()
+                                                   .onlyChildExecutions()
+                                                   .processDefinitionId(processDefinitionId)
+                                                   .list();
+        List<String> allActiveActivityIds = executions.stream()
+                                                           .map(Execution::getActivityId)
+                                                           .collect(Collectors.toList());
+
+        List<Job> jobs = processEngine.getManagementService()
+                                      .createDeadLetterJobQuery()
+                                      .processDefinitionId(processDefinitionId)
+                                      .list();
+
+        List<String> negativeActiveActivityIds = jobs.stream()
+                                                     .map(Job::getElementId)
+                                                     .collect(Collectors.toList());
+
+        Map<String, ActivityStatusData> statuses = new HashMap<>();
+        for (String each : allActiveActivityIds) {
+            ActivityStatusData data = statuses.get(each);
+            if (data == null) {
+                data = new ActivityStatusData();
+                data.positive = 1;
+                statuses.put(each, data);
+                continue;
+            }
+            data.positive += 1;
+        }
+        for (String negative : negativeActiveActivityIds) {
+            ActivityStatusData data = statuses.get(negative);
+            if (data == null) {
+                data = new ActivityStatusData();
+                data.negative = 1;
+                statuses.put(negative, data);
+                continue;
+            }
+            data.negative += 1;
+            data.positive -= 1;
+        }
+
+        return statuses;
+    }
+
 }
