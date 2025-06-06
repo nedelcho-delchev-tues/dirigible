@@ -11,6 +11,8 @@ package org.eclipse.dirigible.components.engine.bpm.flowable.config;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.dirigible.commons.api.helpers.GsonHelper;
+import org.eclipse.dirigible.commons.config.Configuration;
+import org.eclipse.dirigible.components.api.security.UserFacade;
 import org.eclipse.dirigible.components.base.tenant.Tenant;
 import org.eclipse.dirigible.components.base.tenant.TenantContext;
 import org.eclipse.dirigible.components.engine.bpm.BpmProvider;
@@ -18,30 +20,35 @@ import org.eclipse.dirigible.components.engine.bpm.flowable.diagram.DirigiblePro
 import org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActivityStatusData;
 import org.eclipse.dirigible.components.engine.bpm.flowable.dto.TaskData;
 import org.eclipse.dirigible.components.engine.bpm.flowable.service.PrincipalType;
-import org.eclipse.dirigible.components.engine.bpm.flowable.TaskService;
 import org.eclipse.dirigible.repository.api.IRepository;
 import org.eclipse.dirigible.repository.api.IRepositoryStructure;
 import org.eclipse.dirigible.repository.api.IResource;
 import org.flowable.bpmn.model.BpmnModel;
-import org.flowable.engine.ProcessEngine;
-import org.flowable.engine.ProcessEngineConfiguration;
-import org.flowable.engine.RepositoryService;
-import org.flowable.engine.RuntimeService;
+import org.flowable.engine.*;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.history.HistoricProcessInstanceQuery;
 import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.repository.ProcessDefinitionQuery;
+import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.runtime.ProcessInstanceQuery;
+import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.image.ProcessDiagramGenerator;
 import org.flowable.job.api.Job;
+import org.flowable.spring.SpringProcessEngineConfiguration;
+import org.flowable.task.api.Task;
+import org.flowable.task.api.TaskInfoQuery;
+import org.flowable.task.api.TaskQuery;
 import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.flowable.variable.api.persistence.entity.VariableInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
+import org.springframework.beans.BeanUtils;
+import org.springframework.context.ApplicationContext;
+import org.springframework.transaction.PlatformTransactionManager;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -51,28 +58,52 @@ import java.util.stream.Collectors;
 /**
  * The Class BpmProviderFlowable. NOTE! - all methods in the class should be tenant aware
  */
-@Component
 public class BpmProviderFlowable implements BpmProvider {
 
     /** The Constant EXTENSION_BPMN20_XML. */
     private static final String EXTENSION_BPMN20_XML = "bpmn20.xml";
 
-    /** The Constant LOGGER. */
-    private static final Logger LOGGER = LoggerFactory.getLogger(BpmProviderFlowable.class);
+    /** The Constant logger. */
+    private static final Logger logger = LoggerFactory.getLogger(BpmProviderFlowable.class);
+
+    /** The Constant DIRIGIBLE_FLOWABLE_DATABASE_DRIVER. */
+    private static final String DIRIGIBLE_FLOWABLE_DATABASE_DRIVER = "DIRIGIBLE_FLOWABLE_DATABASE_DRIVER";
+
+    /** The Constant DIRIGIBLE_FLOWABLE_DATABASE_URL. */
+    private static final String DIRIGIBLE_FLOWABLE_DATABASE_URL = "DIRIGIBLE_FLOWABLE_DATABASE_URL";
+
+    /** The Constant DIRIGIBLE_FLOWABLE_DATABASE_USER. */
+    private static final String DIRIGIBLE_FLOWABLE_DATABASE_USER = "DIRIGIBLE_FLOWABLE_DATABASE_USER";
+
+    /** The Constant DIRIGIBLE_FLOWABLE_DATABASE_PASSWORD. */
+    private static final String DIRIGIBLE_FLOWABLE_DATABASE_PASSWORD = "DIRIGIBLE_FLOWABLE_DATABASE_PASSWORD";
+
+    /** The Constant DIRIGIBLE_FLOWABLE_DATABASE_DATASOURCE_NAME. */
+    private static final String DIRIGIBLE_FLOWABLE_DATABASE_DATASOURCE_NAME = "DIRIGIBLE_FLOWABLE_DATABASE_DATASOURCE_NAME";
+
+    /** The Constant DIRIGIBLE_FLOWABLE_DATABASE_SCHEMA_UPDATE. */
+    private static final String DIRIGIBLE_FLOWABLE_DATABASE_SCHEMA_UPDATE = "DIRIGIBLE_FLOWABLE_DATABASE_SCHEMA_UPDATE";
+
+    /** The process engine. */
+    private static ProcessEngine processEngine;
+
+    /** The datasource. */
+    private final DataSource datasource;
 
     /** The repository. */
     private final IRepository repository;
-    private final TenantContext tenantContext;
-    private final FlowableArtefactsValidator flowableArtefactsValidator;
-    /** The process engine. */
-    private final ProcessEngine processEngine;
 
-    public BpmProviderFlowable(IRepository repository, TenantContext tenantContext, FlowableArtefactsValidator flowableArtefactsValidator,
-            ProcessEngine processEngine) {
+    private final PlatformTransactionManager transactionManager;
+    private final ApplicationContext applicationContext;
+    private final TenantContext tenantContext;
+
+    public BpmProviderFlowable(DataSource datasource, IRepository repository, PlatformTransactionManager transactionManager,
+            ApplicationContext applicationContext, TenantContext tenantContext) {
+        this.datasource = datasource;
         this.repository = repository;
+        this.transactionManager = transactionManager;
+        this.applicationContext = applicationContext;
         this.tenantContext = tenantContext;
-        this.flowableArtefactsValidator = flowableArtefactsValidator;
-        this.processEngine = processEngine;
     }
 
     /**
@@ -82,8 +113,8 @@ public class BpmProviderFlowable implements BpmProvider {
      * @return the string
      */
     public String deployProcess(String location) {
-        LOGGER.debug("Deploying a BPMN process from location: [{}]", location);
-        RepositoryService repositoryService = processEngine.getRepositoryService();
+        logger.debug("Deploying a BPMN process from location: [{}]", location);
+        RepositoryService repositoryService = getProcessEngine().getRepositoryService();
         Deployment deployment;
         if (!location.startsWith(IRepositoryStructure.SEPARATOR))
             location = IRepositoryStructure.SEPARATOR + location;
@@ -112,8 +143,8 @@ public class BpmProviderFlowable implements BpmProvider {
                 throw new IllegalArgumentException("Error closing the BPMN resource at location: " + location, e);
             }
         }
-        LOGGER.info("Process deployed with deployment id: [{}] and process key: [{}]", deployment.getId(), deployment.getKey());
-        LOGGER.debug("Done deploying a BPMN process from location: [{}]", location);
+        logger.info("Process deployed with deployment id: [{}] and process key: [{}]", deployment.getId(), deployment.getKey());
+        logger.debug("Done deploying a BPMN process from location: [{}]", location);
         return deployment.getId();
     }
 
@@ -131,10 +162,65 @@ public class BpmProviderFlowable implements BpmProvider {
      *
      * @return the process engine
      */
+    synchronized ProcessEngine getProcessEngine() {
+        if (processEngine == null) {
+            logger.info("Initializing the Flowable Process Engine...");
+
+            SpringProcessEngineConfiguration cfg = createProcessEngineConfig();
+            processEngine = cfg.buildProcessEngine();
+            cfg.start();
+
+            logger.info("Done initializing the Flowable Process Engine.");
+        }
+        return processEngine;
+    }
+
+    private SpringProcessEngineConfiguration createProcessEngineConfig() {
+        SpringProcessEngineConfiguration config = new SpringProcessEngineConfiguration();
+
+        setDatabaseConfig(config);
+
+        boolean updateSchema = Boolean.parseBoolean(Configuration.get(DIRIGIBLE_FLOWABLE_DATABASE_SCHEMA_UPDATE, "true"));
+        config.setDatabaseSchemaUpdate(
+                updateSchema ? ProcessEngineConfiguration.DB_SCHEMA_UPDATE_TRUE : ProcessEngineConfiguration.DB_SCHEMA_UPDATE_FALSE);
+
+        config.setAsyncExecutorActivate(true);
+        config.setApplicationContext(applicationContext);
+
+        config.setProcessDiagramGenerator(new DirigibleProcessDiagramGenerator());
+
+        return config;
+    }
+
+    private void setDatabaseConfig(SpringProcessEngineConfiguration config) {
+        String dataSourceName = Configuration.get(DIRIGIBLE_FLOWABLE_DATABASE_DATASOURCE_NAME);
+        if (dataSourceName != null) {
+            logger.info("Initializing the Flowable Process Engine with JNDI datasource name");
+            config.setDataSourceJndiName(dataSourceName);
+        }
+
+        String driver = Configuration.get(DIRIGIBLE_FLOWABLE_DATABASE_DRIVER);
+        String url = Configuration.get(DIRIGIBLE_FLOWABLE_DATABASE_URL);
+        String user = Configuration.get(DIRIGIBLE_FLOWABLE_DATABASE_USER);
+        String password = Configuration.get(DIRIGIBLE_FLOWABLE_DATABASE_PASSWORD);
+
+        if (driver != null && url != null) {
+            logger.info("Initializing the Flowable Process Engine with environment variables datasource parameters");
+
+            config.setJdbcUrl(url);
+            config.setJdbcUsername(user);
+            config.setJdbcPassword(password);
+            config.setJdbcDriver(driver);
+        } else {
+            logger.info("Initializing the Flowable Process Engine with datasource [{}]", datasource);
+            config.setDataSource(datasource);
+            config.setTransactionManager(transactionManager);
+        }
+    }
 
     private String getTenantId() {
         Tenant currentTenant = tenantContext.getCurrentTenant();
-        LOGGER.debug("Current tenant is [{}]", currentTenant);
+        logger.debug("Current tenant is [{}]", currentTenant);
         return currentTenant.getId();
     }
 
@@ -144,10 +230,24 @@ public class BpmProviderFlowable implements BpmProvider {
      * @param deploymentId the deployment id
      */
     public void undeployProcess(String deploymentId) {
-        flowableArtefactsValidator.validateDeployment(deploymentId);
+        validateDeployment(deploymentId);
 
-        RepositoryService repositoryService = processEngine.getRepositoryService();
+        RepositoryService repositoryService = getProcessEngine().getRepositoryService();
         repositoryService.deleteDeployment(deploymentId, true);
+    }
+
+    private void validateDeployment(String deploymentId) {
+        RepositoryService repositoryService = getProcessEngine().getRepositoryService();
+
+        Deployment deployment = repositoryService.createDeploymentQuery()
+                                                 .deploymentId(deploymentId)
+                                                 .deploymentTenantId(getTenantId())
+                                                 .singleResult();
+
+        if (deployment == null) {
+            throw new IllegalArgumentException("Deployment with id [" + deploymentId + "] not found or does not belong to current tenant.");
+        }
+
     }
 
     /**
@@ -158,17 +258,17 @@ public class BpmProviderFlowable implements BpmProvider {
      * @return the string
      */
     public String startProcess(String key, String parameters) {
-        LOGGER.info("Starting a BPMN process by key: [{}]", key);
-        RuntimeService runtimeService = processEngine.getRuntimeService();
+        logger.info("Starting a BPMN process by key: [{}]", key);
+        RuntimeService runtimeService = getProcessEngine().getRuntimeService();
         @SuppressWarnings("unchecked")
         Map<String, Object> variables = GsonHelper.fromJson(parameters, HashMap.class);
         try {
             ProcessInstance processInstance = runtimeService.startProcessInstanceByKeyAndTenantId(key, variables, getTenantId());
-            LOGGER.info("Started process instance with id [{}], key [{}] for tenant [{}]", processInstance.getId(), key,
+            logger.info("Started process instance with id [{}], key [{}] for tenant [{}]", processInstance.getId(), key,
                     processInstance.getTenantId());
             return processInstance.getId();
         } catch (Exception e) {
-            LOGGER.error("Failed to start process with key [{}]", key, e);
+            logger.error("Failed to start process with key [{}]", key, e);
             return null;
         }
 
@@ -181,22 +281,130 @@ public class BpmProviderFlowable implements BpmProvider {
      * @param reason the reason
      */
     public void deleteProcess(String processInstanceId, String reason) {
-        flowableArtefactsValidator.validateProcessInstanceId(processInstanceId);
+        validateProcessInstanceId(processInstanceId);
 
-        LOGGER.debug("Deleting a BPMN process instance by processInstanceId: [{}]", processInstanceId);
+        logger.debug("Deleting a BPMN process instance by processInstanceId: [{}]", processInstanceId);
         try {
-            processEngine.getRuntimeService()
-                         .deleteProcessInstance(processInstanceId, reason);
-            LOGGER.info("Done deleting a BPMN process instance by processInstanceId: [{}]", processInstanceId);
+            getProcessEngine().getRuntimeService()
+                              .deleteProcessInstance(processInstanceId, reason);
+            logger.info("Done deleting a BPMN process instance by processInstanceId: [{}]", processInstanceId);
         } catch (Exception e) {
-            LOGGER.error("Failed to delete process with processInstanceId [{}], reason [{}]", processInstanceId, reason, e);
+            logger.error("Failed to delete process with processInstanceId [{}], reason [{}]", processInstanceId, reason, e);
         }
     }
 
-    public TaskService getTaskService() {
-        FlowableArtefactsValidator validator = new FlowableArtefactsValidator(processEngine, tenantContext);
+    private void validateProcessInstanceId(String processInstanceId) {
+        RuntimeService runtimeService = getProcessEngine().getRuntimeService();
 
-        return new TaskServiceImpl(processEngine.getTaskService(), tenantContext, validator);
+        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery()
+                                                        .processInstanceId(processInstanceId)
+                                                        .processInstanceTenantId(getTenantId())
+                                                        .singleResult();
+
+        if (processInstance == null) {
+            throw new IllegalArgumentException(
+                    "Process instance with id [" + processInstanceId + "] not found or does not belong to current tenant.");
+        }
+
+    }
+
+    /**
+     * Gets the tasks.
+     *
+     * @return the tasks
+     */
+    public String getTasks() {
+        List<TaskData> tasksData = new ArrayList<>();
+        TaskService taskService = getTaskService();
+        List<Task> tasks = taskService.createTaskQuery()
+                                      .taskTenantId(getTenantId())
+                                      .list();
+        for (Task task : tasks) {
+            TaskData taskData = new TaskData();
+            BeanUtils.copyProperties(task, taskData);
+            tasksData.add(taskData);
+        }
+        return GsonHelper.toJson(tasksData);
+    }
+
+    private TaskService getTaskService() {
+        return getProcessEngine().getTaskService();
+    }
+
+    /**
+     * Gets the task variable.
+     *
+     * @param taskId the task id
+     * @param variableName the variable name
+     * @return the task variables
+     */
+    public Object getTaskVariable(String taskId, String variableName) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        return taskService.getVariable(taskId, variableName);
+    }
+
+    private void validateTask(String taskId) {
+        TaskService taskService = getTaskService();
+        Task task = taskService.createTaskQuery()
+                               .taskId(taskId)
+                               .taskTenantId(getTenantId())
+                               .singleResult();
+        if (task == null) {
+            throw new IllegalArgumentException("Task with id [" + taskId + "] not found or does not belong to current tenant");
+        }
+    }
+
+    /**
+     * Gets the task variables.
+     *
+     * @param taskId the task id
+     * @return the task variables
+     */
+    public Map<String, Object> getTaskVariables(String taskId) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        return taskService.getVariables(taskId);
+    }
+
+    /**
+     * Sets task variable.
+     *
+     * @param taskId the task id
+     * @param variableName the variable name
+     * @param variable the variable
+     */
+    public void setTaskVariable(String taskId, String variableName, Object variable) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        taskService.setVariable(taskId, variableName, variable);
+    }
+
+    /**
+     * Sets the task variables.
+     *
+     * @param taskId the task id
+     * @param variables the variables
+     */
+    public void setTaskVariables(String taskId, Map<String, Object> variables) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        taskService.setVariables(taskId, variables);
+    }
+
+    /**
+     * Complete task.
+     *
+     * @param taskId the task id
+     * @param variables the variables
+     */
+    public void completeTask(String taskId, String variables) {
+        Map<String, Object> processVariables = GsonHelper.fromJson(variables, HashMap.class);
+        completeTask(taskId, processVariables);
     }
 
     /**
@@ -207,16 +415,29 @@ public class BpmProviderFlowable implements BpmProvider {
      * @return the variable
      */
     public Object getVariable(String executionId, String variableName) {
-        flowableArtefactsValidator.validateExecutionId(executionId);
+        validateExecutionId(executionId);
 
-        RuntimeService runtimeService = processEngine.getRuntimeService();
+        RuntimeService runtimeService = getProcessEngine().getRuntimeService();
         return runtimeService.getVariable(executionId, variableName);
     }
 
-    public Map<String, Object> getVariables(String executionId) {
-        flowableArtefactsValidator.validateExecutionId(executionId);
+    private void validateExecutionId(String executionId) {
+        RuntimeService runtimeService = getProcessEngine().getRuntimeService();
 
-        RuntimeService runtimeService = processEngine.getRuntimeService();
+        Execution execution = runtimeService.createExecutionQuery()
+                                            .executionId(executionId)
+                                            .executionTenantId(getTenantId())
+                                            .singleResult();
+
+        if (execution == null) {
+            throw new IllegalArgumentException("Execution with id [" + executionId + "] not found or does not belong to current tenant.");
+        }
+    }
+
+    public Map<String, Object> getVariables(String executionId) {
+        validateExecutionId(executionId);
+
+        RuntimeService runtimeService = getProcessEngine().getRuntimeService();
         return runtimeService.getVariables(executionId);
     }
 
@@ -228,9 +449,9 @@ public class BpmProviderFlowable implements BpmProvider {
      * @param value the value
      */
     public void setVariable(String executionId, String variableName, Object value) {
-        flowableArtefactsValidator.validateExecutionId(executionId);
+        validateExecutionId(executionId);
 
-        RuntimeService runtimeService = processEngine.getRuntimeService();
+        RuntimeService runtimeService = getProcessEngine().getRuntimeService();
         runtimeService.setVariable(executionId, variableName, value);
     }
 
@@ -241,13 +462,56 @@ public class BpmProviderFlowable implements BpmProvider {
      * @param variableName the variable name
      */
     public void removeVariable(String executionId, String variableName) {
-        flowableArtefactsValidator.validateExecutionId(executionId);
+        validateExecutionId(executionId);
 
-        RuntimeService runtimeService = processEngine.getRuntimeService();
+        RuntimeService runtimeService = getProcessEngine().getRuntimeService();
         runtimeService.removeVariable(executionId, variableName);
     }
 
+    public void cleanup() {
+        logger.info("Cleaning [{}]...", this.getClass());
+        processEngine = null;
+    }
+
+    public List<IdentityLink> getTaskIdentityLinks(String taskId) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        return taskService.getIdentityLinksForTask(taskId);
+    }
+
+    public void claimTask(String taskId, String userId) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        taskService.claim(taskId, userId);
+    }
+
+    public void unclaimTask(String taskId) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        taskService.unclaim(taskId);
+    }
+
+    public void completeTask(String taskId, Map<String, Object> variables) {
+        validateTask(taskId);
+
+        TaskService taskService = getTaskService();
+        taskService.complete(taskId, variables);
+    }
+
+    public ProcessInstance getProcessInstance(String processInstanceId) {
+        return getProcessEngine().getRuntimeService()
+                                 .createProcessInstanceQuery()
+                                 .processInstanceId(processInstanceId)
+                                 .processInstanceTenantId(getTenantId())
+                                 .singleResult();
+    }
+
     public List<ProcessDefinition> getProcessDefinitions(Optional<String> key) {
+        ProcessEngine processEngine = getProcessEngine();
+
         ProcessDefinitionQuery processDefinitionsQuery = processEngine.getRepositoryService()
                                                                       .createProcessDefinitionQuery();
         processDefinitionsQuery.processDefinitionTenantId(getTenantId());
@@ -261,50 +525,63 @@ public class BpmProviderFlowable implements BpmProvider {
     }
 
     public ProcessDefinition getProcessDefinitionByKey(String processDefinitionKey) {
-        return processEngine.getRepositoryService()
-                            .createProcessDefinitionQuery()
-                            .processDefinitionTenantId(getTenantId())
-                            .processDefinitionKey(processDefinitionKey)
-                            .singleResult();
+        return getProcessEngine().getRepositoryService()
+                                 .createProcessDefinitionQuery()
+                                 .processDefinitionTenantId(getTenantId())
+                                 .processDefinitionKey(processDefinitionKey)
+                                 .singleResult();
 
     }
 
     public ProcessDefinition getProcessDefinitionById(String processDefinitionId) {
-        return processEngine.getRepositoryService()
-                            .createProcessDefinitionQuery()
-                            .processDefinitionTenantId(getTenantId())
-                            .processDefinitionId(processDefinitionId)
-                            .singleResult();
+        return getProcessEngine().getRepositoryService()
+                                 .createProcessDefinitionQuery()
+                                 .processDefinitionTenantId(getTenantId())
+                                 .processDefinitionId(processDefinitionId)
+                                 .singleResult();
     }
 
     public List<HistoricVariableInstance> getProcessHistoricInstanceVariables(String processInstanceId) {
-        flowableArtefactsValidator.validateHistoricProcessInstanceByProcessInstanceId(processInstanceId);
+        validateHistoricProcessInstanceByProcessInstanceId(processInstanceId);
 
-        return processEngine.getHistoryService()
-                            .createHistoricVariableInstanceQuery()
-                            .processInstanceId(processInstanceId)
-                            .list();
+        return getProcessEngine().getHistoryService()
+                                 .createHistoricVariableInstanceQuery()
+                                 .processInstanceId(processInstanceId)
+                                 .list();
+    }
+
+    private void validateHistoricProcessInstanceByProcessInstanceId(String processInstanceId) {
+        HistoricProcessInstance historicProcessInstance = getProcessEngine().getHistoryService()
+                                                                            .createHistoricProcessInstanceQuery()
+                                                                            .processInstanceId(processInstanceId)
+                                                                            .processInstanceTenantId(getTenantId())
+                                                                            .singleResult();
+
+        if (historicProcessInstance == null) {
+            throw new IllegalArgumentException("Historic p rocess instance for process instance id [" + processInstanceId
+                    + "] not found or does not belong to current tenant.");
+        }
     }
 
     public List<VariableInstance> getProcessInstanceVariables(String processInstanceId) {
-        flowableArtefactsValidator.validateProcessInstanceId(processInstanceId);
+        validateProcessInstanceId(processInstanceId);
 
-        return processEngine.getRuntimeService()
-                            .createVariableInstanceQuery()
-                            .processInstanceId(processInstanceId)
-                            .list();
+        return getProcessEngine().getRuntimeService()
+                                 .createVariableInstanceQuery()
+                                 .processInstanceId(processInstanceId)
+                                 .list();
     }
 
     public List<Job> getDeadLetterJobs(String processInstanceId) {
-        return processEngine.getManagementService()
-                            .createDeadLetterJobQuery()
-                            .processInstanceId(processInstanceId)
-                            .jobTenantId(getTenantId())
-                            .list();
+        return getProcessEngine().getManagementService()
+                                 .createDeadLetterJobQuery()
+                                 .processInstanceId(processInstanceId)
+                                 .jobTenantId(getTenantId())
+                                 .list();
     }
 
     public Optional<byte[]> getProcessDefinitionImage(String processDefinitionKey) throws IOException {
-        RepositoryService repositoryService = processEngine.getRepositoryService();
+        RepositoryService repositoryService = getProcessEngine().getRepositoryService();
 
         ProcessDefinition process = repositoryService.createProcessDefinitionQuery()
                                                      .processDefinitionKey(processDefinitionKey)
@@ -323,6 +600,8 @@ public class BpmProviderFlowable implements BpmProvider {
     }
 
     public Optional<byte[]> getProcessInstanceImage(String processInstanceId) {
+        ProcessEngine processEngine = getProcessEngine();
+
         RepositoryService repositoryService = processEngine.getRepositoryService();
 
         ProcessEngineConfiguration processEngineConfiguration = processEngine.getProcessEngineConfiguration();
@@ -356,25 +635,18 @@ public class BpmProviderFlowable implements BpmProvider {
         }
     }
 
-    public ProcessInstance getProcessInstance(String processInstanceId) {
-        return processEngine.getRuntimeService()
-                            .createProcessInstanceQuery()
-                            .processInstanceId(processInstanceId)
-                            .processInstanceTenantId(getTenantId())
-                            .singleResult();
-    }
-
     public void retryDeadLetterJob(String jobId, int retries) {
-        processEngine.getManagementService()
-                     .moveDeadLetterJobToExecutableJob(jobId, retries);
+        getProcessEngine().getManagementService()
+                          .moveDeadLetterJobToExecutableJob(jobId, retries);
     }
 
     public void addProcessInstanceVariable(String processInstanceId, String key, String value) {
-        processEngine.getRuntimeService()
-                     .setVariable(processInstanceId, key, value);
+        getProcessEngine().getRuntimeService()
+                          .setVariable(processInstanceId, key, value);
     }
 
     public List<ProcessInstance> getProcessInstances(Optional<String> key, Optional<String> businessKey) {
+        ProcessEngine processEngine = getProcessEngine();
         ProcessInstanceQuery processInstanceQuery = processEngine.getRuntimeService()
                                                                  .createProcessInstanceQuery();
 
@@ -393,8 +665,8 @@ public class BpmProviderFlowable implements BpmProvider {
     }
 
     public List<HistoricProcessInstance> getCompletedProcessInstances(Optional<String> definitionKey, Optional<String> businessKey) {
-        HistoricProcessInstanceQuery historicProcessInstanceQuery = processEngine.getHistoryService()
-                                                                                 .createHistoricProcessInstanceQuery();
+        HistoricProcessInstanceQuery historicProcessInstanceQuery = getProcessEngine().getHistoryService()
+                                                                                      .createHistoricProcessInstanceQuery();
 
         if (definitionKey.isPresent() && !definitionKey.get()
                                                        .isEmpty()) {
@@ -412,69 +684,113 @@ public class BpmProviderFlowable implements BpmProvider {
     }
 
     public Deployment deployProcess(String deploymentKey, String resourceName, byte[] content) {
-        return processEngine.getRepositoryService()
-                            .createDeployment()
-                            .key(deploymentKey)
-                            .tenantId(getTenantId())
-                            .addBytes(resourceName, content)
-                            .deploy();
+        return getProcessEngine().getRepositoryService()
+                                 .createDeployment()
+                                 .key(deploymentKey)
+                                 .tenantId(getTenantId())
+                                 .addBytes(resourceName, content)
+                                 .deploy();
     }
 
     public ProcessDefinition getProcessDefinitionByDeploymentId(String deploymentId) {
-        return processEngine.getRepositoryService()
-                            .createProcessDefinitionQuery()
-                            .deploymentId(deploymentId)
-                            .processDefinitionTenantId(getTenantId())
-                            .singleResult();
+        return getProcessEngine().getRepositoryService()
+                                 .createProcessDefinitionQuery()
+                                 .deploymentId(deploymentId)
+                                 .processDefinitionTenantId(getTenantId())
+                                 .singleResult();
     }
 
     public List<Deployment> getDeploymentsByKey(String deploymentKey) {
-        return processEngine.getRepositoryService()
-                            .createDeploymentQuery()
-                            .deploymentKey(deploymentKey)
-                            .deploymentTenantId(getTenantId())
-                            .list();
+        return getProcessEngine().getRepositoryService()
+                                 .createDeploymentQuery()
+                                 .deploymentKey(deploymentKey)
+                                 .deploymentTenantId(getTenantId())
+                                 .list();
     }
 
     public void deleteDeployment(String deploymentId) {
-        flowableArtefactsValidator.validateDeployment(deploymentId);
+        validateDeployment(deploymentId);
 
-        processEngine.getRepositoryService()
-                     .deleteDeployment(deploymentId, true);
+        getProcessEngine().getRepositoryService()
+                          .deleteDeployment(deploymentId, true);
+    }
+
+    /**
+     * Find tasks by process instance id.
+     *
+     * @param processInstanceId the process instance id
+     * @param type the type
+     * @return the list
+     */
+    public List<Task> findTasks(String processInstanceId, PrincipalType type) {
+        if (UserFacade.getUserRoles()
+                      .isEmpty()) {
+            return new ArrayList<>();
+        }
+        TaskInfoQuery<TaskQuery, Task> taskQuery = prepareQuery(type);
+        taskQuery.processInstanceId(processInstanceId);
+        return taskQuery.list();
+    }
+
+    private TaskInfoQuery<TaskQuery, Task> prepareQuery(PrincipalType type) {
+        TaskQuery taskQuery = getTaskService().createTaskQuery()
+                                              .taskTenantId(getTenantId());
+        if (PrincipalType.CANDIDATE_GROUPS.equals(type)) {
+            return taskQuery.taskCandidateGroupIn(UserFacade.getUserRoles());
+        } else if (PrincipalType.ASSIGNEE.equals(type)) {
+            return taskQuery.taskAssignee(UserFacade.getName());
+        } else {
+            throw new IllegalArgumentException("Unrecognised principal type: " + type);
+        }
+    }
+
+    public List<Task> findTasks(PrincipalType type) {
+        if (UserFacade.getUserRoles()
+                      .isEmpty()) {
+            return new ArrayList<Task>();
+        }
+        TaskInfoQuery<TaskQuery, Task> taskQuery = prepareQuery(type);
+        return taskQuery.list();
     }
 
     public long processDefinitionsCount() {
-        return processEngine.getRepositoryService()
-                            .createProcessDefinitionQuery()
-                            .count();
+        return getProcessEngine().getRepositoryService()
+                                 .createProcessDefinitionQuery()
+                                 .count();
     }
 
     public long getProcessInstancesCount() {
-        return processEngine.getRuntimeService()
-                            .createProcessInstanceQuery()
-                            .count();
+        return getProcessEngine().getRuntimeService()
+                                 .createProcessInstanceQuery()
+                                 .count();
     }
 
     public long getFinishedHistoricProcessInstancesCount() {
-        return processEngine.getHistoryService()
-                            .createHistoricProcessInstanceQuery()
-                            .finished()
-                            .count();
+        return getProcessEngine().getHistoryService()
+                                 .createHistoricProcessInstanceQuery()
+                                 .finished()
+                                 .count();
+    }
+
+    public long getTasksCount() {
+        return getProcessEngine().getTaskService()
+                                 .createTaskQuery()
+                                 .count();
     }
 
     public long getTotalCompletedTasksCount() {
-        return processEngine.getHistoryService()
-                            .createHistoricTaskInstanceQuery()
-                            .finished()
-                            .count();
+        return getProcessEngine().getHistoryService()
+                                 .createHistoricTaskInstanceQuery()
+                                 .finished()
+                                 .count();
     }
 
     public long getCompletedTasksForToday() {
-        return processEngine.getHistoryService()
-                            .createHistoricTaskInstanceQuery()
-                            .finished()
-                            .taskCompletedAfter(new Date(System.currentTimeMillis() - secondsForDays(1)))
-                            .count();
+        return getProcessEngine().getHistoryService()
+                                 .createHistoricTaskInstanceQuery()
+                                 .finished()
+                                 .taskCompletedAfter(new Date(System.currentTimeMillis() - secondsForDays(1)))
+                                 .count();
     }
 
     private long secondsForDays(int days) {
@@ -484,15 +800,16 @@ public class BpmProviderFlowable implements BpmProvider {
     }
 
     public long getCompletedActivities() {
-        return processEngine.getHistoryService()
-                            .createHistoricActivityInstanceQuery()
-                            .finished()
-                            .count();
+        return getProcessEngine().getHistoryService()
+                                 .createHistoricActivityInstanceQuery()
+                                 .finished()
+                                 .count();
     }
 
     public String getProcessDefinitionXmlById(String processDefinitionId) {
-        flowableArtefactsValidator.validateProcessDefinitionId(processDefinitionId);
+        validateProcessDefinitionId(processDefinitionId);
 
+        ProcessEngine processEngine = getProcessEngine();
         try {
 
             InputStream processModel = processEngine.getRepositoryService()
@@ -503,7 +820,6 @@ public class BpmProviderFlowable implements BpmProvider {
         }
     }
 
-<<<<<<< HEAD
     private void validateProcessDefinitionId(String processDefinitionId) {
         ProcessDefinition processDefinition = processEngine.getRepositoryService()
                                                            .createProcessDefinitionQuery()
@@ -520,9 +836,6 @@ public class BpmProviderFlowable implements BpmProvider {
 
     public Map<String, ActivityStatusData> getProcessInstanceActiveActivityIds(String processInstanceId) {
         ProcessEngine processEngine = getProcessEngine();
-=======
-    public List<String> getProcessInstanceActiveActivityIds(String processInstanceId) {
->>>>>>> master
         ProcessInstance processInstance = getProcessInstance(processInstanceId);
         if (null == processInstance) {
             return Collections.emptyMap();
