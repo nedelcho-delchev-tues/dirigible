@@ -18,16 +18,20 @@
     overflow: hidden;
 }
 
-.highlight>rect {
+#bpmn-container .clickable {
+    cursor: pointer;
+}
+
+#bpmn-container .highlight>rect {
     stroke: var(--sapHighlightColor, #fecc04) !important;
 }
 
-.overlay-badge {
+#bpmn-container .overlay-badge {
     font-weight: bold;
     text-shadow: -1px -1px 0 #0000001A, 1px -1px 0 #0000001A, -1px 1px 0 #0000001A, 1px 1px 0 #0000001A;
 }
 
-.overlay-badge rect {
+#bpmn-container .overlay-badge rect {
     stroke-width: 0.5rem;
     rx: 0.25rem;
 }

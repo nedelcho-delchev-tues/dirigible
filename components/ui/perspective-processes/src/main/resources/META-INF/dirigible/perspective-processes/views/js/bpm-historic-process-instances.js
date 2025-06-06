@@ -17,8 +17,7 @@ historicProcessInstances.controller('BpmHistoricProcessInstancesView', ($scope, 
     $scope.displaySearch = false;
     $scope.selectedProcessDefinitionKey = null;
     $scope.selectedId;
-
-    setInterval(() => { $scope.fetchData() }, 5000);
+    let refreshIntervalId;
 
     $scope.fetchData = () => {
         $http.get('/services/bpm/bpm-processes/historic-instances', { params: { 'businessKey': $scope.searchField.text, 'definitionKey': $scope.selectedProcessDefinitionKey, 'limit': 100 } })
@@ -30,25 +29,40 @@ historicProcessInstances.controller('BpmHistoricProcessInstancesView', ($scope, 
     };
 
     $scope.selectionChanged = (instance) => {
-        $scope.selectedId = instance.id;
-        Dialogs.postMessage({ topic: 'bpm.historic.instance.selected', data: { instance: instance.id, definition: instance.processDefinitionId } });
+        if ($scope.selectedId !== instance.id) {
+            $scope.selectedId = instance.id;
+            Dialogs.postMessage({ topic: 'bpm.historic.instance.selected', data: { instance: instance.id, definition: instance.processDefinitionId } });
+        }
     };
 
     $scope.toggleSearch = () => {
         $scope.displaySearch = !$scope.displaySearch;
     };
 
+    let defIntervalId = setInterval(() => {
+        if (!$scope.selectedProcessDefinitionKey) Dialogs.triggerEvent('bpm.process.instances.get-definition');
+        else cancelIntervalDef();
+    }, 500);
+
+    function cancelIntervalDef() {
+        defIntervalId = clearInterval(defIntervalId);
+    }
+
     Dialogs.addMessageListener({
         topic: 'bpm.definition.selected',
         handler: (data) => {
-            $scope.$evalAsync(() => {
-                if (data.hasOwnProperty('definition')) {
-                    $scope.selectedProcessDefinitionKey = data.definition;
+            if (data.noData) cancelIntervalDef();
+            else $scope.$evalAsync(() => {
+                if (data.hasOwnProperty('key')) {
+                    if (defIntervalId) cancelIntervalDef();
+                    clearInterval(refreshIntervalId);
+                    $scope.selectedProcessDefinitionKey = data.key;
                     $scope.fetchData();
+                    refreshIntervalId = setInterval(() => { $scope.fetchData() }, 5000);
                 } else {
                     Dialogs.showAlert({
                         title: 'Missing data',
-                        message: 'Process definition is missing from event!',
+                        message: 'Process definition key is missing from event!',
                         type: AlertTypes.Error,
                         preformatted: false,
                     });

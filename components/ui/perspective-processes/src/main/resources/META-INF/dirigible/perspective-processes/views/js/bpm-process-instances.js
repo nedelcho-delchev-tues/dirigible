@@ -28,6 +28,7 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
     $scope.selected = {
         definitionKey: null,
         definitionId: null,
+        definitionVersion: null,
         instanceId: null
     };
 
@@ -133,6 +134,7 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
     $scope.definitionSelected = (initialLoad = false) => {
         $scope.definitionVersions.length = 0;
         $scope.selected.instanceId = null;
+        $scope.selected.definitionVersion = null;
         for (let i = 0; i < definitions.length; i++) {
             if (definitions[i].key === $scope.selected.definitionKey) {
                 $scope.definitionVersions.push({
@@ -143,14 +145,19 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
         }
         if ($scope.definitionVersions.length) {
             $scope.selected.definitionId = $scope.definitionVersions[0].id;
+            $scope.selected.definitionVersion = $scope.definitionVersions[0].label;
             $scope.versionSelected();
         }
         if (!initialLoad) getInstances();
     };
 
     $scope.versionSelected = () => {
-        Dialogs.postMessage({ topic: 'bpm.diagram.definition', data: { definition: $scope.selected.definitionId } });
-        Dialogs.postMessage({ topic: 'bpm.definition.selected', data: { definition: $scope.selected.definitionKey } });
+        for (let i = 0; i < $scope.definitionVersions.length; i++) {
+            if ($scope.definitionVersions[i].id === $scope.selected.definitionId) {
+                $scope.selected.definitionVersion = $scope.definitionVersions[i].label;
+            }
+        }
+        Dialogs.postMessage({ topic: 'bpm.definition.selected', data: { id: $scope.selected.definitionId, key: $scope.selected.definitionKey } });
     };
 
     $scope.toggleSearch = () => {
@@ -235,6 +242,17 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
             return ret;
         }, []);
     };
+
+    Dialogs.addMessageListener({
+        topic: 'bpm.process.instances.get-definition',
+        handler: () => {
+            if ($scope.selected.definitionId) {
+                Dialogs.postMessage({ topic: 'bpm.definition.selected', data: { id: $scope.selected.definitionId, key: $scope.selected.definitionKey } });
+            } else if (!$scope.state.isBusy) {
+                Dialogs.postMessage({ topic: 'bpm.definition.selected', data: { noData: true } });
+            }
+        }
+    });
 
     getDefinitions(true);
 });

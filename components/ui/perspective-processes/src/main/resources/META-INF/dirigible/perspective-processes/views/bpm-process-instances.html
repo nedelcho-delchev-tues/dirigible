@@ -59,7 +59,7 @@
             <bk-combobox-input class="bk-full-width bk-border--right" dropdown-items="definitionsList" ng-model="selected.definitionKey" ng-change="definitionSelected()" placeholder="Definitions"
                 btn-aria-label="show/hide definition options" list-aria-label="definition options">
             </bk-combobox-input>
-            <bk-select title="Definition versions" placeholder="Versions" style="max-width: 5.125rem;" ng-model="selected.definitionId" ng-change="versionSelected()">
+            <bk-select title="Definition versions" placeholder="Versions" style="max-width: auto;" ng-model="selected.definitionId" ng-change="versionSelected()">
                 <bk-option ng-repeat="ver in definitionVersions track by ver.id" text="{{ver.label}}" value="ver.id"></bk-option>
             </bk-select>
         </div>
@@ -78,16 +78,15 @@
                         <th bk-table-header-cell>Id</th>
                         <th bk-table-header-cell>Business Key</th>
                         <th bk-table-header-cell>Business Status</th>
-                        <!-- <th bk-table-header-cell>Process Definition</th> -->
                         <th bk-table-header-cell>Name</th>
                     </tr>
                 </thead>
                 <tbody bk-table-body>
-                    <tr bk-table-row ng-repeat="next in instancesList track by next.id" hoverable="true" activable="true" selected="selected.instanceId === next.id" ng-click="selectionChanged(next)">
+                    <tr bk-table-row ng-repeat="next in instancesList track by next.id" ng-if="next.processDefinitionVersion === selected.definitionVersion" hoverable="true" activable="true" selected="selected.instanceId === next.id"
+                        ng-click="selectionChanged(next)">
                         <td bk-table-cell>{{next.id}}</td>
                         <td bk-table-cell>{{next.businessKey}}</td>
                         <td bk-table-cell>{{next.businessStatus}}</td>
-                        <!-- <td bk-table-cell>{{next.processDefinitionKey}}</td> -->
                         <td bk-table-cell>{{next.name}}</td>
                     </tr>
                     <tr ng-if="instancesList.length === 0" bk-table-row>
