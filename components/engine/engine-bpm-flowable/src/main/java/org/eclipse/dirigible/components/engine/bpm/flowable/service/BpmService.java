@@ -451,5 +451,4 @@ public class BpmService {
     public Map<String, ActivityStatusData> getProcessDefinitionActiveActivityIds(String processDefinitionId) {
         return bpmProviderFlowable.getProcessDefinitionActiveActivityIds(processDefinitionId);
     }
-
 }

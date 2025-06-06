@@ -491,5 +491,4 @@ public class BpmFlowableEndpoint extends BaseEndpoint {
     public ResponseEntity<Map<String, ActivityStatusData>> getProcessDefinitionActiveActivityIds(@PathVariable("id") String id) {
         return ResponseEntity.ok(bpmService.getProcessDefinitionActiveActivityIds(id));
     }
-
 }
