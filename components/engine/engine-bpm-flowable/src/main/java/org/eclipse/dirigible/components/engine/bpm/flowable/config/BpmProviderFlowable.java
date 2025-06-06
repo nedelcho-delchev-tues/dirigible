@@ -896,8 +896,8 @@ public class BpmProviderFlowable implements BpmProvider {
                                                    .processDefinitionId(processDefinitionId)
                                                    .list();
         List<String> allActiveActivityIds = executions.stream()
-                                                           .map(Execution::getActivityId)
-                                                           .collect(Collectors.toList());
+                                                      .map(Execution::getActivityId)
+                                                      .collect(Collectors.toList());
 
         List<Job> jobs = processEngine.getManagementService()
                                       .createDeadLetterJobQuery()
