@@ -29,7 +29,10 @@ historicProcessInstances.controller('BpmHistoricProcessInstancesView', ($scope, 
     };
 
     $scope.selectionChanged = (instance) => {
-        if ($scope.selectedId !== instance.id) {
+        if ($scope.selectedId === instance.id) {
+            Dialogs.postMessage({ topic: 'bpm.historic.instance.selected', data: { deselect: true } });
+            $scope.selectedId = null;
+        } else {
             $scope.selectedId = instance.id;
             Dialogs.postMessage({ topic: 'bpm.historic.instance.selected', data: { instance: instance.id, definition: instance.processDefinitionId } });
         }
@@ -45,29 +48,31 @@ historicProcessInstances.controller('BpmHistoricProcessInstancesView', ($scope, 
     }, 500);
 
     function cancelIntervalDef() {
-        defIntervalId = clearInterval(defIntervalId);
+        defIntervalId = null;
+        clearInterval(defIntervalId);
     }
 
     Dialogs.addMessageListener({
         topic: 'bpm.definition.selected',
         handler: (data) => {
             if (data.noData) cancelIntervalDef();
-            else $scope.$evalAsync(() => {
-                if (data.hasOwnProperty('key')) {
-                    if (defIntervalId) cancelIntervalDef();
-                    clearInterval(refreshIntervalId);
+            else if (data.hasOwnProperty('key')) {
+                if (defIntervalId) cancelIntervalDef();
+                clearInterval(refreshIntervalId);
+                $scope.$evalAsync(() => {
                     $scope.selectedProcessDefinitionKey = data.key;
                     $scope.fetchData();
                     refreshIntervalId = setInterval(() => { $scope.fetchData() }, 5000);
-                } else {
-                    Dialogs.showAlert({
-                        title: 'Missing data',
-                        message: 'Process definition key is missing from event!',
-                        type: AlertTypes.Error,
-                        preformatted: false,
-                    });
-                }
-            });
+                });
+            } else {
+                Dialogs.showAlert({
+                    title: 'Missing data',
+                    message: 'Process definition key is missing from event!',
+                    type: AlertTypes.Error,
+                    preformatted: false,
+                });
+            }
+
         }
     });
 

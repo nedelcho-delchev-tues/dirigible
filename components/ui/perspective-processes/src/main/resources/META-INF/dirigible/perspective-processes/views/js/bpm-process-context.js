@@ -131,29 +131,44 @@ ideBpmProcessContextView.controller('IDEBpmProcessContextViewController', ($scop
         });
     };
 
+    function deselect() {
+        $scope.variablesList.length = 0;
+        $scope.currentProcessInstanceId = null;
+        $scope.selectedVariable = null;
+        $scope.disableModificationButtons = true;
+    }
+
     Dialogs.addMessageListener({
         topic: 'bpm.instance.selected',
         handler: (data) => {
-            const processInstanceId = data.instance;
-            servicePath = '/services/bpm/bpm-processes/instance/';
-            $scope.$evalAsync(() => {
-                $scope.currentProcessInstanceId = processInstanceId;
-                $scope.disableModificationButtons = false;
-            });
-            $scope.fetchData(processInstanceId);
+            if (data.deselect) {
+                $scope.$evalAsync(deselect);
+            } else {
+                const processInstanceId = data.instance;
+                servicePath = '/services/bpm/bpm-processes/instance/';
+                $scope.$evalAsync(() => {
+                    $scope.currentProcessInstanceId = processInstanceId;
+                    $scope.disableModificationButtons = false;
+                });
+                $scope.fetchData(processInstanceId);
+            }
         }
     });
 
     Dialogs.addMessageListener({
         topic: 'bpm.historic.instance.selected', handler: (data) => {
-            const processInstanceId = data.instance;
-            servicePath = '/services/bpm/bpm-processes/historic-instances/';
-            $scope.$evalAsync(() => {
-                $scope.currentProcessInstanceId = processInstanceId;
-                $scope.disableModificationButtons = true;
+            if (data.deselect) {
+                $scope.$evalAsync(deselect);
+            } else {
+                const processInstanceId = data.instance;
+                servicePath = '/services/bpm/bpm-processes/historic-instances/';
+                $scope.$evalAsync(() => {
+                    $scope.currentProcessInstanceId = processInstanceId;
+                    $scope.disableModificationButtons = true;
 
-            });
-            $scope.fetchData(processInstanceId);
+                });
+                $scope.fetchData(processInstanceId);
+            }
         }
     });
 });

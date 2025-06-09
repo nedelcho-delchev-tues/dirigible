@@ -194,7 +194,7 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Dialog
     });
 
     Dialogs.addMessageListener({
-        topic: 'bpm.diagram.instance',
+        topic: 'bpm.instance.selected',
         handler: (data) => {
             if ($scope.processId) $scope.$evalAsync(() => {
                 $scope.state.isBusy = true;
@@ -216,10 +216,15 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Dialog
         topic: 'bpm.historic.instance.selected',
         handler: (data) => {
             $scope.$evalAsync(() => {
-                $scope.processId === data.definition
                 $scope.state.isBusy = true;
-                instanceId = '';
-                loadBpmnFromApi();
+                if (data.deselect) {
+                    loadBadges(true);
+                } else {
+                    $scope.processId === data.definition
+                    $scope.state.isBusy = true;
+                    instanceId = '';
+                    loadBpmnFromApi();
+                }
             });
         }
     });

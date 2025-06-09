@@ -40,8 +40,14 @@ ideBpmProcessJobsView.controller('IDEBpmProcessJobsViewController', ($scope, $ht
     Dialogs.addMessageListener({
         topic: 'bpm.instance.selected',
         handler: (data) => {
-            const processInstanceId = data.instance;
-            $scope.fetchData(processInstanceId);
+            if (data.deselect) {
+                $scope.$evalAsync(() => {
+                    $scope.jobsList.length = 0;
+                    $scope.currentProcessInstanceId = null;
+                });
+            } else {
+                $scope.fetchData(data.instance);
+            }
         }
     });
 });

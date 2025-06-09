@@ -50,8 +50,9 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
                         });
                     }
                 }
-                if ($scope.definitionsList.length && (!$scope.selected.definitionKey || !$scope.definitionsList.some(e => e.value === $scope.selected.definitionKey))) {
-                    $scope.selected.definitionKey = $scope.definitionsList[0].value;
+                if ($scope.definitionsList.length) {
+                    if (!$scope.selected.definitionKey || !$scope.definitionsList.some(e => e.value === $scope.selected.definitionKey))
+                        $scope.selected.definitionKey = $scope.definitionsList[0].value;
                     $scope.definitionSelected(initialLoad);
                 }
             }
@@ -123,10 +124,12 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
         $scope.instancesList.length = 0;
         $scope.selected.instanceId = null;
         if (currentFetchDataDefinition) {
-            currentFetchDataDefinition = clearInterval(currentFetchDataDefinition);
+            clearInterval(currentFetchDataDefinition);
+            currentFetchDataDefinition = null;
         }
         if (currentFetchDataInstance) {
-            currentFetchDataInstance = clearInterval(currentFetchDataInstance);
+            clearInterval(currentFetchDataInstance);
+            currentFetchDataInstance = null;
         }
         getDefinitions();
     };
@@ -198,10 +201,9 @@ processInstances.controller('BpmProcessInstancesView', ($scope, $http, Notificat
 
     $scope.selectionChanged = (instance) => {
         if ($scope.selected.instanceId === instance.id) {
-            Dialogs.postMessage({ topic: 'bpm.diagram.instance', data: { deselect: true, instance: instance.id } });
+            Dialogs.postMessage({ topic: 'bpm.instance.selected', data: { deselect: true } });
             $scope.selected.instanceId = null;
         } else {
-            Dialogs.postMessage({ topic: 'bpm.diagram.instance', data: { instance: instance.id } });
             Dialogs.postMessage({ topic: 'bpm.instance.selected', data: { instance: instance.id } });
             $scope.selected.instanceId = instance.id;
         }

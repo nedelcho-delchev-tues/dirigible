@@ -97,8 +97,8 @@ not available in the releases.
 ##### Prerequisites
 
 - [Git](http://git-scm.com/)
-- [Java JDK 11+](https://adoptopenjdk.net/)
-- [Maven 3.5.x](http://maven.apache.org/docs/3.5.3/release-notes.html)
+- [Java JDK 21+](https://adoptopenjdk.net/)
+- [Maven 3.8.x](http://maven.apache.org/docs/3.8.8/release-notes.html)
 - [esbuild](https://esbuild.github.io/getting-started/#install-esbuild)  - `npm i -g esbuild`
 - [tsc](https://www.npmjs.com/package/typescript) - `npm i -g typescript`
 - [ttyd](https://github.com/tsl0922/ttyd)
@@ -187,17 +187,19 @@ mvn clean install -P quick-build
 ##### Prerequisites
 
 **macOS:**
-
+```shell
         brew install ttyd
-
+```
 **Linux:**
 
 RHEL/CentOS/Fedora:
+```shell
         sudo dnf install ttyd
-
+```
 Debian/Ubuntu:
+```shell
         sudo apt install ttyd
-
+```
 You do not need to start/enable the standard ttyd service. Dirigible starts ttyd automatically on port 9000.
 
 More info about **ttyd** can be found at: [ttyd](https://github.com/tsl0922/ttyd)
@@ -425,3 +427,4 @@ Unicons by IconScout: [https://github.com/Iconscout/unicons](https://github.com/
   List: [https://dev.eclipse.org/mailman/listinfo/dirigible-dev](https://dev.eclipse.org/mailman/listinfo/dirigible-dev)
 - Issues: [https://github.com/eclipse/dirigible/issues](https://github.com/eclipse/dirigible/issues)
 - Eclipse Foundation Help Desk: https://gitlab.eclipse.org/eclipsefdn/helpdesk
+
