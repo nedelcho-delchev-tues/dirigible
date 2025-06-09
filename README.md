@@ -101,7 +101,7 @@ not available in the releases.
 - [Maven 3.5.x](http://maven.apache.org/docs/3.5.3/release-notes.html)
 - [esbuild](https://esbuild.github.io/getting-started/#install-esbuild)  - `npm i -g esbuild`
 - [tsc](https://www.npmjs.com/package/typescript) - `npm i -g typescript`
-- [ttyd](https://github.com/tsl0922/ttyd) - `brew install ttyd`
+- [ttyd](https://github.com/tsl0922/ttyd)
 
 ##### Steps
 
@@ -192,7 +192,13 @@ mvn clean install -P quick-build
 
 **Linux:**
 
-Linux support is built-in
+RHEL/CentOS/Fedora:
+        sudo dnf install ttyd
+
+Debian/Ubuntu:
+        sudo apt install ttyd
+
+You do not need to start/enable the standard ttyd service. Dirigible starts ttyd automatically on port 9000.
 
 More info about **ttyd** can be found at: [ttyd](https://github.com/tsl0922/ttyd)
 
