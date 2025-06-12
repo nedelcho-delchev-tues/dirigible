@@ -106,7 +106,7 @@ public class DatabaseExportEndpoint {
             }
         };
 
-        String type = databaseExportService.structureExportType(datasource, structure);
+        String type = databaseExportService.structureExportType(datasource);
 
         return ResponseEntity.ok()
                              .header(HttpHeaders.CONTENT_DISPOSITION,
@@ -141,7 +141,7 @@ public class DatabaseExportEndpoint {
             }
         };
 
-        String type = databaseExportService.structureExportType(datasource, statement);
+        String type = databaseExportService.structureExportType(datasource);
 
         return ResponseEntity.ok()
                              .header(HttpHeaders.CONTENT_DISPOSITION,

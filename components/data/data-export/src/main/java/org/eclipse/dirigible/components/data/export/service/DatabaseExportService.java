@@ -15,10 +15,9 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
 import org.eclipse.dirigible.commons.api.helpers.GsonHelper;
 import org.eclipse.dirigible.components.data.management.helpers.DatabaseMetadataHelper;
 import org.eclipse.dirigible.components.data.management.service.DatabaseExecutionService;
@@ -33,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -133,10 +133,9 @@ public class DatabaseExportService {
      * Get structure type by datasource.
      *
      * @param datasource the datasource
-     * @param structure the structure
      * @return the string
      */
-    public String structureExportType(String datasource, String structure) {
+    public String structureExportType(String datasource) {
         DirigibleDataSource dataSource = datasourceManager.getDataSource(datasource);
         if (dataSource != null) {
             String productName = null;
