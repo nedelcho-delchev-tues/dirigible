@@ -365,6 +365,27 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
         }
     }
 
+    function triggerDownload(result) {
+        const blob = new Blob([result.data], {
+            type: "application/octet-stream",
+        });
+        const contentDisposition = result.headers('Content-Disposition');
+        let fileName = 'downloaded-file';
+
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="?([^"]+)"?/i);
+            if (match) {
+                fileName = match[1];
+            }
+        }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
     function exportQuery(command) {
         Layout.openView({ id: 'result' });
         $scope.state.error = false;
@@ -382,25 +403,7 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                 }
             }).then((result) => {
                 cleanScope();
-                const blob = new Blob([result.data], {
-                    type: "application/octet-stream",
-                });
-                const contentDisposition = result.headers('Content-Disposition');
-                let fileName = 'downloaded-file';
-
-                if (contentDisposition) {
-                    const match = contentDisposition.match(/filename="?([^"]+)"?/i);
-                    if (match) {
-                        fileName = match[1];
-                    }
-                }
-
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                a.click();
-                window.URL.revokeObjectURL(url);
+                triggerDownload(result);
                 $scope.hideProgress();
             }, (reject) => {
                 cleanScope();
@@ -420,6 +423,7 @@ resultView.controller('DatabaseResultController', ($scope, $http, Dialogs, Statu
                 }
             }).then((result) => {
                 cleanScope();
+                triggerDownload(result);
                 $scope.hideProgress();
             }, (reject) => {
                 cleanScope();
