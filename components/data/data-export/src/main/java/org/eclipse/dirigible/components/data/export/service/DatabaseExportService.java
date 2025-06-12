@@ -15,6 +15,8 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.eclipse.dirigible.commons.api.helpers.GsonHelper;
@@ -78,7 +80,7 @@ public class DatabaseExportService {
         DirigibleDataSource dataSource = datasourceManager.getDataSource(datasource);
         if (dataSource != null) {
             String structureName = "\"" + schema + "\".\"" + structure + "\"";
-            String sql = "SELECT * FROM " + structureName;
+            String sql = null;
             try (Connection connection = dataSource.getConnection()) {
                 ISqlDialect dialect = SqlDialectFactory.getDialect(dataSource);
                 sql = dialect.allQuery(structureName);
@@ -102,14 +104,39 @@ public class DatabaseExportService {
     }
 
     /**
-     * Export structure.
+     * Export statement.
      *
      * @param datasource the datasource
-     * @param schema the schema
+     * @param statement the statement
+     * @param output the output
+     */
+    public void exportStatement(String datasource, String statement, OutputStream output) {
+        DirigibleDataSource dataSource = datasourceManager.getDataSource(datasource);
+        if (dataSource != null) {
+            try (Connection connection = dataSource.getConnection()) {
+                ISqlDialect dialect = SqlDialectFactory.getDialect(dataSource);
+                if (dataSource.getDatabaseSystem()
+                              .isMongoDB()) {
+                    dialect.exportData(connection, statement, output);
+                    return;
+                }
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            }
+
+            databaseExecutionService.executeStatement(dataSource, statement, true, false, true, false, output);
+        }
+
+    }
+
+    /**
+     * Get structure type by datasource.
+     *
+     * @param datasource the datasource
      * @param structure the structure
      * @return the string
      */
-    public String structureExportType(String datasource, String schema, String structure) {
+    public String structureExportType(String datasource, String structure) {
         DirigibleDataSource dataSource = datasourceManager.getDataSource(datasource);
         if (dataSource != null) {
             String productName = null;
