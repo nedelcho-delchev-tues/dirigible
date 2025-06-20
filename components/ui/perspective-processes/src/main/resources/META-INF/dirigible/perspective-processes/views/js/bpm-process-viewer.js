@@ -148,6 +148,7 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Dialog
         for (let i = 0; i < badgeIds.length; i++) {
             bpmnVisualization.bpmnElementsRegistry.removeAllOverlays(badgeIds[i]);
         }
+        badgeIds.length = 0;
     }
 
     function setBadges(id, badges) {
