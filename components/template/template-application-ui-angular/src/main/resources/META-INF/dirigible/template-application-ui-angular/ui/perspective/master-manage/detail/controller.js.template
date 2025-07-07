@@ -181,7 +181,9 @@ angular.module('page', ['blimpKit', 'platformView', 'EntityService'])
 				id: '${name}-details',
 				params: {
 					action: 'create',
-					entity: {},
+					entity: {
+						'${masterEntityId}': $scope.selectedMainEntityId
+					},
 					selectedMainEntityKey: '${masterEntityId}',
 					selectedMainEntityId: $scope.selectedMainEntityId,
 #if($hasDropdowns)
