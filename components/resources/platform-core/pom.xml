@@ -13,6 +13,44 @@
     <artifactId>dirigible-components-resources-platform-core</artifactId>
     <packaging>jar</packaging>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>angularjs</artifactId>
+            <version>${angularjs.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>angular-aria</artifactId>
+            <version>${angular-aria.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>jquery</artifactId>
+            <version>${jquery.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>split.js</artifactId>
+            <version>${split.js.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>i18next</artifactId>
+            <version>${i18next.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>fundamental-styles</artifactId>
+            <version>${fundamental-styles.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>sap-theming__theming-base-content</artifactId>
+            <version>${sap-theming__theming-base-content.version}</version>
+        </dependency>
+    </dependencies>
+
     <properties>
         <license.header.location>../../../licensing-header.txt</license.header.location>
         <parent.pom.folder>../../../</parent.pom.folder>

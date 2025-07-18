@@ -16,21 +16,6 @@
     <dependencies>
         <dependency>
             <groupId>org.webjars</groupId>
-            <artifactId>angularjs</artifactId>
-            <version>${angularjs.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>angular-file-upload</artifactId>
-            <version>${angular-file-upload.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>es5-shim</artifactId>
-            <version>${es5-shim.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars</groupId>
             <artifactId>webjars-locator-core</artifactId>
             <version>${webjars.locator.core.version}</version>
         </dependency>
@@ -41,79 +26,9 @@
         </dependency>
         <dependency>
             <groupId>org.webjars</groupId>
-            <artifactId>jquery</artifactId>
-            <version>${jquery.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars</groupId>
-            <artifactId>jstree</artifactId>
-            <version>${jstree.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars</groupId>
             <artifactId>requirejs</artifactId>
             <version>${requirejs.version}</version>
             <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>monaco-editor</artifactId>
-            <version>${monaco-editor.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>diff</artifactId>
-            <version>${diff.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>split.js</artifactId>
-            <version>${split.js.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>angular-aria</artifactId>
-            <version>${angular-aria.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>fundamental-styles</artifactId>
-            <version>${fundamental-styles.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>sap-theming__theming-base-content</artifactId>
-            <version>${sap-theming__theming-base-content.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>chart.js</artifactId>
-            <version>${chart.js.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>sortablejs</artifactId>
-            <version>${sortablejs.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>ag-grid-community__all-modules</artifactId>
-            <version>${ag-grid.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>papaparse</artifactId>
-            <version>${papaparse.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>bpmn-visualization</artifactId>
-            <version>${bpmn-visualization.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars.npm</groupId>
-            <artifactId>i18next</artifactId>
-            <version>${i18next.version}</version>
         </dependency>
     </dependencies>
     
