@@ -415,6 +415,15 @@ If you like to contribute to Dirigible, please read the [Contributor's guide](CO
 ### Attribution links
 
 Unicons by IconScout: [https://github.com/Iconscout/unicons](https://github.com/Iconscout/unicons)
+jsTree by vakata: [https://github.com/vakata/jstree](https://github.com/vakata/jstree)
+bpmn-visualization by Process Analytics: [https://github.com/process-analytics/bpmn-visualization-js](https://github.com/process-analytics/bpmn-visualization-js)
+Monaco Editor by Microsoft: [https://github.com/microsoft/monaco-editor](https://github.com/microsoft/monaco-editor)
+mxGraph: [https://github.com/jgraph/mxgraph](https://github.com/jgraph/mxgraph)
+Xterm.js: [https://github.com/xtermjs/xterm.js](https://github.com/xtermjs/xterm.js)
+Flowable: [https://github.com/flowable](https://github.com/flowable)
+Chart.js: [https://github.com/chartjs/Chart.js](https://github.com/chartjs/Chart.js)
+AG Grid: [https://github.com/ag-grid/ag-grid](https://github.com/ag-grid/ag-grid)
+BlimpKit: [https://github.com/blimpkit/blimpkit.github.io](https://github.com/blimpkit/blimpkit.github.io)
 
 ### References
 

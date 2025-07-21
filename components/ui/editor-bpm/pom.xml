@@ -11,6 +11,13 @@
 	<name>Components - UI - BPM - Editor</name>
 	<artifactId>dirigible-components-ui-editor-bpm</artifactId>
 	<packaging>jar</packaging>
+	
+	<dependencies>
+        <dependency>
+            <groupId>org.eclipse.dirigible</groupId>
+            <artifactId>dirigible-components-resources-flowable-libs</artifactId>
+        </dependency>
+    </dependencies>
 
 	<properties>
 		<license.header.location>../../../licensing-header.txt</license.header.location>

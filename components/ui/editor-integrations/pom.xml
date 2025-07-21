@@ -11,6 +11,13 @@
 	<name>Components - UI - Integrations - Editor</name>
 	<artifactId>dirigible-components-ui-editor-integrations</artifactId>
 	<packaging>jar</packaging>
+	
+	<dependencies>
+        <dependency>
+            <groupId>org.eclipse.dirigible</groupId>
+            <artifactId>dirigible-components-resources-karavan-libs</artifactId>
+        </dependency>
+    </dependencies>
 
 	<properties>
 		<license.header.location>../../../licensing-header.txt</license.header.location>
