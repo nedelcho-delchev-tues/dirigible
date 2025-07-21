@@ -12,6 +12,14 @@
 	<artifactId>dirigible-components-ui-editor-mapping</artifactId>
 	<packaging>jar</packaging>
 
+	<dependencies>
+        <dependency>
+            <groupId>org.eclipse.dirigible</groupId>
+            <artifactId>dirigible-components-resources-mxgraph</artifactId>
+        </dependency>
+    </dependencies>
+
+
 	<properties>
 		<license.header.location>../../../licensing-header.txt</license.header.location>
 		<parent.pom.folder>../../../</parent.pom.folder>

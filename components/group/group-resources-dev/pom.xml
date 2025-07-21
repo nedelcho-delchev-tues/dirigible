@@ -17,11 +17,6 @@
 
         <dependency>
             <groupId>org.eclipse.dirigible</groupId>
-            <artifactId>dirigible-components-group-resources-core</artifactId>
-            <type>pom</type>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.dirigible</groupId>
             <artifactId>dirigible-components-resources-dev-tools</artifactId>
         </dependency>
         

@@ -11,6 +11,13 @@
 	<name>Components - UI - Schema - Editor</name>
 	<artifactId>dirigible-components-ui-editor-schema</artifactId>
 	<packaging>jar</packaging>
+	
+	<dependencies>
+        <dependency>
+            <groupId>org.eclipse.dirigible</groupId>
+            <artifactId>dirigible-components-resources-mxgraph</artifactId>
+        </dependency>
+    </dependencies>
 
 	<properties>
 		<license.header.location>../../../licensing-header.txt</license.header.location>
