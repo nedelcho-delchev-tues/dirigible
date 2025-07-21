@@ -13,6 +13,15 @@
     <name>Components - API - Modules</name>
     <artifactId>dirigible-components-api-modules-javascript</artifactId>
     <packaging>jar</packaging>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>requirejs</artifactId>
+            <version>${requirejs.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
 
     <profiles>
         <profile>

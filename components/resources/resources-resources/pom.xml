@@ -16,19 +16,8 @@
     <dependencies>
         <dependency>
             <groupId>org.webjars</groupId>
-            <artifactId>webjars-locator-core</artifactId>
-            <version>${webjars.locator.core.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars</groupId>
             <artifactId>jqplot</artifactId>
             <version>${jqplot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.webjars</groupId>
-            <artifactId>requirejs</artifactId>
-            <version>${requirejs.version}</version>
-            <scope>runtime</scope>
         </dependency>
     </dependencies>
     
