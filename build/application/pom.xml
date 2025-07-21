@@ -207,11 +207,6 @@
             <artifactId>dirigible-components-group-resources-ui</artifactId>
             <type>pom</type>
         </dependency>
-        <dependency>
-            <groupId>org.eclipse.dirigible</groupId>
-            <artifactId>dirigible-components-group-resources-dev</artifactId>
-            <type>pom</type>
-        </dependency>
 
         <!-- Templates -->
         <dependency>
