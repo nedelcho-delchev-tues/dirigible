@@ -15,9 +15,9 @@
     
     <dependencies>
         <dependency>
-            <groupId>org.webjars</groupId>
-            <artifactId>jqplot</artifactId>
-            <version>${jqplot.version}</version>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>chart.js</artifactId>
+            <version>${chart.js.version}</version>
         </dependency>
     </dependencies>
     
