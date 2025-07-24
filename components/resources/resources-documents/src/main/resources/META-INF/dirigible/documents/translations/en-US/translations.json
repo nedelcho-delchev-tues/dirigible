@@ -3,7 +3,7 @@
     "goBack": "Go back",
     "goForward": "Go forward",
     "findItem": "Find item",
-    "newFolder": "$(new) $(folder)",
+    "newFolder": "$t(new) $t(folder)",
     "enterFolName": "Enter folder name",
     "delSelected": "$(delete) selected",
     "downloadZip": "Download zip",
