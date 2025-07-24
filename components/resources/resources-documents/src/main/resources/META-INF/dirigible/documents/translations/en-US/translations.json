@@ -5,7 +5,7 @@
     "findItem": "Find item",
     "newFolder": "$t(new) $t(folder)",
     "enterFolName": "Enter folder name",
-    "delSelected": "$(delete) selected",
+    "delSelected": "$t(delete) selected",
     "downloadZip": "Download zip",
     "uploadFile_one": "Upload file",
     "uploadFile_other": "Upload files",

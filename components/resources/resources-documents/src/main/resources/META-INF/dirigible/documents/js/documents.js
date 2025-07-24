@@ -268,7 +268,7 @@ documents.controller('DocumentsController', ($scope, $http, $timeout, $element, 
         }];
 
         const title = $scope.isDocument(item) ? LocaleService.t('documents:deleteActions.deleteFile', 'Delete file') : LocaleService.t('documents:deleteActions.deleteFolder', 'Delete folder');
-        const message = LocaleService.t('documents:deleteActions.deleteFile', { name: item.name });
+        const message = LocaleService.t('documents:deleteActions.deleteItem', { name: item.name });
 
         dialogHub.showDialog({
             title: title,
