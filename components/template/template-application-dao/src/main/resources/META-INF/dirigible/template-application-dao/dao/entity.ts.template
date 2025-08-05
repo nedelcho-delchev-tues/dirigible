@@ -92,7 +92,7 @@ export interface ${name}EntityOptions {
     $limit?: number,
 }
 
-interface ${name}EntityEvent {
+export interface ${name}EntityEvent {
     readonly operation: 'create' | 'update' | 'delete';
     readonly table: string;
     readonly entity: Partial<${name}Entity>;
@@ -107,7 +107,7 @@ interface ${name}EntityEvent {
     }
 }
 
-interface ${name}UpdateEntityEvent extends ${name}EntityEvent {
+export interface ${name}UpdateEntityEvent extends ${name}EntityEvent {
     readonly previousEntity: ${name}Entity;
 }
 
