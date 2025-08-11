@@ -49,6 +49,10 @@ export class Process {
 		BpmFacade.removeVariable(processInstanceId, variableName);
 	}
 
+	public static correlateMessageEvent(processInstanceId: string, messageName: string, variables: Map<string, any>): void {
+        BpmFacade.correlateMessageEvent(processInstanceId, messageName, stringifyValuesMap(variables));
+    }
+
 	public static getExecutionContext() {
 		return new ExecutionContext();
 	}
