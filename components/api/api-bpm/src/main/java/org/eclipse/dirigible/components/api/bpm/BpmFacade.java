@@ -277,10 +277,9 @@ public class BpmFacade implements InitializingBean {
      * @param messageName the name of the message event
      * @param variables the variables to be passed with the message vent
      */
-    public static void correlateMessageEvent(String executionId, String messageName,
-        Map<String, Object> variables) {
+    public static void correlateMessageEvent(String executionId, String messageName, Map<String, Object> variables) {
         BpmFacade.get()
-            .getBpmProviderFlowable()
-            .correlateMessageEvent(executionId, messageName, variables);
+                 .getBpmProviderFlowable()
+                 .correlateMessageEvent(executionId, messageName, variables);
     }
 }
