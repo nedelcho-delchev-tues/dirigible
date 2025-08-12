@@ -291,6 +291,20 @@ public class BpmProviderFlowable implements BpmProvider {
         runtimeService.removeVariable(executionId, variableName);
     }
 
+    /**
+     * Correlates a message event to the process instance.
+     *
+     * @param executionId the execution id
+     * @param messageName the name of the event
+     * @param variables the variables to be passed with the event
+     */
+    public void correlateMessageEvent(String executionId, String messageName, Map<String, Object> variables) {
+        flowableArtefactsValidator.validateExecutionId(executionId);
+
+        RuntimeService runtimeService = processEngine.getRuntimeService();
+        runtimeService.messageEventReceived(messageName, executionId, variables);
+    }
+
     public List<ProcessDefinition> getProcessDefinitions(Optional<String> key) {
         ProcessDefinitionQuery processDefinitionsQuery = processEngine.getRepositoryService()
                                                                       .createProcessDefinitionQuery();
