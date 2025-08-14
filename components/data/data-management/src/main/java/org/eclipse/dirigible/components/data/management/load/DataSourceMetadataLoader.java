@@ -95,11 +95,11 @@ public class DataSourceMetadataLoader implements DatabaseParameters {
                 if (rs.next()) {
                     enhanceTableMetadata(schemaName, tableMetadata, connection, databaseMetadata);
                 } else {
-                	String tableNameDecoded = new String(Base64.getDecoder()
-                            .decode(tableName));
-                	try (ResultSet rs2 = databaseMetadata.getTables(null, schemaName, tableNameDecoded, null)) {
+                    String tableNameDecoded = new String(Base64.getDecoder()
+                                                               .decode(tableName));
+                    try (ResultSet rs2 = databaseMetadata.getTables(null, schemaName, tableNameDecoded, null)) {
                         if (rs2.next()) {
-                        	tableMetadata.setName(tableNameDecoded);
+                            tableMetadata.setName(tableNameDecoded);
                             enhanceTableMetadata(schemaName, tableMetadata, connection, databaseMetadata);
                         } else {
                             return null;
@@ -114,14 +114,14 @@ public class DataSourceMetadataLoader implements DatabaseParameters {
         return tableMetadata;
     }
 
-	public void enhanceTableMetadata(String schemaName, Table tableMetadata, Connection connection,
-			DatabaseMetaData databaseMetadata) throws SQLException {
-		addColumns(databaseMetadata, connection, tableMetadata, schemaName);
-		addPrimaryKeys(databaseMetadata, connection, tableMetadata, schemaName);
-		addForeignKeys(databaseMetadata, connection, tableMetadata, schemaName);
-		addIndices(databaseMetadata, connection, tableMetadata, schemaName);
-		addTableType(databaseMetadata, connection, tableMetadata, schemaName);
-	}
+    public void enhanceTableMetadata(String schemaName, Table tableMetadata, Connection connection, DatabaseMetaData databaseMetadata)
+            throws SQLException {
+        addColumns(databaseMetadata, connection, tableMetadata, schemaName);
+        addPrimaryKeys(databaseMetadata, connection, tableMetadata, schemaName);
+        addForeignKeys(databaseMetadata, connection, tableMetadata, schemaName);
+        addIndices(databaseMetadata, connection, tableMetadata, schemaName);
+        addTableType(databaseMetadata, connection, tableMetadata, schemaName);
+    }
 
     /**
      * Adds the fields.
