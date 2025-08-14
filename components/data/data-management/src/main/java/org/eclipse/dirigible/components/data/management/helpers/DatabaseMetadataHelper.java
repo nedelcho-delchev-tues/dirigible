@@ -738,15 +738,16 @@ public class DatabaseMetadataHelper implements DatabaseParameters {
             } else {
                 TableMetadata tableMetadata = describeTable(connection, null, schema, table);
                 try {
-					if (tableMetadata == null) {
-						String tableName = new String(Base64.getDecoder().decode(table));
-						tableMetadata = describeTable(connection, null, schema, tableName);
-					}
-				} catch (Exception e) {
-					if (logger.isWarnEnabled()) {
+                    if (tableMetadata == null) {
+                        String tableName = new String(Base64.getDecoder()
+                                                            .decode(table));
+                        tableMetadata = describeTable(connection, null, schema, tableName);
+                    }
+                } catch (Exception e) {
+                    if (logger.isWarnEnabled()) {
                         logger.warn("Table does not exist and it is not Base64 encoded name either", e);
                     }
-				}
+                }
                 String json = GsonHelper.toJson(tableMetadata);
                 return json;
             }
