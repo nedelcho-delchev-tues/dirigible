@@ -294,7 +294,7 @@ public class BpmProviderFlowable implements BpmProvider {
     /**
      * Correlates a message event to the process instance.
      *
-     * @param processInstanceId the execution id
+     * @param processInstanceId the process instance id
      * @param messageName the name of the event
      * @param variables the variables to be passed with the event
      */
