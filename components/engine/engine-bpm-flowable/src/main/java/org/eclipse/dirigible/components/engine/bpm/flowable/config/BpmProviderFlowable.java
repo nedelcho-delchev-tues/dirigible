@@ -303,12 +303,11 @@ public class BpmProviderFlowable implements BpmProvider {
 
         RuntimeService runtimeService = processEngine.getRuntimeService();
 
-        Execution execution = runtimeService
-                .createExecutionQuery()
-                .messageEventSubscriptionName(messageName)
-                .processInstanceId(processInstanceId)
-                .executionTenantId(getTenantId())
-                .singleResult();
+        Execution execution = runtimeService.createExecutionQuery()
+                                            .messageEventSubscriptionName(messageName)
+                                            .processInstanceId(processInstanceId)
+                                            .executionTenantId(getTenantId())
+                                            .singleResult();
 
         runtimeService.messageEventReceived(messageName, execution.getId(), variables);
     }
