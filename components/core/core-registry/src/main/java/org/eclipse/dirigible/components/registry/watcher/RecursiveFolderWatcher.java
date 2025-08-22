@@ -226,7 +226,8 @@ public class RecursiveFolderWatcher implements DisposableBean {
                     }
 
                     if (this.watchService != null) {
-                        logger.warn("Recursive Folder Watcher has been initialized already. Existing watcher will be closed and a new one will be created.");
+                        logger.warn(
+                                "Recursive Folder Watcher has been initialized already. Existing watcher will be closed and a new one will be created.");
                         destroy();
                     }
 
