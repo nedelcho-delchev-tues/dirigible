@@ -11,6 +11,7 @@ package org.eclipse.dirigible.components.initializers.synchronizer;
 
 import org.eclipse.dirigible.components.base.ApplicationListenersOrder.ApplicationReadyEventListeners;
 import org.eclipse.dirigible.components.initializers.classpath.ClasspathExpander;
+import org.eclipse.dirigible.components.registry.watcher.RecursiveFolderWatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -36,15 +37,19 @@ public class SynchronizationInitializer implements ApplicationListener<Applicati
     /** The classpath expander. */
     private final ClasspathExpander classpathExpander;
 
+    private final RecursiveFolderWatcher recursiveFolderWatcher;
+
     /**
      * Instantiates a new synchronizers initializer.
      *
      * @param synchronizationProcessor the synchronization processor
      * @param classpathExpander the classpath expander
      */
-    public SynchronizationInitializer(SynchronizationProcessor synchronizationProcessor, ClasspathExpander classpathExpander) {
+    public SynchronizationInitializer(SynchronizationProcessor synchronizationProcessor, ClasspathExpander classpathExpander,
+            RecursiveFolderWatcher recursiveFolderWatcher) {
         this.synchronizationProcessor = synchronizationProcessor;
         this.classpathExpander = classpathExpander;
+        this.recursiveFolderWatcher = recursiveFolderWatcher;
     }
 
     /**
@@ -59,6 +64,7 @@ public class SynchronizationInitializer implements ApplicationListener<Applicati
         synchronizationProcessor.prepareSynchronizers();
         classpathExpander.expandContent();
         synchronizationProcessor.processSynchronizers();
+        recursiveFolderWatcher.initialize();
 
         LOGGER.info("Completed.");
 

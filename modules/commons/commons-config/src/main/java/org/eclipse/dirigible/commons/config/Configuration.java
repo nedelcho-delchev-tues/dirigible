@@ -235,7 +235,9 @@ public class Configuration {
                 "DIRIGIBLE_BRANDING_BRAND", //
                 "DIRIGIBLE_BRANDING_FAVICON", //
                 "DIRIGIBLE_BRANDING_THEME", //
-                "DIRIGIBLE_BRANDING_PREFIX", "DIRIGIBLE_BRANDING_ANALYTICS", "DIRIGIBLE_GIT_ROOT_FOLDER", //
+                "DIRIGIBLE_BRANDING_PREFIX", //
+                "DIRIGIBLE_BRANDING_ANALYTICS", //
+                "DIRIGIBLE_GIT_ROOT_FOLDER", //
                 "DIRIGIBLE_REGISTRY_EXTERNAL_FOLDER", //
                 "DIRIGIBLE_REGISTRY_IMPORT_WORKSPACE", //
                 "DIRIGIBLE_REPOSITORY_PROVIDER", //
