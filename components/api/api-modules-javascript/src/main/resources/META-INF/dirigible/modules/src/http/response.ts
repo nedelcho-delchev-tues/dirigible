@@ -233,6 +233,11 @@ export class Response {
      */
     public static readonly USE_PROXY = 305;
 
+	   /**
+     *  Status code (422) indicating that the server understood the content type of the request content, but it was unable to process the contained instructions.
+     */
+    public static readonly UNPROCESSABLE_CONTENT = 422;
+
     /**
      * Mapping between HTTP response codes (string) and reason-pharses as defiend in rfc7231 section 6.1 (https://tools.ietf.org/html/rfc7231#section-6.1).
      * (See HttpCodesReasons.getReason for number based retrieval of reason-phrase for code)
@@ -273,6 +278,7 @@ export class Response {
         "415": "Unsupported Media Type",
         "416": "Range Not Satisfiable",
         "417": "Expectation Failed",
+		"422": "Unprocessable Content",
         "426": "Upgrade Required",
         "500": "Internal Server Error",
         "501": "Not Implemented",
