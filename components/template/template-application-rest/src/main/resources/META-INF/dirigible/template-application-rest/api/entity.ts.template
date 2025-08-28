@@ -143,7 +143,7 @@ class ${name}Service {
 #end
 #end
 #end
-            const options: DimensionEntityOptions = {
+            const options: ${name}EntityOptions = {
                 $language: request.getLocale().slice(0, 2)
             };
             const entity = this.repository.findById(id, options);
