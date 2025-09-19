@@ -156,7 +156,7 @@ public class CreateTableTest {
 
         assertNotNull(sql);
         assertEquals(
-                "CREATE TABLE \"CUSTOMERS\" ( \"FIRST_NAME\" VARCHAR (20) , \"LAST_NAME\" VARCHAR (30) , CONSTRAINT \"FOREIGN_KEY\" FOREIGN KEY ( \"PERSON_ADDRESS_ID\" ) REFERENCES TEST_SCHEMA.\"ADDRESSES\"( \"ADDRESS_ID\" ))",
+                "CREATE TABLE \"CUSTOMERS\" ( \"FIRST_NAME\" VARCHAR (20) , \"LAST_NAME\" VARCHAR (30) , CONSTRAINT \"FOREIGN_KEY\" FOREIGN KEY ( \"PERSON_ADDRESS_ID\" ) REFERENCES \"TEST_SCHEMA\".\"ADDRESSES\"( \"ADDRESS_ID\" ))",
                 sql);
     }
 
@@ -206,7 +206,7 @@ public class CreateTableTest {
         String sql = SqlFactory.getDefault()
                                .create()
                                .table("CUSTOMERS")
-                               .column("ID", DataType.BIGINT, Modifiers.REGULAR, Modifiers.NULLABLE, Modifiers.NON_UNIQUE,
+                               .column("ID", DataType.BIGINT, Modifiers.REGULAR, Modifiers.NULLABLE, Modifiers.NON_UNIQUE, false,
                                        Modifiers.IDENTITY, false)
                                .column("FIRST_NAME", DataType.VARCHAR, Modifiers.REGULAR, Modifiers.NULLABLE, Modifiers.NON_UNIQUE, "(20)")
                                .column("LAST_NAME", DataType.VARCHAR, Modifiers.REGULAR, Modifiers.NULLABLE, Modifiers.NON_UNIQUE, "(30)")

@@ -12,6 +12,7 @@ package org.eclipse.dirigible.components.data.csvim.processor;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.csv.QuoteMode;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.dirigible.commons.config.Configuration;
 import org.eclipse.dirigible.commons.config.DirigibleConfig;
@@ -23,6 +24,8 @@ import org.eclipse.dirigible.components.data.management.domain.ColumnMetadata;
 import org.eclipse.dirigible.components.data.management.domain.TableMetadata;
 import org.eclipse.dirigible.components.data.sources.config.DefaultDataSourceName;
 import org.eclipse.dirigible.components.data.sources.manager.DataSourcesManager;
+import org.eclipse.dirigible.components.database.DatabaseSystem;
+import org.eclipse.dirigible.components.database.DirigibleDataSource;
 import org.eclipse.dirigible.database.sql.SqlFactory;
 import org.eclipse.dirigible.database.sql.builders.records.SelectBuilder;
 import org.eclipse.dirigible.repository.api.IRepository;
@@ -34,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.sql.DataSource;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -142,15 +144,28 @@ public class CsvimProcessor {
      * @throws Exception the exception
      */
     public void process(CsvFile csvFile, InputStream content, String dataSourceName) throws Exception {
-        boolean defaultDataSource = null == dataSourceName || dataSourceName.equalsIgnoreCase(defaultDataSourceName);
-        DataSource dataSource =
+        boolean defaultDataSource = isDefaultDataSource(dataSourceName);
+        DirigibleDataSource dataSource =
                 defaultDataSource ? datasourcesManager.getDefaultDataSource() : datasourcesManager.getDataSource(dataSourceName);
         try (Connection connection = dataSource.getConnection()) {
 
             String fileSchema = csvFile.getSchema();
-            String targetSchema =
-                    defaultDataSource ? ("PUBLIC".equalsIgnoreCase(fileSchema) ? connection.getSchema() : fileSchema) : fileSchema;
+            String targetSchema = fileSchema;
+            if (defaultDataSource) {
+                if (("PUBLIC".equals(fileSchema) && dataSource.isOfType(DatabaseSystem.H2))//
+                        || ("public".equals(fileSchema) && dataSource.isOfType(DatabaseSystem.POSTGRESQL))//
+                        || (dataSourceName == null && "public".equalsIgnoreCase(fileSchema))) {
+                    // 1. needed for the multitenancy logic - change the schema to the default db schema for this tenant
+                    // 2. when datasource is not specified but the import is for default schema - import into defaultdb
+                    // schema
+                    logger.debug("Changing target schema from [{}] to default data source schema [{}]", targetSchema,
+                            connection.getSchema());
+                    targetSchema = connection.getSchema();
+                }
+            }
+
             if (null != targetSchema) {
+                logger.debug("Updating connection schema to [{}]", targetSchema);
                 connection.setSchema(targetSchema);
             }
             String tableName = csvFile.getTable();
@@ -259,6 +274,10 @@ public class CsvimProcessor {
         }
     }
 
+    private boolean isDefaultDataSource(String dataSourceName) {
+        return null == dataSourceName || dataSourceName.equalsIgnoreCase(defaultDataSourceName);
+    }
+
     /**
      * Checks if is strict mode.
      *
@@ -328,10 +347,12 @@ public class CsvimProcessor {
         char quote = Objects.isNull(csvFile.getDelimEnclosing()) ? '"'
                 : csvFile.getDelimEnclosing()
                          .charAt(0);
+
+        // import csv format must be aligned with the used export csv format
         CSVFormat csvFormat = CSVFormat.newFormat(delimiter)
                                        .withIgnoreEmptyLines()
-                                       .withQuote(quote)
-                                       .withEscape('\\');
+                                       .withQuoteMode(QuoteMode.ALL_NON_NULL)
+                                       .withQuote(quote);
 
         boolean useHeader = !Objects.isNull(csvFile.getHeader()) && csvFile.getHeader();
         if (useHeader) {
