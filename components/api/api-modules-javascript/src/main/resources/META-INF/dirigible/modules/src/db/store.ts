@@ -31,6 +31,16 @@ export class Store {
 	public static remove(name: string, id: string): void {
 		DataStoreFacade.deleteEntry(name, id);
 	}
+	
+	public static query(name: string): any[] {
+		const result = DataStoreFacade.query(name);
+		return JSON.parse(result);
+	}
+	
+	public static queryNative(name: string): any[] {
+			const result = DataStoreFacade.queryNative(name);
+			return JSON.parse(result);
+		}
 }
 
 // @ts-ignore

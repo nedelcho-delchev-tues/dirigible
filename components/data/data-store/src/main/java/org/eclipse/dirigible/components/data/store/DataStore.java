@@ -284,9 +284,6 @@ public class DataStore {
                 EntityManager entityManager = session.getEntityManagerFactory()
                                                      .createEntityManager()) {
 
-            if (!mappings.containsKey(type)) {
-                throw new IllegalArgumentException("There is not entity of type " + type);
-            }
             Query query = entityManager.createQuery("from " + type + " c");
             return query.getResultList();
         }
@@ -296,10 +293,16 @@ public class DataStore {
      * Query.
      *
      * @param query the query
+     * @param datasource the datasource
      * @return the list
      */
     public List<Map> query(String query) {
-        return query(query, getDataSource());
+        try (Session session = sessionFactory.openSession();
+                EntityManager entityManager = session.getEntityManagerFactory()
+                                                     .createEntityManager()) {
+            Query queryObject = entityManager.createQuery(query);
+            return queryObject.getResultList();
+        }
     }
 
     /**
@@ -309,25 +312,12 @@ public class DataStore {
      * @param datasource the datasource
      * @return the list
      */
-    public List<Map> query(String query, DataSource datasource) {
+    public List<Map> queryNative(String query) {
         try (Session session = sessionFactory.openSession()) {
             return session.createNativeQuery(query)
                           .list();
         }
     }
-
-    // /**
-    // * List.
-    // *
-    // * @param type the type
-    // * @return the string
-    // */
-    // public String list(String type) {
-    // try (Session session = sessionFactory.openSession()) {
-    // List list = session.createSQLQuery("SELECT * FROM " + type).list();
-    // return JsonHelper.toJson(list);
-    // }
-    // }
 
 }
 

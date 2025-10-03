@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -146,7 +147,7 @@ public class DataStoreTest {
     }
 
     /**
-     * Save object.
+     * Query object.
      */
     @Test
     public void query() {
@@ -155,7 +156,31 @@ public class DataStoreTest {
 
         dataStore.save("Customer", json);
 
-        List list = dataStore.query("select * from Customer");
+        List list = dataStore.query("from Customer");
+        System.out.println(JsonHelper.toJson(list));
+
+        assertNotNull(list);
+        assertEquals(1, list.size());
+        assertNotNull(list.get(0));
+        assertEquals("John", ((Map) list.get(0)).get("name"));
+
+        list = dataStore.list("Customer");
+        for (Object element : list) {
+            dataStore.delete("Customer", ((Long) ((Map) element).get("id")));
+        }
+    }
+
+    /**
+     * Query native object.
+     */
+    @Test
+    public void queryNative() {
+
+        String json = "{\"name\":\"John\",\"address\":\"Sofia, Bulgaria\"}";
+
+        dataStore.save("Customer", json);
+
+        List list = dataStore.queryNative("select * from Customer");
         System.out.println(JsonHelper.toJson(list));
 
         assertNotNull(list);

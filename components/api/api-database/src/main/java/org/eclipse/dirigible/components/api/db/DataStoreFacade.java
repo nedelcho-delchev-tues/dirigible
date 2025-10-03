@@ -94,6 +94,32 @@ public class DataStoreFacade implements InitializingBean {
     }
 
     /**
+     * Query.
+     *
+     * @param name the name
+     * @return the string
+     */
+    public static String query(String name) {
+        List list = DataStoreFacade.get()
+                                   .getDataStore()
+                                   .query(name);
+        return JsonHelper.toJson(list);
+    }
+
+    /**
+     * Query native.
+     *
+     * @param name the name
+     * @return the string
+     */
+    public static String queryNative(String name) {
+        List list = DataStoreFacade.get()
+                                   .getDataStore()
+                                   .queryNative(name);
+        return JsonHelper.toJson(list);
+    }
+
+    /**
      * Gets the.
      *
      * @param name the name
