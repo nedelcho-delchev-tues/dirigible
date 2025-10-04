@@ -100,7 +100,7 @@ public class DataStoreTest {
     }
 
     /**
-     * Save object.
+     * Criteria.
      */
     @Test
     public void criteria() {
@@ -125,7 +125,7 @@ public class DataStoreTest {
     }
 
     /**
-     * Save object.
+     * Bag in object.
      */
     @Test
     public void bag() {
@@ -187,6 +187,33 @@ public class DataStoreTest {
         assertEquals(1, list.size());
         assertNotNull(list.get(0));
         assertEquals("John", ((Object[]) list.get(0))[1]);
+
+        list = dataStore.list("Customer");
+        for (Object element : list) {
+            dataStore.delete("Customer", ((Long) ((Map) element).get("id")));
+        }
+    }
+
+    /**
+     * Find by example.
+     */
+    @Test
+    public void findByExample() {
+
+        String json = "{\"name\":\"John\",\"address\":\"Sofia, Bulgaria\"}";
+        dataStore.save("Customer", json);
+        json = "{\"name\":\"Jane\",\"address\":\"Varna, Bulgaria\"}";
+        dataStore.save("Customer", json);
+        json = "{\"name\":\"Matthias\",\"address\":\"Berlin, Germany\"}";
+        dataStore.save("Customer", json);
+
+        String example = "{\"name\":\"John\"}";
+
+        List list = dataStore.findByExample("Customer", example);
+        System.out.println(JsonHelper.toJson(list));
+
+        assertNotNull(list);
+        assertEquals(1, list.size());
 
         list = dataStore.list("Customer");
         for (Object element : list) {

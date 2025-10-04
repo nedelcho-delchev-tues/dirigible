@@ -27,10 +27,13 @@ import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
+import org.hibernate.metamodel.model.domain.EntityDomainType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 
 /**
  * The Class ObjectStore.
@@ -166,8 +169,7 @@ public class DataStore {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             Map object = JsonHelper.fromJson(json, Map.class);
-            session.save(type, object);
-            transaction.commit();
+            save(type, object, datasource);
         }
     }
 
@@ -192,6 +194,106 @@ public class DataStore {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             session.save(type, object);
+            transaction.commit();
+        }
+    }
+
+    /**
+     * Save or update.
+     *
+     * @param type the type
+     * @param json the json
+     */
+    public void saveOrUpdate(String type, String json) {
+        saveOrUpdate(type, json, getDataSource());
+    }
+
+    /**
+     * Save or update.
+     *
+     * @param type the type
+     * @param json the json
+     * @param datasource the datasource
+     */
+    public void saveOrUpdate(String type, String json, DataSource datasource) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            Map object = JsonHelper.fromJson(json, Map.class);
+            saveOrUpdate(type, object, datasource);
+        }
+    }
+
+    /**
+     * Save or update.
+     *
+     * @param type the type
+     * @param object the object
+     */
+    public void saveOrUpdate(String type, Map object) {
+        save(type, object, getDataSource());
+    }
+
+    /**
+     * Save or update.
+     *
+     * @param type the type
+     * @param object the object
+     * @param datasource the datasource
+     */
+    public void saveOrUpdate(String type, Map object, DataSource datasource) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            session.saveOrUpdate(type, object);
+            transaction.commit();
+        }
+    }
+
+    /**
+     * Update.
+     *
+     * @param type the type
+     * @param json the json
+     */
+    public void update(String type, String json) {
+        update(type, json, getDataSource());
+    }
+
+    /**
+     * Update.
+     *
+     * @param type the type
+     * @param json the json
+     * @param datasource the datasource
+     */
+    public void update(String type, String json, DataSource datasource) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            Map object = JsonHelper.fromJson(json, Map.class);
+            update(type, object, datasource);
+        }
+    }
+
+    /**
+     * Update.
+     *
+     * @param type the type
+     * @param object the object
+     */
+    public void update(String type, Map object) {
+        save(type, object, getDataSource());
+    }
+
+    /**
+     * Update.
+     *
+     * @param type the type
+     * @param object the object
+     * @param datasource the datasource
+     */
+    public void update(String type, Map object, DataSource datasource) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction transaction = session.beginTransaction();
+            session.update(type, object);
             transaction.commit();
         }
     }
@@ -286,6 +388,37 @@ public class DataStore {
 
             Query query = entityManager.createQuery("from " + type + " c");
             return query.getResultList();
+        }
+    }
+
+    /**
+     * Find by example.
+     *
+     * @param type the type
+     * @param json the json
+     * @return the list
+     */
+    public List<Map> findByExample(String type, String json) {
+        return findByExample(type, json, getDataSource());
+    }
+
+    /**
+     * Find by example.
+     *
+     * @param type the type
+     * @param json the json
+     * @param datasource the datasource
+     * @return the list
+     */
+    public List<Map> findByExample(String type, String json, DataSource datasource) {
+        try (Session session = sessionFactory.openSession();
+                EntityManager entityManager = session.getEntityManagerFactory()
+                                                     .createEntityManager()) {
+            Map object = JsonHelper.fromJson(json, Map.class);
+
+            List result = DynamicCriteriaFinder.findByExampleDynamic(entityManager, type, object);
+
+            return result;
         }
     }
 

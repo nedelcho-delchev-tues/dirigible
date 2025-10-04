@@ -17,6 +17,14 @@ export class Store {
 	public static save(name: string, entry: any): void {
 		DataStoreFacade.save(name, JSON.stringify(entry));
 	}
+	
+	public static saveOrUpdate(name: string, entry: any): void {
+		DataStoreFacade.saveOrUpdate(name, JSON.stringify(entry));
+	}
+	
+	public static update(name: string, entry: any): void {
+		DataStoreFacade.update(name, JSON.stringify(entry));
+	}
 
 	public static list(name: string): any[] {
 		const result = DataStoreFacade.list(name);
