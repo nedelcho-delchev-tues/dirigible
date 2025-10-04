@@ -395,6 +395,7 @@ public class DataStore {
      * List with filter.
      *
      * @param type the type
+     * @param options the options
      * @return the list
      */
     public List<Map> list(String type, QueryOptions options) {
@@ -412,6 +413,7 @@ public class DataStore {
      * List with filter.
      *
      * @param type the type
+     * @param options the options
      * @return the list
      */
     public List<Map> list(String type, String options) {
@@ -499,7 +501,6 @@ public class DataStore {
      * Query.
      *
      * @param query the query
-     * @param datasource the datasource
      * @return the list
      */
     public List<Map> queryNative(String query) {
