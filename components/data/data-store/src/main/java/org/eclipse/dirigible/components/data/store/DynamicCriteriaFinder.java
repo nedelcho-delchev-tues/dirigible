@@ -23,12 +23,16 @@ public class DynamicCriteriaFinder {
     /**
      * Executes a Find-by-Example query against a dynamic entity using HQL. HQL is required because the
      * entity is only defined by its 'entity-name' string.
+     *
      * @param em The Jakarta Persistence EntityManager.
      * @param entityName The Hibernate entity-name (e.g., "Order" or "OrderItem").
      * @param exampleMap A Map containing the properties (keys) and values to match.
+     * @param limit The max number of records
+     * @param offset The starting number of records
      * @return A list of result Maps matching the criteria.
      */
-    public static List<Map> findByExampleDynamic(EntityManager em, String entityName, Map<String, Object> exampleMap) {
+    public static List<Map> findByExampleDynamic(EntityManager em, String entityName, Map<String, Object> exampleMap, int limit,
+            int offset) {
 
         Session session = em.unwrap(Session.class);
 
@@ -63,19 +67,14 @@ public class DynamicCriteriaFinder {
             query.setParameter(param.getKey(), param.getValue());
         }
 
+        if (limit > 0) {
+            query.setMaxResults(limit);
+        }
+        if (offset >= 0) {
+            query.setFirstResult(offset);
+        }
+
         return query.getResultList();
     }
-
-    // Example of how you might call this method (assuming you have an EntityManager 'em')
-    /*
-     * public static void main(String[] args) { // ... Setup EntityManager em ...
-     *
-     * Map<String, Object> example = new HashMap<>(); example.put("name", "Laptop Stand");
-     * example.put("orderId", 101L);
-     *
-     * List<Map> matchingItems = findByExampleDynamic(em, "OrderItem", example);
-     *
-     * // ... Process results ... }
-     */
 
 }

@@ -12,11 +12,13 @@ package org.eclipse.dirigible.components.data.store;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.sql.DataSource;
+
 import org.apache.commons.io.IOUtils;
 import org.eclipse.dirigible.components.base.helpers.JsonHelper;
 import org.junit.jupiter.api.BeforeEach;
@@ -156,7 +158,7 @@ public class DataStoreTest {
 
         dataStore.save("Customer", json);
 
-        List list = dataStore.query("from Customer");
+        List list = dataStore.query("from Customer", 100, 0);
         System.out.println(JsonHelper.toJson(list));
 
         assertNotNull(list);
@@ -214,6 +216,34 @@ public class DataStoreTest {
 
         assertNotNull(list);
         assertEquals(1, list.size());
+
+        list = dataStore.list("Customer");
+        for (Object element : list) {
+            dataStore.delete("Customer", ((Long) ((Map) element).get("id")));
+        }
+    }
+
+    /**
+     * List with options.
+     */
+    @Test
+    public void listWithOptions() {
+
+        String json = "{\"name\":\"John\",\"address\":\"Sofia, Bulgaria\"}";
+        dataStore.save("Customer", json);
+        json = "{\"name\":\"Jane\",\"address\":\"Varna, Bulgaria\"}";
+        dataStore.save("Customer", json);
+        json = "{\"name\":\"Matthias\",\"address\":\"Berlin, Germany\"}";
+        dataStore.save("Customer", json);
+
+        String options = "{\"conditions\":[{\"propertyName\":\"name\",\"operator\":\"LIKE\",\"value\":\"J%\"}],"
+                + "\"sorts\":[{\"propertyName\":\"name\",\"direction\":\"ASC\"}],\"limit\":\"100\"}";
+
+        List list = dataStore.list("Customer", options);
+        System.out.println(JsonHelper.toJson(list));
+
+        assertNotNull(list);
+        assertEquals(2, list.size());
 
         list = dataStore.list("Customer");
         for (Object element : list) {

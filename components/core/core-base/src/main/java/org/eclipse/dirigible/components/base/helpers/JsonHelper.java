@@ -45,7 +45,7 @@ public class JsonHelper {
      * @return the string
      */
     public static <T> String toJson(Object src, Class<T> classOfT) {
-        return GSON.toJson(src);
+        return GSON.toJson(src, classOfT);
     }
 
     /**

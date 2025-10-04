@@ -25,9 +25,9 @@ export class Store {
 	public static update(name: string, entry: any): void {
 		DataStoreFacade.update(name, JSON.stringify(entry));
 	}
-
-	public static list(name: string): any[] {
-		const result = DataStoreFacade.list(name);
+	
+	public static list(name: string, options: string): any[] {
+		const result = DataStoreFacade.list(name, options);
 		return JSON.parse(result);
 	}
 
@@ -40,7 +40,12 @@ export class Store {
 		DataStoreFacade.deleteEntry(name, id);
 	}
 	
-	public static query(name: string): any[] {
+	public static find(name: string, example: string, limit: number, offset: number): any[] {
+			const result = DataStoreFacade.find(name, example, limit, offset);
+			return JSON.parse(result);
+		}
+	
+	public static query(name: string, limit: number, offset: number): any[] {
 		const result = DataStoreFacade.query(name);
 		return JSON.parse(result);
 	}

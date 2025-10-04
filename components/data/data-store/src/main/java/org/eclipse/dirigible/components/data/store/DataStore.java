@@ -16,7 +16,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.sql.DataSource;
+
 import org.apache.commons.io.IOUtils;
 import org.eclipse.dirigible.components.base.helpers.JsonHelper;
 import org.eclipse.dirigible.components.data.sources.manager.DataSourcesManager;
@@ -27,13 +29,11 @@ import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
-import org.hibernate.metamodel.model.domain.EntityDomainType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
 
 /**
  * The Class ObjectStore.
@@ -392,14 +392,38 @@ public class DataStore {
     }
 
     /**
-     * Find by example.
+     * List with filter.
      *
      * @param type the type
-     * @param json the json
      * @return the list
      */
-    public List<Map> findByExample(String type, String json) {
-        return findByExample(type, json, getDataSource());
+    public List<Map> list(String type, QueryOptions options) {
+        try (Session session = sessionFactory.openSession();
+                EntityManager entityManager = session.getEntityManagerFactory()
+                                                     .createEntityManager()) {
+
+            List<Map> matchingItems = DynamicQueryFilter.filterDynamic(entityManager, type, options);
+
+            return matchingItems;
+        }
+    }
+
+    /**
+     * List with filter.
+     *
+     * @param type the type
+     * @return the list
+     */
+    public List<Map> list(String type, String options) {
+        try (Session session = sessionFactory.openSession();
+                EntityManager entityManager = session.getEntityManagerFactory()
+                                                     .createEntityManager()) {
+            if (options != null) {
+                QueryOptions queryOptions = JsonHelper.fromJson(options, QueryOptions.class);
+                return list(type, queryOptions);
+            }
+            return list(type);
+        }
     }
 
     /**
@@ -407,16 +431,42 @@ public class DataStore {
      *
      * @param type the type
      * @param json the json
+     * @return the list
+     */
+    public List<Map> findByExample(String type, String json) {
+        return findByExample(type, json, 100, 0, getDataSource());
+    }
+
+    /**
+     * Find by example.
+     *
+     * @param type the type
+     * @param json the json
+     * @param limit the limit
+     * @param offset the offset
+     * @return the list
+     */
+    public List<Map> findByExample(String type, String json, int limit, int offset) {
+        return findByExample(type, json, limit, offset, getDataSource());
+    }
+
+    /**
+     * Find by example.
+     *
+     * @param type the type
+     * @param json the json
+     * @param limit the limit
+     * @param offset the offset
      * @param datasource the datasource
      * @return the list
      */
-    public List<Map> findByExample(String type, String json, DataSource datasource) {
+    public List<Map> findByExample(String type, String json, int limit, int offset, DataSource datasource) {
         try (Session session = sessionFactory.openSession();
                 EntityManager entityManager = session.getEntityManagerFactory()
                                                      .createEntityManager()) {
             Map object = JsonHelper.fromJson(json, Map.class);
 
-            List result = DynamicCriteriaFinder.findByExampleDynamic(entityManager, type, object);
+            List result = DynamicCriteriaFinder.findByExampleDynamic(entityManager, type, object, limit, offset);
 
             return result;
         }
@@ -426,14 +476,21 @@ public class DataStore {
      * Query.
      *
      * @param query the query
-     * @param datasource the datasource
+     * @param limit the limit
+     * @param offset the offset
      * @return the list
      */
-    public List<Map> query(String query) {
+    public List<Map> query(String query, int limit, int offset) {
         try (Session session = sessionFactory.openSession();
                 EntityManager entityManager = session.getEntityManagerFactory()
                                                      .createEntityManager()) {
             Query queryObject = entityManager.createQuery(query);
+            if (limit > 0) {
+                queryObject.setMaxResults(limit);
+            }
+            if (offset >= 0) {
+                queryObject.setFirstResult(offset);
+            }
             return queryObject.getResultList();
         }
     }

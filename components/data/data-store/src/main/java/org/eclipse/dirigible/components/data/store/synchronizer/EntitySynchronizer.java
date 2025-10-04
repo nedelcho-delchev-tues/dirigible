@@ -37,10 +37,12 @@ import java.util.List;
 @Order(SynchronizersOrder.ENTITY)
 public class EntitySynchronizer extends BaseSynchronizer<Entity, Long> {
 
-    /** The Constant FILE_EXTENSION_BPMN. */
-    public static final String FILE_EXTENSION_ENTITY = ".hbm.xml";
     /** The Constant logger. */
     private static final Logger logger = LoggerFactory.getLogger(EntitySynchronizer.class);
+
+    /** The Constant FILE_EXTENSION_BPMN. */
+    public static final String FILE_EXTENSION_ENTITY = ".hbm.xml";
+
     /** The entity service. */
     private final EntityService entityService;
 

@@ -79,7 +79,7 @@ public class DataStoreFacade implements InitializingBean {
                        .getDataStore()
                        .save(name, json);
     }
-    
+
     /**
      * Save or update.
      *
@@ -91,7 +91,7 @@ public class DataStoreFacade implements InitializingBean {
                        .getDataStore()
                        .saveOrUpdate(name, json);
     }
-    
+
     /**
      * Update.
      *
@@ -118,15 +118,47 @@ public class DataStoreFacade implements InitializingBean {
     }
 
     /**
+     * List.
+     *
+     * @param name the name
+     * @param options the options
+     * @return the string
+     */
+    public static String list(String name, String options) {
+        List list = DataStoreFacade.get()
+                                   .getDataStore()
+                                   .list(name, options);
+        return JsonHelper.toJson(list);
+    }
+
+    /**
      * Query.
      *
      * @param name the name
+     * @param limit
+     * @param offset
      * @return the string
      */
-    public static String query(String name) {
+    public static String query(String name, int limit, int offset) {
         List list = DataStoreFacade.get()
                                    .getDataStore()
-                                   .query(name);
+                                   .query(name, limit, offset);
+        return JsonHelper.toJson(list);
+    }
+
+    /**
+     * Find.
+     *
+     * @param name the name
+     * @param example the example
+     * @param limit
+     * @param offset
+     * @return the string
+     */
+    public static String find(String name, String example, int limit, int offset) {
+        List list = DataStoreFacade.get()
+                                   .getDataStore()
+                                   .findByExample(name, example, limit, offset);
         return JsonHelper.toJson(list);
     }
 
