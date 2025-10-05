@@ -60,7 +60,8 @@ export class Store {
 export interface Options {
 	conditions?: Condition[],
 	sorts?: Sort[],
-	
+	limit?: number,
+	offset?: number
 }
 
 export interface Condition {
