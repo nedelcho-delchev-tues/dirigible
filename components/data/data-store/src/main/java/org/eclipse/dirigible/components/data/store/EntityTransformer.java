@@ -3,18 +3,18 @@ package org.eclipse.dirigible.components.data.store;
 import java.io.FileInputStream;
 
 import org.apache.commons.io.IOUtils;
-import org.eclipse.dirigible.commons.utils.xml2json.Xml2Json;
+import org.eclipse.dirigible.commons.utils.xml2json.Xml2Json2;
 
 public class EntityTransformer {
 
     public static String toEntity(String xml) throws Exception {
         xml = xml.replace("hibernate-mapping>", "entity-mapping>");
-        return Xml2Json.toJson(xml);
+        return Xml2Json2.toJson(xml);
     }
 
     public static String fromEntity(String json) throws Exception {
         json = json.replace("entity-mapping", "hibernate-mapping");
-        return Xml2Json.toXml(json);
+        return Xml2Json2.toXml(json);
     }
 
     public static void main(String[] args) throws Exception {
