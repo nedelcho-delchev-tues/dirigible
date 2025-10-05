@@ -18,7 +18,7 @@ export class Store {
 		DataStoreFacade.save(name, JSON.stringify(entry));
 	}
 	
-	public static saveOrUpdate(name: string, entry: any): void {
+	public static upsert(name: string, entry: any): void {
 		DataStoreFacade.saveOrUpdate(name, JSON.stringify(entry));
 	}
 	
