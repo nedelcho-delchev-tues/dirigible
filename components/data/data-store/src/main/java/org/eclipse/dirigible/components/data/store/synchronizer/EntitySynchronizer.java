@@ -106,9 +106,9 @@ public class EntitySynchronizer extends BaseSynchronizer<Entity, Long> {
             Entity maybe = getService().findByKey(entity.getKey());
             if (maybe != null) {
                 entity.setId(maybe.getId());
-                entity.setContent(content);
             }
             entity = getService().save(entity);
+            entity.setContent(content);
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
                 logger.error(e.getMessage(), e);
