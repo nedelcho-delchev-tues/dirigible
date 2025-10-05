@@ -162,59 +162,59 @@ public class DynamicQueryFilter {
         Map<String, Object> params = new HashMap<>();
         // Used to ensure unique parameter names in case a property is filtered multiple times
         AtomicInteger paramIndex = new AtomicInteger(0);
-        
+
         if (queryOptions.conditions != null && !queryOptions.conditions.isEmpty()) {
-	        for (QueryCondition condition : queryOptions.conditions) {
-	            String propertyName = condition.propertyName;
-	            Operator operator = condition.operator;
-	            Object value = condition.value;
-	
-	            if (value == null || (value instanceof List && ((List) value).isEmpty())) {
-	                continue;
-	            }
-	
-	            int currentParamIndex = paramIndex.getAndIncrement();
-	
-	            if (operator == Operator.BETWEEN) {
-	                // BETWEEN requires two values (bounds)
-	                if (value instanceof Object[] && ((Object[]) value).length == 2) {
-	                    Object[] bounds = (Object[]) value;
-	                    String paramName1 = propertyName + "B" + currentParamIndex + "a";
-	                    String paramName2 = propertyName + "B" + currentParamIndex + "b";
-	
-	                    hql.append(" AND e.")
-	                       .append(propertyName)
-	                       .append(" BETWEEN :")
-	                       .append(paramName1)
-	                       .append(" AND :")
-	                       .append(paramName2);
-	
-	                    params.put(paramName1, bounds[0]);
-	                    params.put(paramName2, bounds[1]);
-	                } else {
-	                    logger.error("Warning: BETWEEN operator requires an array of two values.");
-	                }
-	            } else if (operator == Operator.IN) {
-	                // IN requires a collection of values
-	                String paramName = propertyName + "I" + currentParamIndex;
-	                hql.append(" AND e.")
-	                   .append(propertyName)
-	                   .append(" IN (:")
-	                   .append(paramName)
-	                   .append(")");
-	                params.put(paramName, value);
-	            } else {
-	                // All other single-value operators (=, <, >, LIKE, etc.)
-	                String paramName = propertyName + "S" + currentParamIndex;
-	                hql.append(" AND e.")
-	                   .append(propertyName)
-	                   .append(" ")
-	                   .append(operator.getSqlEquivalent())
-	                   .append(" :")
-	                   .append(paramName);
-	                params.put(paramName, value);
-	            }
-	        }
+            for (QueryCondition condition : queryOptions.conditions) {
+                String propertyName = condition.propertyName;
+                Operator operator = condition.operator;
+                Object value = condition.value;
+
+                if (value == null || (value instanceof List && ((List) value).isEmpty())) {
+                    continue;
+                }
+
+                int currentParamIndex = paramIndex.getAndIncrement();
+
+                if (operator == Operator.BETWEEN) {
+                    // BETWEEN requires two values (bounds)
+                    if (value instanceof Object[] && ((Object[]) value).length == 2) {
+                        Object[] bounds = (Object[]) value;
+                        String paramName1 = propertyName + "B" + currentParamIndex + "a";
+                        String paramName2 = propertyName + "B" + currentParamIndex + "b";
+
+                        hql.append(" AND e.")
+                           .append(propertyName)
+                           .append(" BETWEEN :")
+                           .append(paramName1)
+                           .append(" AND :")
+                           .append(paramName2);
+
+                        params.put(paramName1, bounds[0]);
+                        params.put(paramName2, bounds[1]);
+                    } else {
+                        logger.error("Warning: BETWEEN operator requires an array of two values.");
+                    }
+                } else if (operator == Operator.IN) {
+                    // IN requires a collection of values
+                    String paramName = propertyName + "I" + currentParamIndex;
+                    hql.append(" AND e.")
+                       .append(propertyName)
+                       .append(" IN (:")
+                       .append(paramName)
+                       .append(")");
+                    params.put(paramName, value);
+                } else {
+                    // All other single-value operators (=, <, >, LIKE, etc.)
+                    String paramName = propertyName + "S" + currentParamIndex;
+                    hql.append(" AND e.")
+                       .append(propertyName)
+                       .append(" ")
+                       .append(operator.getSqlEquivalent())
+                       .append(" :")
+                       .append(paramName);
+                    params.put(paramName, value);
+                }
+            }
         }
 
         if (queryOptions.sorts != null && !queryOptions.sorts.isEmpty()) {
