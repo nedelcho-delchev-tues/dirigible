@@ -26,8 +26,8 @@ export class Store {
 		DataStoreFacade.update(name, JSON.stringify(entry));
 	}
 	
-	public static list(name: string, options?: string): any[] {
-		const result = DataStoreFacade.list(name, options);
+	public static list(name: string, options?: Options): any[] {
+		const result = DataStoreFacade.list(name, JSON.stringify(options));
 		return JSON.parse(result);
 	}
 
@@ -40,8 +40,8 @@ export class Store {
 		DataStoreFacade.deleteEntry(name, id);
 	}
 	
-	public static find(name: string, example: string, limit: number = 100, offset: number = 0): any[] {
-			const result = DataStoreFacade.find(name, example, limit, offset);
+	public static find(name: string, example: any, limit: number = 100, offset: number = 0): any[] {
+			const result = DataStoreFacade.find(name, JSON.stringify(example), limit, offset);
 			return JSON.parse(result);
 		}
 	
@@ -51,9 +51,44 @@ export class Store {
 	}
 	
 	public static queryNative(name: string): any[] {
-			const result = DataStoreFacade.queryNative(name);
-			return JSON.parse(result);
-		}
+		const result = DataStoreFacade.queryNative(name);
+		return JSON.parse(result);
+	}
+
+}
+
+export interface Options {
+	conditions?: Condition[],
+	sorts?: Sort[],
+	
+}
+
+export interface Condition {
+	propertyName: string,
+	operator: Operator,
+	value: any | any[]
+}
+
+export enum Operator {
+	EQ = "=", // Equals
+	NE = "<>", // Not Equals
+	GT = ">", // Greater Than
+	LT = "<", // Less Than
+	GE = ">=", // Greater Than or Equals
+	LE = "<=", // Less Than or Equals
+	LIKE = "LIKE", // SQL LIKE operator
+	BETWEEN = "BETWEEN", // SQL BETWEEN operator (requires two values)
+	IN = "IN" // SQL IN operator (requires a List or Array of values)
+}
+
+export interface Sort {
+	propertyName: string,
+	direction: Direction
+}
+
+export enum Direction {
+	ASC = "ASC", // Ascending
+	DESC = "DESC" // Descending
 }
 
 // @ts-ignore
