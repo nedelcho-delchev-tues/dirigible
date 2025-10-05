@@ -33,7 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.Query;
+import org.hibernate.query.Query;
 
 /**
  * The Class ObjectStore.
@@ -386,8 +386,24 @@ public class DataStore {
                 EntityManager entityManager = session.getEntityManagerFactory()
                                                      .createEntityManager()) {
 
-            Query query = entityManager.createQuery("from " + type + " c");
+            Query<Map> query = session.createQuery("from " + type + " c", Map.class);
             return query.getResultList();
+        }
+    }
+
+    /**
+     * Count.
+     *
+     * @param type the type
+     * @return the count
+     */
+    public long count(String type) {
+        try (Session session = sessionFactory.openSession();
+                EntityManager entityManager = session.getEntityManagerFactory()
+                                                     .createEntityManager()) {
+
+            Query<Map> query = session.createQuery("from " + type + " c", Map.class);
+            return query.getResultCount();
         }
     }
 
@@ -403,7 +419,7 @@ public class DataStore {
                 EntityManager entityManager = session.getEntityManagerFactory()
                                                      .createEntityManager()) {
 
-            List<Map> matchingItems = DynamicQueryFilter.filterDynamic(entityManager, type, options);
+            List<Map> matchingItems = DynamicQueryFilter.list(entityManager, type, options);
 
             return matchingItems;
         }
@@ -427,6 +443,44 @@ public class DataStore {
             return list(type);
         }
     }
+
+    /**
+     * Count with filter.
+     *
+     * @param type the type
+     * @param options the options
+     * @return the count
+     */
+    public long count(String type, QueryOptions options) {
+        try (Session session = sessionFactory.openSession();
+                EntityManager entityManager = session.getEntityManagerFactory()
+                                                     .createEntityManager()) {
+
+            long count = DynamicQueryFilter.count(entityManager, type, options);
+
+            return count;
+        }
+    }
+
+    /**
+     * Count with filter.
+     *
+     * @param type the type
+     * @param options the options
+     * @return the count
+     */
+    public long count(String type, String options) {
+        try (Session session = sessionFactory.openSession();
+                EntityManager entityManager = session.getEntityManagerFactory()
+                                                     .createEntityManager()) {
+            if (options != null) {
+                QueryOptions queryOptions = JsonHelper.fromJson(options, QueryOptions.class);
+                return count(type, queryOptions);
+            }
+            return count(type);
+        }
+    }
+
 
     /**
      * Find by example.
@@ -486,7 +540,7 @@ public class DataStore {
         try (Session session = sessionFactory.openSession();
                 EntityManager entityManager = session.getEntityManagerFactory()
                                                      .createEntityManager()) {
-            Query queryObject = entityManager.createQuery(query);
+            Query<Map> queryObject = session.createQuery(query, Map.class);
             if (limit > 0) {
                 queryObject.setMaxResults(limit);
             }
@@ -505,7 +559,7 @@ public class DataStore {
      */
     public List<Map> queryNative(String query) {
         try (Session session = sessionFactory.openSession()) {
-            return session.createNativeQuery(query)
+            return session.createNativeQuery(query, Map.class)
                           .list();
         }
     }

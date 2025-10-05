@@ -136,6 +136,26 @@ public class DataStoreFacade implements InitializingBean {
     }
 
     /**
+     * Count.
+     *
+     * @param name the name
+     * @param options the options
+     * @return the count
+     */
+    public static long count(String name, String options) {
+        if (options != null) {
+            long count = DataStoreFacade.get()
+                                        .getDataStore()
+                                        .count(name, options);
+            return count;
+        } else {
+            return DataStoreFacade.get()
+                                  .getDataStore()
+                                  .count(name);
+        }
+    }
+
+    /**
      * Query.
      *
      * @param name the name

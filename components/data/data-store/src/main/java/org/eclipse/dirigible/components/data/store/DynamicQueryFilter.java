@@ -153,7 +153,26 @@ public class DynamicQueryFilter {
      * @param queryOptions All the objects defining the filter criteria, sort, limit and offset.
      * @return A list of result Maps matching the criteria.
      */
-    public static List<Map> filterDynamic(EntityManager em, String entityName, QueryOptions queryOptions) {
+    public static List<Map> list(EntityManager em, String entityName, QueryOptions queryOptions) {
+        Query<Map> query = filterDynamic(em, entityName, queryOptions);
+        return query.getResultList();
+    }
+
+    /**
+     * Executes a count dynamic filter query against an entity identified by its entity-name.
+     *
+     * @param em The Jakarta Persistence EntityManager.
+     * @param entityName The Hibernate entity-name (e.g., "Order" or "OrderItem").
+     * @param queryOptions All the objects defining the filter criteria, sort, limit and offset.
+     * @return The count of the list of result Maps matching the criteria.
+     */
+    public static long count(EntityManager em, String entityName, QueryOptions queryOptions) {
+        Query<Map> query = filterDynamic(em, entityName, queryOptions);
+        return query.getResultCount();
+    }
+
+
+    private static Query<Map> filterDynamic(EntityManager em, String entityName, QueryOptions queryOptions) {
 
         Session session = em.unwrap(Session.class);
 
@@ -246,7 +265,7 @@ public class DynamicQueryFilter {
             query.setFirstResult(queryOptions.offset);
         }
 
-        return query.getResultList();
+        return query;
     }
 
 }

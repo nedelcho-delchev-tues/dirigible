@@ -27,8 +27,13 @@ export class Store {
 	}
 	
 	public static list(name: string, options?: Options): any[] {
-		const result = DataStoreFacade.list(name, JSON.stringify(options));
+		const result = DataStoreFacade.list(name, options ? JSON.stringify(options) : null);
 		return JSON.parse(result);
+	}
+	
+	public static count(name: string, options?: Options): any[] {
+		const result = DataStoreFacade.count(name, options ? JSON.stringify(options) : null);
+		return result;
 	}
 
 	public static get(name: string, id: string): any | undefined {
