@@ -110,7 +110,7 @@ public class DataStoreFacade implements InitializingBean {
      * @param name the name
      * @return the string
      */
-    public static String list(String name) {
+    private static String listAll(String name) {
         List list = DataStoreFacade.get()
                                    .getDataStore()
                                    .list(name);
@@ -125,10 +125,14 @@ public class DataStoreFacade implements InitializingBean {
      * @return the string
      */
     public static String list(String name, String options) {
-        List list = DataStoreFacade.get()
-                                   .getDataStore()
-                                   .list(name, options);
-        return JsonHelper.toJson(list);
+        if (options != null) {
+            List list = DataStoreFacade.get()
+                                       .getDataStore()
+                                       .list(name, options);
+            return JsonHelper.toJson(list);
+        } else {
+            return listAll(name);
+        }
     }
 
     /**
