@@ -36,12 +36,12 @@ export class Store {
 		return result;
 	}
 
-	public static get(name: string, id: string): any | undefined {
+	public static get(name: string, id: any): any | undefined {
 		const result = DataStoreFacade.get(name, id);
 		return JSON.parse(result);
 	};
 
-	public static remove(name: string, id: string): void {
+	public static remove(name: string, id: any): void {
 		DataStoreFacade.deleteEntry(name, id);
 	}
 	
