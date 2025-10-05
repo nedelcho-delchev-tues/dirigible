@@ -189,7 +189,7 @@ public class DataStoreTest {
         assertNotNull(list);
         assertEquals(1, list.size());
         assertNotNull(list.get(0));
-        assertEquals("John", ((Object[]) list.get(0))[1]);
+        assertEquals("John", ((Map) list.get(0)).get("name"));
 
         list = dataStore.list("Customer");
         for (Object element : list) {
