@@ -77,7 +77,7 @@ public class Xml2JsonTest {
                 String json = IOUtils.toString(inJson);
                 Xml2Json xml2json = new Xml2Json();
                 xml = Xml2Json.toXml(json);
-                // xml = xml2json.prettyPrintXml(xml);
+                xml = xml2json.prettyPrintXml(xml);
                 System.out.println(json);
                 System.out.println(xml);
             } finally {

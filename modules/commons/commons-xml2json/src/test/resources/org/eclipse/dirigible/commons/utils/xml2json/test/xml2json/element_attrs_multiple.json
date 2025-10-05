@@ -3,7 +3,8 @@
     "b": "text_b",
     "c": {
       "#text": "text_c",
-      "-c1": "attr_c1"
+      "-c1": "attr_c1",
+      "-c2": "attr_c2"
     },
     "d": {
       "e": "text_e"

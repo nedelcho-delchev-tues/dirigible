@@ -15,7 +15,6 @@ import static org.junit.Assert.fail;
 import java.io.InputStream;
 
 import org.apache.commons.io.IOUtils;
-import org.eclipse.dirigible.commons.utils.xml2json.Xml2Json;
 import org.eclipse.dirigible.commons.utils.xml2json.Xml2Json2;
 import org.junit.Test;
 
@@ -76,8 +75,8 @@ public class Xml2Json2Test {
             try {
                 @SuppressWarnings("deprecation")
                 String json = IOUtils.toString(inJson);
-                Xml2Json xml2json = new Xml2Json();
-                xml = Xml2Json.toXml(json);
+                Xml2Json2 xml2json = new Xml2Json2();
+                xml = Xml2Json2.toXml(json);
                 // xml = xml2json.prettyPrintXml(xml);
                 System.out.println(json);
                 System.out.println(xml);
