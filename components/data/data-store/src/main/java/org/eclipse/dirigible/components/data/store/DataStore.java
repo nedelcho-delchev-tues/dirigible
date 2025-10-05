@@ -141,9 +141,9 @@ public class DataStore {
      * @param value the value
      */
     private void addInputStreamToConfig(Configuration configuration, String key, String value) {
-        try (InputStream inputStream = IOUtils.toInputStream(value, StandardCharsets.UTF_8)) {
+        try (InputStream inputStream = IOUtils.toInputStream(EntityTransformer.fromEntity(value), StandardCharsets.UTF_8)) {
             configuration.addInputStream(inputStream);
-        } catch (RuntimeException | IOException ex) {
+        } catch (Exception ex) {
             throw new IllegalStateException("Failed to add input stream to configuration for [" + key + "]: [" + value + "]", ex);
         }
     }

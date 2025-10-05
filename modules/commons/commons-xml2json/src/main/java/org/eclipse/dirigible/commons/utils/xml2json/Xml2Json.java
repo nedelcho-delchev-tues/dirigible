@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Eclipse Dirigible contributors
+ * Copyright (c) 2010-2025 Eclipse Dirigible contributors
  *
  * All rights reserved. This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v2.0 which accompanies this distribution, and is available at
@@ -9,545 +9,219 @@
  */
 package org.eclipse.dirigible.commons.utils.xml2json;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import javax.xml.XMLConstants;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.w3c.dom.*;
+import org.xml.sax.InputSource;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
+import java.io.StringReader;
+import java.io.StringWriter;
 
 /**
- * The Class Xml2Json.
+ * Utility class for performing guaranteed lossless and reversible conversion between XML Documents
+ * and structured JSON (using Jackson's Tree Model). This class handles: 1. Root Element name
+ * preservation. 2. Attributes, child elements, and simple text content. 3. Special XML nodes: CDATA
+ * sections and Comments. Custom JSON keys for fidelity: - "_text": Used for simple element text
+ * content. - "_cdata": Used for CDATA section content. - "_comment": Used for XML comment content.
  */
 public class Xml2Json {
 
-    /** The Constant logger. */
-    private static final Logger logger = LoggerFactory.getLogger(Xml2Json.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /** The Constant CDATA_CLOSE. */
-    private static final String CDATA_CLOSE = "]]>";
-
-    /** The Constant CDATA_OPEN. */
-    private static final String CDATA_OPEN = "<![CDATA[";
-
-    /** The Constant ESQ. */
-    private static final String ESQ = "=\"";
-
-    /** The Constant SPACE. */
-    private static final String SPACE = " ";
-
-    /** The Constant EQ. */
-    private static final String EQ = "\"";
-
-    /** The Constant EMPTY. */
-    private static final String EMPTY = "";
-
-    /** The Constant ATTR_TEXT. */
-    private static final String ATTR_TEXT = "#text";
-
-    /** The Constant ATTR_CDATA. */
-    private static final String ATTR_CDATA = "#cdata-section";
-
-    /** The Constant LTS. */
-    private static final String LTS = "</";
-
-    /** The Constant GT. */
-    private static final String GT = ">";
-
-    /** The Constant LT. */
-    private static final String LT = "<";
-
-    /** The added by value. */
-    static List<Object> ADDED_BY_VALUE = new ArrayList<Object>();
-
-    /** The reorganized. */
-    static Map<String, JsonElement> REORGANIZED = new HashMap<String, JsonElement>();
+    // --- Reserved Keys for Lossless Reversal ---
+    private static final String KEY_TEXT = "_text";
+    private static final String KEY_CDATA = "_cdata";
+    private static final String KEY_COMMENT = "_comment";
+    // Jackson's default for repeated elements is an array, which we preserve.
 
     /**
-     * Transform XML to JSON.
+     * Converts an XML string into a structured, lossless JSON string. The root XML element is preserved
+     * as the top-level JSON key.
      *
-     * @param xml the xml
-     * @return the string
-     * @throws ParserConfigurationException the parser configuration exception
-     * @throws SAXException the SAX exception
-     * @throws IOException Signals that an I/O exception has occurred.
+     * @param xmlString The XML content to convert.
+     * @return The resulting pretty-printed JSON string.
      */
-    public static String toJson(String xml) throws ParserConfigurationException, SAXException, IOException {
-        JsonObject rootJson = new JsonObject();
-        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
-        documentBuilderFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
-        Document doc = documentBuilder.parse(new InputSource(new StringReader(xml)));
-        if (doc.hasChildNodes()) {
-            traverseNode(doc, rootJson, null);
-        }
-        Gson gson = new GsonBuilder().setPrettyPrinting()
-                                     .disableHtmlEscaping()
-                                     .create();
-        return gson.toJson(rootJson);
+    public static String toJson(String xmlString) throws Exception {
+        Document doc = parseXmlToDom(xmlString);
+        Element rootElement = doc.getDocumentElement();
+
+        ObjectNode rootNode = MAPPER.createObjectNode();
+        ObjectNode contentNode = MAPPER.createObjectNode();
+
+        // Recursively convert XML element and its children
+        convertXmlElementToJson(rootElement, contentNode);
+
+        // Wrap the content with the original root tag name (e.g., {"a": {...}})
+        rootNode.set(rootElement.getNodeName(), contentNode);
+
+        return MAPPER.writerWithDefaultPrettyPrinter()
+                     .writeValueAsString(rootNode);
     }
 
     /**
-     * Traverse node.
+     * Recursive method to convert an XML Element and its children to a JSON ObjectNode. This handles
+     * element attributes, text, CDATA, and comments.
      *
-     * @param parentNode the parent node
-     * @param parentJson the parent json
-     * @param upperJson the upper json
+     * @param element The current XML Element being processed.
+     * @param node The JSON ObjectNode corresponding to the element.
      */
-    private static void traverseNode(Node parentNode, JsonObject parentJson, JsonObject upperJson) {
-        NodeList childList = parentNode.getChildNodes();
-        for (int i = 0; i < childList.getLength(); i++) {
-            JsonObject childJson = new JsonObject();
-            Node childNode = childList.item(i);
+    private static void convertXmlElementToJson(Element element, ObjectNode node) {
 
-            if (childNode.getNodeType() == Node.TEXT_NODE) {
-                if (childNode.getNodeValue()
-                             .trim()
-                             .length() != 0) {
-                    // non empty text node reached, so add to the parent
-                    processTextNode(parentNode, upperJson, childJson, childNode);
-                }
-            } else if (childNode.getNodeType() == Node.ELEMENT_NODE) {
+        // Handle ATTRIBUTES (Jackson's default handles these)
+        NamedNodeMap attributes = element.getAttributes();
+        for (int i = 0; i < attributes.getLength(); i++) {
+            Node attr = attributes.item(i);
+            // Attributes are simply added as key-value pairs to the element's node
+            node.put(attr.getNodeName(), attr.getNodeValue());
+        }
 
-                if (childNode.hasAttributes()) {
-                    // attributes exist, so go thru them
-                    traverseAttributes(childJson, childNode);
-                }
+        // Handle CHILD NODES (Elements, Text, CDATA, Comments)
+        NodeList children = element.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
 
-                if (childNode.hasChildNodes()) {
-                    // child nodes exist, so go into them
-                    traverseNode(childNode, childJson, parentJson);
-                }
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                // If the child is an ELEMENT, we recurse.
+                String childName = child.getNodeName();
+                ObjectNode childNode = MAPPER.createObjectNode();
+                convertXmlElementToJson((Element) child, childNode);
 
-                if (childNode.getNodeType() != Node.TEXT_NODE) {
-                    // non text node element
-                    if (ADDED_BY_VALUE.contains(childNode)) {
-                        // already added as a value
-                        if (parentJson.has(childNode.getNodeName())) {
-                            // there is already such an element as expected
-                            JsonElement existing = parentJson.get(childNode.getNodeName());
-                            if (existing instanceof JsonPrimitive) {
-                                // it is a primitive as expected
-                                Iterator attrs = childJson.entrySet()
-                                                          .iterator();
-                                if (attrs.hasNext()) {
-                                    // there are attributes, so reorganize the element to include the attributes and the
-                                    // value as property - #text
-                                    reorganizeForAttributes(parentJson, childNode, existing, attrs);
-                                }
-                            } else if (existing instanceof JsonArray) {
-                                // already added and reorganized as an array, so take the last element of this type and
-                                // add the attributes
-                                Iterator attrs = childJson.entrySet()
-                                                          .iterator();
-                                if (attrs.hasNext()) {
-                                    reorganizeAddAttributes(childNode, attrs);
-                                }
-                            } else if (existing instanceof JsonObject) {
-                                if (logger.isErrorEnabled()) {
-                                    logger.error("Found object, but expected primitive or array");
-                                }
-                            }
-                        } else {
-                            if (logger.isErrorEnabled()) {
-                                logger.error("Expected element, but it does not exist");
-                            }
-                        }
-                        // remove it from the list
-                        ADDED_BY_VALUE.remove(childNode);
+                // Handle repeating elements: If the key already exists, convert to an ArrayNode
+                if (node.has(childName)) {
+                    JsonNode existing = node.get(childName);
+                    if (existing.isArray()) {
+                        ((ArrayNode) existing).add(childNode);
                     } else {
-                        if (parentJson.has(childNode.getNodeName())) {
-                            // parent already has such an element
-                            JsonElement existing = parentJson.get(childNode.getNodeName());
-                            if (existing instanceof JsonArray) {
-                                // and it is already an array, so just add the child to the array
-                                ((JsonArray) existing).add(childJson);
-                            } else if (existing instanceof JsonObject) {
-                                // and it not an array, so reorganize the element
-                                reorganizeElement(parentNode, parentJson, childJson, childNode, existing);
-                            }
+                        ArrayNode arrayNode = MAPPER.createArrayNode();
+                        arrayNode.add(existing);
+                        arrayNode.add(childNode);
+                        node.set(childName, arrayNode);
+                    }
+                } else {
+                    node.set(childName, childNode);
+                }
+
+            } else if (child.getNodeType() == Node.TEXT_NODE && !child.getNodeValue()
+                                                                      .trim()
+                                                                      .isEmpty()) {
+                // Handle TEXT node (used for mixed content or simple text)
+                node.put(KEY_TEXT, child.getNodeValue()
+                                        .trim());
+            } else if (child.getNodeType() == Node.CDATA_SECTION_NODE) {
+                // Handle CDATA node (Crucial for lossless)
+                node.put(KEY_CDATA, child.getNodeValue());
+            } else if (child.getNodeType() == Node.COMMENT_NODE) {
+                // Handle COMMENT node (Crucial for lossless)
+                node.put(KEY_COMMENT, child.getNodeValue());
+            }
+        }
+    }
+
+    /**
+     * Converts a structured, lossless JSON string back into an XML string.
+     *
+     * @param jsonString The structured JSON content to convert.
+     * @return The resulting XML string.
+     */
+    public static String toXml(String jsonString) throws Exception {
+        JsonNode rootJson = MAPPER.readTree(jsonString);
+        if (!rootJson.isObject() || rootJson.size() != 1) {
+            throw new IllegalArgumentException("JSON must contain a single root object key.");
+        }
+
+        // Get the single root key (e.g., "a")
+        String rootName = rootJson.fieldNames()
+                                  .next();
+        JsonNode contentJson = rootJson.get(rootName);
+
+        // Create a new XML Document
+        DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+        Document doc = docBuilder.newDocument();
+
+        // Create the root element
+        Element rootElement = doc.createElement(rootName);
+        doc.appendChild(rootElement);
+
+        // Recursively convert JSON to XML
+        convertJsonToXmlElement(contentJson, rootElement, doc);
+
+        // Transform the DOM Document to a formatted XML string
+        return transformDomToXml(doc);
+    }
+
+    /**
+     * Recursive method to convert a JSON Node back into an XML Element.
+     *
+     * @param jsonNode The current JSON Node being processed.
+     * @param xmlElement The corresponding XML Element.
+     * @param doc The XML Document instance.
+     */
+    private static void convertJsonToXmlElement(JsonNode jsonNode, Element xmlElement, Document doc) {
+        if (jsonNode.isObject()) {
+            jsonNode.fields()
+                    .forEachRemaining(entry -> {
+                        String key = entry.getKey();
+                        JsonNode value = entry.getValue();
+
+                        // Check for special reserved keys (Lossless features)
+                        if (key.equals(KEY_TEXT)) {
+                            // Add simple text content
+                            xmlElement.appendChild(doc.createTextNode(value.asText()));
+                        } else if (key.equals(KEY_CDATA)) {
+                            // Add CDATA section
+                            xmlElement.appendChild(doc.createCDATASection(value.asText()));
+                        } else if (key.equals(KEY_COMMENT)) {
+                            // Add XML comment
+                            xmlElement.appendChild(doc.createComment(value.asText()));
+                        } else if (value.isArray()) {
+                            // Handle arrays (Repeated Elements)
+                            value.forEach(item -> {
+                                Element childElement = doc.createElement(key);
+                                convertJsonToXmlElement(item, childElement, doc);
+                                xmlElement.appendChild(childElement);
+                            });
+                        } else if (value.isObject()) {
+                            // Handle nested objects (Child Element)
+                            Element childElement = doc.createElement(key);
+                            convertJsonToXmlElement(value, childElement, doc);
+                            xmlElement.appendChild(childElement);
                         } else {
-                            // no such an element yet, so add it to the parent
-                            parentJson.add(childNode.getNodeName(), childJson);
+                            // Everything else is treated as an ATTRIBUTE (Jackson convention)
+                            xmlElement.setAttribute(key, value.asText());
                         }
-                    }
-                }
-            } else if (childNode.getNodeType() == Node.CDATA_SECTION_NODE) {
-                // processTextNode(parentNode, upperJson, childJson, childNode);
-                String base64 = Base64.getEncoder()
-                                      .encodeToString(childNode.getNodeValue()
-                                                               .getBytes(StandardCharsets.UTF_8));
-                parentJson.addProperty(childNode.getNodeName(), base64);
-            } else {
-                if (logger.isErrorEnabled()) {
-                    logger.error("Unsupported node type: {}", childNode.getNodeType());
-                }
-            }
+                    });
         }
     }
 
-    /**
-     * Process text node.
-     *
-     * @param parentNode the parent node
-     * @param upperJson the upper json
-     * @param childJson the child json
-     * @param childNode the child node
-     */
-    private static void processTextNode(Node parentNode, JsonObject upperJson, JsonObject childJson, Node childNode) {
-        if (upperJson.has(parentNode.getNodeName())) {
-            // upper already has such an element
-            JsonElement existing = upperJson.get(parentNode.getNodeName());
-            if (existing instanceof JsonArray) {
-                // adding to the already reorganized array
-                ((JsonArray) existing).add(new JsonPrimitive(childNode.getNodeValue()));
-                REORGANIZED.put(parentNode.hashCode() + EMPTY, childJson);
-            } else if (existing instanceof JsonObject) {
-                // found it as an object, so reorganize it
-                reorganizeObjectToArray(parentNode, upperJson, childJson, childNode, existing);
-            } else {
-                // found as a primitive, so reorganize it
-                reorganizePrimitiveToArray(parentNode, upperJson, childJson, childNode, existing);
-            }
-        } else {
-            // no such a node exists yet, so add it as a property to the upper element
-            upperJson.addProperty(parentNode.getNodeName(), childNode.getNodeValue());
-        }
-        // add the parent node to the added as a value list
-        ADDED_BY_VALUE.add(parentNode);
+
+    private static Document parseXmlToDom(String xmlString) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        // Crucial for recognizing CDATA/Comments correctly
+        factory.setIgnoringElementContentWhitespace(true);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        InputSource is = new InputSource(new StringReader(xmlString));
+        return builder.parse(is);
     }
 
-    /**
-     * Reorganize element.
-     *
-     * @param parentNode the parent node
-     * @param parentJson the parent json
-     * @param childJson the child json
-     * @param childNode the child node
-     * @param existing the existing
-     */
-    private static void reorganizeElement(Node parentNode, JsonObject parentJson, JsonObject childJson, Node childNode,
-            JsonElement existing) {
-        parentJson.remove(childNode.getNodeName());
-        JsonArray arrayJson = new JsonArray();
-        arrayJson.add(existing);
-        arrayJson.add(childJson);
-        parentJson.add(childNode.getNodeName(), arrayJson);
-    }
-
-    /**
-     * Reorganize object to array.
-     *
-     * @param parentNode the parent node
-     * @param upperJson the upper json
-     * @param childJson the child json
-     * @param childNode the child node
-     * @param existing the existing
-     */
-    private static void reorganizeObjectToArray(Node parentNode, JsonObject upperJson, JsonObject childJson, Node childNode,
-            JsonElement existing) {
-        upperJson.remove(parentNode.getNodeName());
-        JsonArray arrayJson = new JsonArray();
-        arrayJson.add(existing);
-        childJson.addProperty(childNode.getNodeName(), childNode.getNodeValue());
-        arrayJson.add(childJson);
-        upperJson.add(parentNode.getNodeName(), arrayJson);
-        REORGANIZED.put(parentNode.hashCode() + EMPTY, childJson);
-    }
-
-    /**
-     * Reorganize primitive to array.
-     *
-     * @param parentNode the parent node
-     * @param upperJson the upper json
-     * @param childJson the child json
-     * @param childNode the child node
-     * @param existing the existing
-     */
-    private static void reorganizePrimitiveToArray(Node parentNode, JsonObject upperJson, JsonObject childJson, Node childNode,
-            JsonElement existing) {
-        upperJson.remove(parentNode.getNodeName());
-        JsonArray arrayJson = new JsonArray();
-        arrayJson.add(existing);
-        arrayJson.add(new JsonPrimitive(childNode.getNodeValue()));
-        upperJson.add(parentNode.getNodeName(), arrayJson);
-        REORGANIZED.put(parentNode.hashCode() + EMPTY, childJson);
-    }
-
-    /**
-     * Reorganize add attributes.
-     *
-     * @param childNode the child node
-     * @param attrs the attrs
-     */
-    private static void reorganizeAddAttributes(Node childNode, Iterator attrs) {
-        JsonElement reorganizedJson = REORGANIZED.get(childNode.hashCode() + EMPTY);
-        if (reorganizedJson instanceof JsonObject objectJson) {
-            while (attrs.hasNext()) {
-                Entry entry = (Entry) attrs.next();
-                objectJson.addProperty(entry.getKey()
-                                            .toString(),
-                        entry.getValue()
-                             .toString()
-                             .replace(EQ, EMPTY));
-            }
-        } else {
-            if (logger.isErrorEnabled()) {
-                logger.error("Expected object, found element or null");
-            }
-        }
-        REORGANIZED.remove(childNode.hashCode() + EMPTY);
-    }
-
-    /**
-     * Reorganize for attributes.
-     *
-     * @param parentJson the parent json
-     * @param childNode the child node
-     * @param existing the existing
-     * @param attrs the attrs
-     */
-    private static void reorganizeForAttributes(JsonObject parentJson, Node childNode, JsonElement existing, Iterator attrs) {
-        parentJson.remove(childNode.getNodeName());
-        JsonObject objectJson = new JsonObject();
-        objectJson.addProperty(ATTR_TEXT, ((JsonPrimitive) existing).getAsString());
-        while (attrs.hasNext()) {
-            Entry entry = (Entry) attrs.next();
-            objectJson.addProperty(entry.getKey()
-                                        .toString(),
-                    entry.getValue()
-                         .toString()
-                         .replace(EQ, EMPTY));
-        }
-        parentJson.add(childNode.getNodeName(), objectJson);
-    }
-
-    /**
-     * Traverse attributes.
-     *
-     * @param childJson the child json
-     * @param childNode the child node
-     */
-    private static void traverseAttributes(JsonObject childJson, Node childNode) {
-        NamedNodeMap attrNodeMap = childNode.getAttributes();
-        for (int j = 0; j < attrNodeMap.getLength(); j++) {
-            Node attrNode = attrNodeMap.item(j);
-            childJson.addProperty("-" + attrNode.getNodeName(), attrNode.getNodeValue());
-        }
-    }
-
-    /**
-     * To xml.
-     *
-     * @param json the json
-     * @return the string
-     */
-    public static String toXml(String json) {
-        JsonParser parser = new JsonParser();
-        JsonElement rootJson = parser.parse(json);
-        StringBuffer buff = new StringBuffer();
-        serializeObjectAsXml((JsonObject) rootJson, buff);
-        return buff.toString();
-    }
-
-    /**
-     * Serialize object as xml.
-     *
-     * @param objectJson the object json
-     * @param buff the buff
-     */
-    private static void serializeObjectAsXml(JsonObject objectJson, StringBuffer buff) {
-        Iterator elements = objectJson.entrySet()
-                                      .iterator();
-        while (elements.hasNext()) {
-            Entry entry = (Entry) elements.next();
-            Object key = entry.getKey();
-            Object value = entry.getValue();
-            if (value instanceof JsonObject) {
-                buff.append(LT)
-                    .append(key);
-                serializeObjectAttributes((JsonObject) value, buff);
-                buff.append(GT);
-                serializeObjectAsXml((JsonObject) value, buff);
-                buff.append(LTS)
-                    .append(key)
-                    .append(GT);
-            } else if (value instanceof JsonArray) {
-                serializeArrayAsXml(buff, key, value);
-            } else if (value instanceof JsonPrimitive) {
-                if (ATTR_TEXT.equals(key)) {
-                    buff.append(value.toString()
-                                     .replace(EQ, EMPTY));
-                } else if (ATTR_CDATA.equals(key)) {
-                    buff.append(CDATA_OPEN)
-                        .append(new String(Base64.getDecoder()
-                                                 .decode(value.toString()
-                                                              .replace(EQ, EMPTY)),
-                                StandardCharsets.UTF_8))
-                        .append(CDATA_CLOSE);
-                } else {
-                    if (!key.toString()
-                            .startsWith("-")) {
-                        buff.append(LT)
-                            .append(key.toString())
-                            .append(GT)
-                            .append(value.toString()
-                                         .replace(EQ, EMPTY))
-                            .append(LTS)
-                            .append(key.toString())
-                            .append(GT);
-                    }
-                }
-            } else {
-                if (logger.isErrorEnabled()) {
-                    logger.error("Unhandled element");
-                }
-            }
-        }
-    }
-
-    /**
-     * Serialize object attributes.
-     *
-     * @param objectJson the object json
-     * @param buff the buff
-     */
-    private static void serializeObjectAttributes(JsonObject objectJson, StringBuffer buff) {
-        Iterator elements = objectJson.entrySet()
-                                      .iterator();
-        while (elements.hasNext()) {
-            Entry entry = (Entry) elements.next();
-            Object key = entry.getKey();
-            Object value = entry.getValue();
-            if (value instanceof JsonPrimitive) {
-                if (key.toString()
-                       .startsWith("-")) {
-                    buff.append(SPACE)
-                        .append(key.toString()
-                                   .substring(1))
-                        .append(ESQ)
-                        .append(value.toString()
-                                     .replace(EQ, EMPTY))
-                        .append(EQ);
-                }
-            }
-        }
-    }
-
-    /**
-     * Serialize array as xml.
-     *
-     * @param buff the buff
-     * @param key the key
-     * @param value the value
-     */
-    private static void serializeArrayAsXml(StringBuffer buff, Object key, Object value) {
-        JsonArray array = (JsonArray) value;
-        for (int i = 0; i < array.size(); i++) {
-            JsonElement elementJson = array.get(i);
-            if (elementJson instanceof JsonObject) {
-                buff.append(LT)
-                    .append(key);
-                serializeObjectAttributes((JsonObject) elementJson, buff);
-                buff.append(GT);
-                serializeObjectAsXml((JsonObject) elementJson, buff);
-                buff.append(LTS)
-                    .append(key)
-                    .append(GT);
-            } else if (elementJson instanceof JsonArray) {
-                serializeArrayAsXml(buff, key, elementJson);
-            } else if (elementJson instanceof JsonPrimitive elementPrimitive) {
-                if (ATTR_TEXT.equals(key)) {
-                    buff.append(elementPrimitive.toString()
-                                                .replace(EQ, EMPTY));
-                } else if (ATTR_CDATA.equals(key)) {
-                    buff.append(CDATA_OPEN)
-                        .append(new String(Base64.getDecoder()
-                                                 .decode(elementPrimitive.toString()
-                                                                         .replace(EQ, EMPTY)),
-                                StandardCharsets.UTF_8))
-                        .append(CDATA_CLOSE);
-                } else {
-                    // System.err.println("ERROR: content attributes must be #text");
-                    buff.append(LT)
-                        .append(key);
-                    buff.append(GT);
-                    buff.append(elementPrimitive.toString()
-                                                .replace(EQ, EMPTY));
-                    buff.append(LTS)
-                        .append(key)
-                        .append(GT);
-                }
-            }
-        }
-    }
-
-    /**
-     * Print the XML with indentation.
-     *
-     * @param xml the xml
-     * @return pretty xml
-     * @throws TransformerFactoryConfigurationError the transformer factory configuration error
-     * @throws ParserConfigurationException the parser configuration exception
-     * @throws SAXException the SAX exception
-     * @throws IOException Signals that an I/O exception has occurred.
-     * @throws TransformerException the transformer exception
-     */
-    public String prettyPrintXml(String xml)
-            throws TransformerFactoryConfigurationError, ParserConfigurationException, SAXException, IOException, TransformerException {
-        Transformer transformer = TransformerFactory.newInstance()
-                                                    .newTransformer();
+    private static String transformDomToXml(Document doc) throws Exception {
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-        StreamResult result = new StreamResult(new StringWriter());
-        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
-        documentBuilderFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
-        Document doc = documentBuilder.parse(new InputSource(new StringReader(xml)));
-        DOMSource source = new DOMSource(doc);
-        transformer.transform(source, result);
-        return result.getWriter()
-                     .toString();
+
+        StringWriter writer = new StringWriter();
+        transformer.transform(new DOMSource(doc), new StreamResult(writer));
+        return writer.toString();
     }
 
-    /**
-     * Pretty print json.
-     *
-     * @param xml the xml
-     * @return the string
-     */
-    public String prettyPrintJson(String xml) {
-        return null;
-    }
 }

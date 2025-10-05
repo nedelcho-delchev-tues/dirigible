@@ -56,10 +56,11 @@ public class DataStoreTest {
      */
     @BeforeEach
     public void setup() throws Exception {
-        String mappingCustomer = IOUtils.toString(DataStoreTest.class.getResourceAsStream("/hbm/Customer.hbm.xml"), StandardCharsets.UTF_8);
-        String mappingOrder = IOUtils.toString(DataStoreTest.class.getResourceAsStream("/hbm/Order.hbm.xml"), StandardCharsets.UTF_8);
+        String mappingCustomer =
+                IOUtils.toString(DataStoreTest.class.getResourceAsStream("/entity/Customer.entity"), StandardCharsets.UTF_8);
+        String mappingOrder = IOUtils.toString(DataStoreTest.class.getResourceAsStream("/entity/Order.entity"), StandardCharsets.UTF_8);
         String mappingOrderItem =
-                IOUtils.toString(DataStoreTest.class.getResourceAsStream("/hbm/OrderItem.hbm.xml"), StandardCharsets.UTF_8);
+                IOUtils.toString(DataStoreTest.class.getResourceAsStream("/entity/OrderItem.entity"), StandardCharsets.UTF_8);
 
         dataStore.setDataSource(dataSource);
         dataStore.addMapping("Customer", mappingCustomer);
