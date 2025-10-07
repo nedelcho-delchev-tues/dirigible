@@ -131,6 +131,7 @@ public class MarkdownSynchronizer extends BaseSynchronizer<Markdown, Long> {
                 wiki.setId(maybe.getId());
             }
             wiki = getService().save(wiki);
+            wiki.setContent(content);
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
                 logger.error(e.getMessage(), e);

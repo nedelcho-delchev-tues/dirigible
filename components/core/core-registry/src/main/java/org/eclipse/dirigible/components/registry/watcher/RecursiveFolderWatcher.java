@@ -32,18 +32,10 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.eclipse.dirigible.commons.config.Configuration;
-import org.eclipse.dirigible.repository.api.IRepository;
-import org.eclipse.dirigible.repository.api.IRepositoryStructure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
 
-@Component
-@Scope("singleton")
 public class RecursiveFolderWatcher implements DisposableBean {
 
     /** The Constant logger. */
@@ -54,13 +46,6 @@ public class RecursiveFolderWatcher implements DisposableBean {
     private WatchService watchService;
     private ExecutorService executorService;
     private final Map<WatchKey, Path> keyToPathMap = new HashMap<>();
-    /** The repository. */
-    private IRepository repository;
-
-    @Autowired
-    public RecursiveFolderWatcher(IRepository repository) {
-        this.repository = repository;
-    }
 
     /** Perform initial sync of all files and folders */
     private void initialSync() throws IOException {
@@ -212,16 +197,13 @@ public class RecursiveFolderWatcher implements DisposableBean {
      * Initialize.
      *
      */
-    public synchronized void initialize() {
+    public synchronized void initialize(String source, String target) {
         logger.debug("Initializing the External Registry file watcher...");
 
         executorService = Executors.newFixedThreadPool(1);
         executorService.submit(() -> {
             try {
-                String source = Configuration.get("DIRIGIBLE_REGISTRY_EXTERNAL_FOLDER");
                 if (source != null) {
-                    String target = this.repository.getInternalResourcePath(IRepositoryStructure.PATH_REGISTRY_PUBLIC);
-
                     this.sourceDir = Paths.get(source)
                                           .toAbsolutePath();
                     this.targetDir = Paths.get(target)

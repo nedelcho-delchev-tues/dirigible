@@ -131,6 +131,7 @@ public class ConfluenceSynchronizer extends BaseSynchronizer<Confluence, Long> {
                 wiki.setId(maybe.getId());
             }
             wiki = getService().save(wiki);
+            wiki.setContent(content);
         } catch (Exception e) {
             if (logger.isErrorEnabled()) {
                 logger.error(e.getMessage(), e);
