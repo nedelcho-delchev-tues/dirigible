@@ -77,8 +77,8 @@ public class DataStoreFacade implements InitializingBean {
      */
     public static Object save(String name, String json) {
         return DataStoreFacade.get()
-                       .getDataStore()
-                       .save(name, json);
+                              .getDataStore()
+                              .save(name, json);
     }
 
     /**

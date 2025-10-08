@@ -210,7 +210,7 @@ public class DataStore {
      * @param json the json
      */
     public void upsert(String type, String json) {
-    	upsert(type, json, getDataSource());
+        upsert(type, json, getDataSource());
     }
 
     /**
@@ -235,7 +235,7 @@ public class DataStore {
      * @param object the object
      */
     public void upsert(String type, Map object) {
-    	upsert(type, object, getDataSource());
+        upsert(type, object, getDataSource());
     }
 
     /**
