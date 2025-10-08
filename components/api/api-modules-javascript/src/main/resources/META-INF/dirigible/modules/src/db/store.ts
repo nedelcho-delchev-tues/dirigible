@@ -14,12 +14,12 @@ const DataStoreFacade = Java.type("org.eclipse.dirigible.components.api.db.DataS
 
 export class Store {
 
-	public static save(name: string, entry: any): void {
-		DataStoreFacade.save(name, JSON.stringify(entry));
+	public static save(name: string, entry: any): string | number {
+		return DataStoreFacade.save(name, JSON.stringify(entry));
 	}
 	
 	public static upsert(name: string, entry: any): void {
-		DataStoreFacade.saveOrUpdate(name, JSON.stringify(entry));
+		DataStoreFacade.upsert(name, JSON.stringify(entry));
 	}
 	
 	public static update(name: string, entry: any): void {
@@ -31,7 +31,7 @@ export class Store {
 		return JSON.parse(result);
 	}
 	
-	public static count(name: string, options?: Options): any[] {
+	public static count(name: string, options?: Options): number {
 		const result = DataStoreFacade.count(name, options ? JSON.stringify(options) : null);
 		return result;
 	}

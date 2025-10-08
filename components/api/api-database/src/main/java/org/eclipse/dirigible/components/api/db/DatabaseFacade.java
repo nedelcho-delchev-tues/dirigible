@@ -140,7 +140,7 @@ public class DatabaseFacade implements InitializingBean {
      * @param datasourceName the datasource name
      * @return the data source
      */
-    private static DirigibleDataSource getDataSource(String datasourceName) {
+    public static DirigibleDataSource getDataSource(String datasourceName) {
         try {
             boolean defaultDB = datasourceName == null || datasourceName.trim()
                                                                         .isEmpty()
@@ -158,7 +158,7 @@ public class DatabaseFacade implements InitializingBean {
 
             return dataSource;
         } catch (RuntimeException ex) {
-            logger.error("Failed to get data source with name [{}]", datasourceName, ex);// log it here because the client may handle the
+            logger.error("Failed to get data source with name [{}]", datasourceName, ex); // log it here because the client may handle the
             // exception and hide the details.
             throw ex;
         }

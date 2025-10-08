@@ -124,7 +124,7 @@ public class DataStore {
         mappings.forEach((k, v) -> addInputStreamToConfig(configuration, k, v));
 
         StandardServiceRegistryBuilder serviceRegistryBuilder = new StandardServiceRegistryBuilder();
-        serviceRegistryBuilder.applySetting(Environment.DATASOURCE, getDataSource());
+        serviceRegistryBuilder.applySetting(Environment.DATASOURCE, this.dataSource);
         serviceRegistryBuilder.applySetting(Environment.JAKARTA_JTA_DATASOURCE, getDataSource());
         serviceRegistryBuilder.applySettings(configuration.getProperties());
 
@@ -153,9 +153,10 @@ public class DataStore {
      *
      * @param type the type
      * @param json the json
+     * @return the identifier
      */
-    public void save(String type, String json) {
-        save(type, json, getDataSource());
+    public Object save(String type, String json) {
+        return save(type, json, getDataSource());
     }
 
     /**
@@ -164,12 +165,13 @@ public class DataStore {
      * @param type the type
      * @param json the json
      * @param datasource the datasource
+     * @return the identifier
      */
-    public void save(String type, String json, DataSource datasource) {
+    public Object save(String type, String json, DataSource datasource) {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             Map object = JsonHelper.fromJson(json, Map.class);
-            save(type, object, datasource);
+            return save(type, object, datasource);
         }
     }
 
@@ -178,9 +180,10 @@ public class DataStore {
      *
      * @param type the type
      * @param object the object
+     * @return the identifier
      */
-    public void save(String type, Map object) {
-        save(type, object, getDataSource());
+    public Object save(String type, Map object) {
+        return save(type, object, getDataSource());
     }
 
     /**
@@ -189,12 +192,14 @@ public class DataStore {
      * @param type the type
      * @param object the object
      * @param datasource the datasource
+     * @return the identifier
      */
-    public void save(String type, Map object, DataSource datasource) {
+    public Object save(String type, Map object, DataSource datasource) {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
-            session.save(type, object);
+            Object id = session.save(type, object);
             transaction.commit();
+            return id;
         }
     }
 
@@ -204,8 +209,8 @@ public class DataStore {
      * @param type the type
      * @param json the json
      */
-    public void saveOrUpdate(String type, String json) {
-        saveOrUpdate(type, json, getDataSource());
+    public void upsert(String type, String json) {
+    	upsert(type, json, getDataSource());
     }
 
     /**
@@ -215,11 +220,11 @@ public class DataStore {
      * @param json the json
      * @param datasource the datasource
      */
-    public void saveOrUpdate(String type, String json, DataSource datasource) {
+    public void upsert(String type, String json, DataSource datasource) {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             Map object = JsonHelper.fromJson(json, Map.class);
-            saveOrUpdate(type, object, datasource);
+            upsert(type, object, datasource);
         }
     }
 
@@ -229,8 +234,8 @@ public class DataStore {
      * @param type the type
      * @param object the object
      */
-    public void saveOrUpdate(String type, Map object) {
-        save(type, object, getDataSource());
+    public void upsert(String type, Map object) {
+    	upsert(type, object, getDataSource());
     }
 
     /**
@@ -240,7 +245,7 @@ public class DataStore {
      * @param object the object
      * @param datasource the datasource
      */
-    public void saveOrUpdate(String type, Map object, DataSource datasource) {
+    public void upsert(String type, Map object, DataSource datasource) {
         try (Session session = sessionFactory.openSession()) {
             Transaction transaction = session.beginTransaction();
             session.saveOrUpdate(type, object);
@@ -280,7 +285,7 @@ public class DataStore {
      * @param object the object
      */
     public void update(String type, Map object) {
-        save(type, object, getDataSource());
+        update(type, object, getDataSource());
     }
 
     /**

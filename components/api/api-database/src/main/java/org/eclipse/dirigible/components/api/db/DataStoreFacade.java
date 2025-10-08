@@ -73,9 +73,10 @@ public class DataStoreFacade implements InitializingBean {
      *
      * @param name the name
      * @param json the json
+     * @return the identifier
      */
-    public static void save(String name, String json) {
-        DataStoreFacade.get()
+    public static Object save(String name, String json) {
+        return DataStoreFacade.get()
                        .getDataStore()
                        .save(name, json);
     }
@@ -86,10 +87,10 @@ public class DataStoreFacade implements InitializingBean {
      * @param name the name
      * @param json the json
      */
-    public static void saveOrUpdate(String name, String json) {
+    public static void upsert(String name, String json) {
         DataStoreFacade.get()
                        .getDataStore()
-                       .saveOrUpdate(name, json);
+                       .upsert(name, json);
     }
 
     /**
