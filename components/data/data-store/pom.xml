@@ -48,6 +48,22 @@
 	    	<groupId>org.eclipse.dirigible</groupId>
 			<artifactId>dirigible-commons-xml2json</artifactId>
     	</dependency>
+    	<dependency>
+	    	<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-parsers-typescript</artifactId>
+    	</dependency>
+    	
+    	<!-- Test -->
+    	<dependency>
+	    	<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-components-core-extensions</artifactId>
+			<scope>test</scope>
+    	</dependency>
+    	<dependency>
+	    	<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-components-ide-git</artifactId>
+			<scope>test</scope>
+    	</dependency>
     	
     	<!-- Test -->
     	<dependency>
