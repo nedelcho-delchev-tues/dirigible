@@ -156,6 +156,9 @@ public class EntityParser {
                                                                 .arguments() != null
                         && ctx.decoratorCallExpression()
                               .arguments()
+                              .argumentList() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
                               .argumentList()
                               .argument()
                               .size() > 0) {
@@ -177,6 +180,9 @@ public class EntityParser {
                 // Extract argument from @Table({ name: 'CARS' })
                 if (ctx.decoratorCallExpression() != null && ctx.decoratorCallExpression()
                                                                 .arguments() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList() != null
                         && ctx.decoratorCallExpression()
                               .arguments()
                               .argumentList()
