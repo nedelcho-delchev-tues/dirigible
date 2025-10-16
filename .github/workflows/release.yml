@@ -134,7 +134,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_ORG_DIRIGIBLELABS }}
         run: |
-          npm install
           npm publish --access public
 
       #--------------- Publish dirigible jar to NPM -----------------#
