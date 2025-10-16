@@ -22,7 +22,7 @@ type ClassFieldDecoratorContext = {
 
 type ClassDecoratorContext = {
   kind: "class";
-  name: string | symbol;
+  name?: string | symbol;
   addInitializer(fn: () => void): void;
 };
 
@@ -153,11 +153,15 @@ export function Entity(entityName?: string) {
 
 // --- @Table Decorator ---
 export function Table(tableName?: string) {
-  return function (value: Function, context: ClassDecoratorContext) {
+  return function <T extends { new (...args: any[]): {} }>(
+    value: T,
+    context: ClassDecoratorContext
+  ) {
     context.addInitializer(function () {
-      const ctor = value as EntityConstructor;
-      ctor.$table_name = tableName || ctor.name.toUpperCase();
+      (value as any).$table_name =
+        tableName || (context.name?.toString() ?? value.name?.toUpperCase());
     });
+
     return value;
   };
 }
