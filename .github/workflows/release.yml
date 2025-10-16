@@ -84,7 +84,7 @@ jobs:
         run: mvn versions:set -DnewVersion=${{ github.event.inputs.releaseVersion }}
 
       - name: Build Dirigible
-        run: mvn clean install -Dmaven.javadoc.skip=false
+        run: mvn clean install -Dmaven.javadoc.skip=false -P quick-build
 
       #-----------------Publish to DockerHub-------------------#
 
@@ -124,11 +124,6 @@ jobs:
       #---------------Publish to Maven Central-----------------#
 
       #--------------- Publish dirigible jar to NPM -----------------#
-
-      - name: Copy dirigible fat jar to NPM folder
-        run: |
-          mkdir -p ./npm/dirigible/bin
-          cp ./build/application/target/dirigible-application-${{ github.event.inputs.releaseVersion }}-executable.jar ./npm/dirigible/bin/dirigible-application-executable.jar
 
       - name: Set the new package version
         working-directory: ./npm/dirigible
