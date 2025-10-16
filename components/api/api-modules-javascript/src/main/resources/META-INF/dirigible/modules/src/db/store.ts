@@ -66,7 +66,8 @@ export interface Options {
 	conditions?: Condition[],
 	sorts?: Sort[],
 	limit?: number,
-	offset?: number
+	offset?: number,
+	language?: string
 }
 
 export interface Condition {

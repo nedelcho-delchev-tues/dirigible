@@ -64,10 +64,10 @@ interface PropertyMetadata {
 
 export interface EntityConstructor extends Function {
   new (...args: any[]): any;
-  $entity_name?: string;
-  $table_name?: string;
-  $id_name?: string;
-  $id_column?: string;
+  $entity_name: string;
+  $table_name: string;
+  $id_name: string;
+  $id_column: string;
   $initialized?: boolean;
 }
 
