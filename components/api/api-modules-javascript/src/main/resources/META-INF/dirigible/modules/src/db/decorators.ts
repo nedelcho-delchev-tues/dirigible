@@ -119,7 +119,6 @@ function createPropertyDecorator(
       if (kind === "generated") metadata.isGenerated = true;
       if (kind === "column") metadata.columnOptions = options;
 
-      console.log(`Registered @${kind}(${context.name.toString()})`);
     });
   };
 }
@@ -147,7 +146,6 @@ export function Entity(entityName?: string) {
             idMetadata.propertyName.toUpperCase();
         }
 
-        console.log(`[Entity] Finalized ${ctor.name}`);
       });
     });
   };
@@ -196,7 +194,6 @@ export function OneToMany(
       }
 
       metadata.oneToManyOptions = { type: typeFunction(), options };
-      console.log(`Registered @OneToMany(${context.name.toString()})`);
     });
   };
 }
@@ -226,7 +223,6 @@ export function ManyToOne(
       }
 
       metadata.manyToOneOptions = { type: typeFunction(), options };
-      console.log(`Registered @ManyToOne(${context.name.toString()})`);
     });
   };
 }
