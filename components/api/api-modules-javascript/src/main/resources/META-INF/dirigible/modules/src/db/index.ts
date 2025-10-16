@@ -17,6 +17,8 @@ export * from "./insert";
 export { Insert as insert } from "./insert";
 export * from "./store";
 export { Store as store } from "./store";
+export * from "./repository";
+export { Repository as repository } from "./repository";
 export * from "./decorators";
 export * as decorators from "./decorators";
 export * from "./translator";
