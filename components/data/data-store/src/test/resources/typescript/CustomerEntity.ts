@@ -2,7 +2,7 @@
 @Table("CUSTOMER")
 export class Customer {
     
-    @Id
+    @Id()
     @Generated("sequence")
     @Column({ name: "ID", type: "long" })
     public id: number;

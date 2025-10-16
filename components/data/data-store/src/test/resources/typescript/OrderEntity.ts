@@ -1,8 +1,8 @@
-@Entity
+@Entity()
 @Table("ORDERS")
 export class Order {
     
-    @Id
+    @Id()
     @Generated("sequence")
     @Column({ name: "ORDER_ID", type: "long" })
     public id: number;
