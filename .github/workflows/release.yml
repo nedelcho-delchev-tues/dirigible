@@ -140,6 +140,12 @@ jobs:
 
       #--------------- Publish dirigible-cli to NPM -----------------#
 
+      - name: (dirigible-cli) Copy cli jar to the npm project
+        working-directory: ./
+        run: |
+          mkdir -p ./npm/dirigible-cli/bin
+          cp ./cli/target/dirigible-cli-${{ github.event.inputs.releaseVersion }}-executable.jar ./npm/dirigible-cli/bin/dirigible-cli.jar
+
       - name: (dirigible-cli) Set the new package version
         working-directory: ./npm/dirigible-cli
         run: npm version "${{ github.event.inputs.releaseVersion }}" --no-git-tag-version
