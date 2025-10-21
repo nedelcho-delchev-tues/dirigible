@@ -133,7 +133,7 @@ function createExportAction() {
         label: "Export",
 
         // An optional array of keybindings for the action.
-        keybindings: [monaco.KeyCode.F10],
+        keybindings: [monaco.KeyCode.F9],
 
         // Method that will be executed when the action is triggered.
         // @param editor The editor instance is passed in as a convinience
@@ -145,7 +145,7 @@ function createExportAction() {
                 dialogHub.showAlert({
                     type: AlertTypes.Warning,
                     title: 'No statement is selected',
-                    message: 'You must select the command you want to execute.\nUse Ctrl+A (or Cmd+A) if you want to execute everything in the Statements view.',
+                    message: 'You must select the command you want to execute.\nUse Ctrl+A (or Cmd+A) if you want to execute and download everything.',
                     preformatted: true,
                 });
                 themingHub.postMessage({ topic: "database.sql.error", data: "No text selected for execution." });
@@ -197,6 +197,7 @@ function createExportAction() {
             let model = monaco.editor.createModel(fileText, "sql");
             _editor.setModel(model);
             _editor.addAction(createExecuteAction());
+			_editor.addAction(createExportAction());
             _editor.addAction(createSaveAction());
             _editor.onDidChangeCursorPosition(function (e) {
                 statusBarHub.showLabel("Line " + e.position.lineNumber + " : Column " + e.position.column);
