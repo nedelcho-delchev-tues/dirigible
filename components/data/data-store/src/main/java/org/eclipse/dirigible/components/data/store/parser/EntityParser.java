@@ -10,14 +10,20 @@
 package org.eclipse.dirigible.components.data.store.parser;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FilenameUtils;
+import org.eclipse.dirigible.components.base.helpers.JsonHelper;
 import org.eclipse.dirigible.components.data.store.model.EntityFieldMetadata;
+import org.eclipse.dirigible.components.data.store.model.EntityFieldMetadata.AssociationDetails;
 import org.eclipse.dirigible.components.data.store.model.EntityFieldMetadata.CollectionDetails;
 import org.eclipse.dirigible.components.data.store.model.EntityFieldMetadata.ColumnDetails;
 import org.eclipse.dirigible.components.data.store.model.EntityMetadata;
@@ -25,19 +31,31 @@ import org.eclipse.dirigible.parsers.typescript.TypeScriptLexer;
 import org.eclipse.dirigible.parsers.typescript.TypeScriptParser;
 import org.eclipse.dirigible.parsers.typescript.TypeScriptParserBaseVisitor;
 
+import com.oracle.truffle.js.builtins.json.JSONBuiltins.JSON;
+
 /**
  * Main parser class to generate EntityMetadata from TypeScript code.
  */
 public class EntityParser {
 
+    public static final Map<String, EntityMetadata> ENTITIES = new HashMap<String, EntityMetadata>();
+    public static final Map<String, String> MD5 = new HashMap<String, String>();
+
     /**
      * Parses the given TypeScript source code and extracts EntityMetadata.
      *
-     * @param tsSource The TypeScript source code string.
+     * @param source The TypeScript source code string.
      * @return EntityMetadata object populated with extracted data.
      */
-    public EntityMetadata parse(String tsSource) {
-        CharStream input = CharStreams.fromString(tsSource);
+    public EntityMetadata parse(String location, String source) {
+        String md5 = DigestUtils.md5Hex(source.getBytes());
+        String filename = FilenameUtils.getBaseName(location);
+        String existing = MD5.get(filename);
+        if (existing != null && existing.equals(md5)) {
+            return ENTITIES.get(filename);
+        }
+
+        CharStream input = CharStreams.fromString(source);
         TypeScriptLexer lexer = new TypeScriptLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         TypeScriptParser parser = new TypeScriptParser(tokens);
@@ -48,7 +66,10 @@ public class EntityParser {
         ParseTree tree = parser.program();
 
         MetadataExtractorVisitor visitor = new MetadataExtractorVisitor();
-        return visitor.visit(tree);
+        EntityMetadata entityMetadata = visitor.visit(tree);
+        ENTITIES.put(filename, entityMetadata);
+        MD5.put(filename, md5);
+        return entityMetadata;
     }
 
     /**
@@ -129,7 +150,7 @@ public class EntityParser {
             TerminalNode classNameNode = ctx.identifier()
                                             .Identifier();
             if (classNameNode != null) {
-                currentEntityMetadata.setClassName(classNameNode.getText());
+                currentEntityMetadata.setEntityName(classNameNode.getText());
             }
 
             for (int i = 0; i < ctx.decoratorList()
@@ -172,12 +193,10 @@ public class EntityParser {
                         arg = arg.substring(1, arg.length() - 1);
                     }
                     currentEntityMetadata.setEntityName(arg);
-                } else {
-                    currentEntityMetadata.setEntityName(currentEntityMetadata.getClassName());
                 }
 
             } else if ("Table".equals(decoratorName)) {
-                // Extract argument from @Table({ name: 'CARS' })
+                // Extract argument from @Table({ 'CARS' })
                 if (ctx.decoratorCallExpression() != null && ctx.decoratorCallExpression()
                                                                 .arguments() != null
                         && ctx.decoratorCallExpression()
@@ -212,6 +231,29 @@ public class EntityParser {
                                                                        .replace("'", "")
                                                                        .replace("\"", ""));
                     }
+                }
+            } else if ("Documentation".equals(decoratorName)) {
+                // Extract argument from @Documentation({ 'Used in scenario ...' })
+                if (ctx.decoratorCallExpression() != null && ctx.decoratorCallExpression()
+                                                                .arguments() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList()
+                              .argument()
+                              .size() > 0) {
+
+                    String arg = ctx.decoratorCallExpression()
+                                    .arguments()
+                                    .argumentList()
+                                    .argument(0)
+                                    .getText();
+                    if (arg.startsWith("'") || arg.startsWith("\"")) {
+                        arg = arg.substring(1, arg.length() - 1);
+                    }
+                    currentEntityMetadata.setDocumentation(arg);
                 }
             }
         }
@@ -286,6 +328,9 @@ public class EntityParser {
                                                                 .arguments() != null
                         && ctx.decoratorCallExpression()
                               .arguments()
+                              .argumentList() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
                               .argumentList()
                               .argument()
                               .size() > 0) {
@@ -301,10 +346,37 @@ public class EntityParser {
                     fieldMetadata.setGenerationStrategy(strategy);
                 }
 
+            } else if ("Documentation".equals(decoratorName)) {
+                // Expects @Documentation('Used in scenario ...')
+                if (ctx.decoratorCallExpression() != null && ctx.decoratorCallExpression()
+                                                                .arguments() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList()
+                              .argument()
+                              .size() > 0) {
+
+                    String strategy = ctx.decoratorCallExpression()
+                                         .arguments()
+                                         .argumentList()
+                                         .argument(0)
+                                         .getText();
+                    if (strategy.startsWith("'") || strategy.startsWith("\"")) {
+                        strategy = strategy.substring(1, strategy.length() - 1);
+                    }
+                    fieldMetadata.setDocumentation(strategy);
+                }
+
             } else if ("Column".equals(decoratorName)) {
                 // Expects @Column({ name: 'car_id', type: 'int', ... })
                 if (ctx.decoratorCallExpression() != null && ctx.decoratorCallExpression()
                                                                 .arguments() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList() != null
                         && ctx.decoratorCallExpression()
                               .arguments()
                               .argumentList()
@@ -348,6 +420,9 @@ public class EntityParser {
                                                                 .arguments() != null
                         && ctx.decoratorCallExpression()
                               .arguments()
+                              .argumentList() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
                               .argumentList()
                               .argument()
                               .size() >= 1) {
@@ -357,33 +432,20 @@ public class EntityParser {
                                                                      .argumentList()
                                                                      .argument();
 
-                    // 1. Extract Target Class (from the first argument: () => ClassName)
-                    String targetClassExpression = args.get(0)
-                                                       .getText();
-                    String targetClassName = targetClassExpression.replace("()", "")
-                                                                  .replace("=>", "")
-                                                                  .trim();
-
-                    // Simple cleanup
-                    if (targetClassName.contains(" ")) {
-                        targetClassName = targetClassName.substring(targetClassName.lastIndexOf(" ") + 1)
-                                                         .trim();
-                    }
-
                     // Create and set collection details
                     CollectionDetails collectionDetails = new CollectionDetails();
-                    collectionDetails.setTargetClass(targetClassName);
+
                     fieldMetadata.setCollectionDetails(collectionDetails);
                     fieldMetadata.setCollection(true); // Mark as a collection
 
-                    // 2. Parse options object (second argument)
-                    if (args.size() > 1) {
-                        String argText = args.get(1)
-                                             .getText(); // The options object text (e.g., { table: '...', ... })
+                    if (args.size() > 0) {
+                        String argText = args.get(0)
+                                             .getText();
 
-                        String name = extractValue.apply(argText, "name");
-                        if (name != null)
-                            collectionDetails.setTableName(name);
+                        collectionDetails.setName(fieldMetadata.getPropertyName());
+                        String entityName = extractValue.apply(argText, "entityName");
+                        if (entityName != null)
+                            collectionDetails.setEntityName(entityName);
 
                         String tableName = extractValue.apply(argText, "table");
                         if (tableName != null)
@@ -412,6 +474,56 @@ public class EntityParser {
                         String joinColumnNotNull = extractValue.apply(argText, "joinColumnNotNull");
                         if (joinColumnNotNull != null)
                             collectionDetails.setJoinColumnNotNull(Boolean.parseBoolean(joinColumnNotNull));
+                    }
+                }
+            } else if ("ManyToOne".equals(decoratorName)) {
+                // Expects @ManyToOne(() => Customer, { column: 'CUSTOMER_FK', ... })
+                if (ctx.decoratorCallExpression() != null && ctx.decoratorCallExpression()
+                                                                .arguments() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList() != null
+                        && ctx.decoratorCallExpression()
+                              .arguments()
+                              .argumentList()
+                              .argument()
+                              .size() >= 1) {
+
+                    List<TypeScriptParser.ArgumentContext> args = ctx.decoratorCallExpression()
+                                                                     .arguments()
+                                                                     .argumentList()
+                                                                     .argument();
+
+                    AssociationDetails associationDetails = new AssociationDetails();
+                    fieldMetadata.setAssociation(true);
+
+                    if (args.size() > 0) {
+                        String argText = args.get(0)
+                                             .getText();
+
+                        associationDetails.setName(fieldMetadata.getPropertyName());
+                        String entityName = extractValue.apply(argText, "entityName");
+                        if (entityName != null) {
+                            associationDetails.setEntityName(entityName);
+                        }
+                        String column = extractValue.apply(argText, "joinColumn");
+                        if (column != null) {
+                            associationDetails.setJoinColumn(column);
+                        }
+                        String notNull = extractValue.apply(argText, "notNull");
+                        if (notNull != null) {
+                            associationDetails.setNotNull(Boolean.parseBoolean(notNull));
+                        }
+                        String cascade = extractValue.apply(argText, "cascade");
+                        if (cascade != null) {
+                            associationDetails.setCascade(cascade);
+                        }
+                        String lazy = extractValue.apply(argText, "lazy");
+                        if (lazy != null) {
+                            associationDetails.setLazy(lazy);
+                        }
+
+                        fieldMetadata.setAssociationDetails(associationDetails);
                     }
                 }
             }

@@ -10,7 +10,8 @@ export class Order {
     @Column({ name: "ORDER_NUMBER", type: "string" })
     public number: string;
 
-    @OneToMany(() => OrderItem, {
+    @OneToMany({
+		entityName: "OrderItem",
         table: "ORDER_ITEMS",
         joinColumn: "ORDER_ID",
         joinColumnNotNull: true,
