@@ -15,14 +15,14 @@ import java.util.Map.Entry;
 
 /**
  * Utility class to recursively traverse a nested Map (deserialized from JSON) and safely convert
- * numeric types (Double/Float) into Long objects if they represent whole numbers or are
- * identified as ID fields.
+ * numeric types (Double/Float) into Long objects if they represent whole numbers or are identified
+ * as ID fields.
  */
 public class JsonTypeConverter {
 
     /**
-     * Recursively traverses the map and converts numeric types (Double, Float) into Long if
-     * they represent a whole number, or if the key suggests an ID field.
+     * Recursively traverses the map and converts numeric types (Double, Float) into Long if they
+     * represent a whole number, or if the key suggests an ID field.
      *
      * @param data The map object deserialized from JSON.
      * @return The mutated map with normalized number types.
