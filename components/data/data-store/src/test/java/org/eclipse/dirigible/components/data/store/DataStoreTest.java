@@ -207,7 +207,7 @@ public class DataStoreTest {
 
             Object customerId = dataStore.save("Customer", customer);
 
-            customer = "{\"id\":\"" + Long.parseLong(customerId.toString()) + "\",\"name\":\"John\",\"address\":\"Sofia, Bulgaria\"}";
+            customer = "{\"id\":" + Long.parseLong(customerId.toString()) + ",\"name\":\"John\",\"address\":\"Sofia, Bulgaria\"}";
 
             String customerAddress = "{\"customer\":" + customer + ",\"city\":\"Sofia\"}";
 

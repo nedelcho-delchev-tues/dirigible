@@ -14,9 +14,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.sql.DataSource;
@@ -126,9 +124,9 @@ public class DataStore {
     public Object save(String type, String json) {
         Map object = JsonHelper.fromJson(json, Map.class);
 
-        normalizeNumericTypes(object);
+        Map<String, Object> data = JsonTypeConverter.normalizeNumericTypes(object);
 
-        return save(type, object);
+        return save(type, data);
     }
 
     /**
@@ -456,100 +454,6 @@ public class DataStore {
             return session.createNativeQuery(query, Map.class)
                           .list();
         }
-    }
-
-    /**
-     * Recursively traverses the map and converts numeric types (Double, Float, String) into Long if
-     * they represent a whole number, or if the key suggests an ID field.
-     *
-     * @param data The map object deserialized from JSON.
-     * @return The mutated map with normalized number types.
-     */
-    public static Map<String, Object> normalizeNumericTypes(Map<String, Object> data) {
-        if (data == null) {
-            return null;
-        }
-
-        for (Entry<String, Object> entry : data.entrySet()) {
-            Object value = entry.getValue();
-
-            if (value instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> nestedMap = (Map<String, Object>) value;
-                normalizeNumericTypes(nestedMap);
-            }
-
-            else if (value instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<Object> list = (List<Object>) value;
-
-                for (int i = 0; i < list.size(); i++) {
-                    Object listItem = list.get(i);
-
-                    if (listItem instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> nestedMap = (Map<String, Object>) listItem;
-                        normalizeNumericTypes(nestedMap);
-                    } else if (listItem instanceof Number) {
-                        Object normalizedValue = safeToLong(listItem);
-                        if (normalizedValue != listItem) {
-                            list.set(i, normalizedValue);
-                        }
-                    } else if (listItem instanceof String) {
-                        Object normalizedValue = safeToLong(listItem);
-                        if (normalizedValue != listItem) {
-                            list.set(i, normalizedValue);
-                        }
-                    }
-                }
-            }
-
-            else if (value instanceof Number || value instanceof String) {
-
-                boolean isIdKey = entry.getKey()
-                                       .toLowerCase(Locale.ROOT)
-                                       .endsWith("id");
-                if (isIdKey) {
-                    Object normalizedValue = safeToLong(value);
-
-                    if (normalizedValue instanceof Long) {
-                        entry.setValue(normalizedValue);
-                    }
-                }
-            }
-        }
-        return data;
-    }
-
-    /**
-     * Safely converts an object value into a Long if it represents a whole number. Handles Double,
-     * Float, Integer, and String types. Returns the original object if no conversion is needed or
-     * possible.
-     */
-    private static Object safeToLong(Object value) {
-        if (value == null || value instanceof Long) {
-            return value;
-        }
-
-        if (value instanceof Double || value instanceof Float) {
-            double doubleValue = ((Number) value).doubleValue();
-            long longValue = (long) doubleValue;
-
-            if (doubleValue == longValue) {
-                return Long.valueOf(longValue);
-            }
-        } else if (value instanceof String) {
-            String s = ((String) value).trim();
-            if (!s.isEmpty() && s.matches("\\d+")) {
-                try {
-                    return Long.parseLong(s);
-                } catch (NumberFormatException e) {
-                    // String is too large for Long, or other parsing issue. Return original string.
-                }
-            }
-        }
-
-        return value;
     }
 
 }
