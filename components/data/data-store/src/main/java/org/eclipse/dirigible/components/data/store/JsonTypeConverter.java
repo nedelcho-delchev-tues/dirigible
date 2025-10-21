@@ -15,14 +15,13 @@ import java.util.Map.Entry;
 
 /**
  * Utility class to recursively traverse a nested Map (deserialized from JSON) and safely convert
- * numeric types (Double/Float/String) into Long objects if they represent whole numbers or are
- * identified as ID fields. This resolves common ClassCastException issues with persistence layers
- * that strictly require Long/long IDs.
+ * numeric types (Double/Float) into Long objects if they represent whole numbers or are
+ * identified as ID fields.
  */
 public class JsonTypeConverter {
 
     /**
-     * Recursively traverses the map and converts numeric types (Double, Float, String) into Long if
+     * Recursively traverses the map and converts numeric types (Double, Float) into Long if
      * they represent a whole number, or if the key suggests an ID field.
      *
      * @param data The map object deserialized from JSON.
@@ -37,14 +36,10 @@ public class JsonTypeConverter {
         for (Entry<String, Object> entry : data.entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
-
-            // 1. Handle nested Map: Recurse
             if (value instanceof Map) {
                 Map<String, Object> nestedMap = (Map<String, Object>) value;
                 normalizeNumericTypes(nestedMap);
             } else if (value instanceof Number) {
-
-                // Check if the key suggests an ID field (case-insensitive)
                 boolean isIdKey = key.toLowerCase(Locale.ROOT)
                                      .endsWith("id");
                 if (isIdKey) {
@@ -70,7 +65,6 @@ public class JsonTypeConverter {
             return value;
         }
 
-        // Case A: Double or Float
         if (value instanceof Double || value instanceof Float) {
             double doubleValue = ((Number) value).doubleValue();
             long longValue = (long) doubleValue;
@@ -81,7 +75,6 @@ public class JsonTypeConverter {
             }
         }
 
-        // Return the original value if no valid conversion to Long occurred
         return value;
     }
 }
