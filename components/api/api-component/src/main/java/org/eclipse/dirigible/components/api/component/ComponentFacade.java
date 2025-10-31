@@ -1,7 +1,7 @@
 package org.eclipse.dirigible.components.api.component;
 
-import org.eclipse.dirigible.components.engine.javascript.parser.ComponentContext;
-import org.eclipse.dirigible.components.engine.javascript.parser.ComponentContextRegistry;
+import org.eclipse.dirigible.components.engine.di.parser.ComponentContext;
+import org.eclipse.dirigible.components.engine.di.parser.ComponentContextRegistry;
 import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
