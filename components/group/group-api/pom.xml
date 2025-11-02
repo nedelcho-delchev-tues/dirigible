@@ -47,7 +47,7 @@
         
         
         
-        <!--
+        
         <dependency>
             <groupId>org.eclipse.dirigible</groupId>
             <artifactId>dirigible-components-api-modules-python</artifactId>
@@ -73,7 +73,8 @@
             <groupId>org.eclipse.dirigible</groupId>
             <artifactId>dirigible-components-api-qldb</artifactId>
         </dependency>
-        -->
+        
+        
     </dependencies>
 
     <properties>
