@@ -6,7 +6,6 @@ import java.util.Map;
 public class ComponentMetadata {
     private String componentName;
     private String className;
-    private String moduleName;
     private Map<String, String> propertyTypes = new HashMap<>();
     private String key;
 
@@ -26,14 +25,6 @@ public class ComponentMetadata {
         return className;
     }
 
-    public void setModuleName(String moduleName) {
-        this.moduleName = moduleName;
-    }
-
-    public String getModuleName() {
-        return moduleName;
-    }
-
     public void addPropertyType(String property, String type) {
         propertyTypes.put(property, type);
     }
@@ -45,11 +36,7 @@ public class ComponentMetadata {
     // Generate the key dynamically
     public String getKey() {
         if (key == null) {
-            if (moduleName != null && !moduleName.isEmpty()) {
-                key = moduleName + "/" + className;
-            } else {
-                key = className;
-            }
+            key = className;
         }
         return key;
     }

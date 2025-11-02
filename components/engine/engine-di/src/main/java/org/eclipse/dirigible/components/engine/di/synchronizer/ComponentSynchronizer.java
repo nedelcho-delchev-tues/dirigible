@@ -9,10 +9,12 @@
  */
 package org.eclipse.dirigible.components.engine.di.synchronizer;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.dirigible.components.base.artefact.ArtefactLifecycle;
@@ -22,6 +24,8 @@ import org.eclipse.dirigible.components.base.artefact.topology.TopologyWrapper;
 import org.eclipse.dirigible.components.base.synchronizer.BaseSynchronizer;
 import org.eclipse.dirigible.components.base.synchronizer.SynchronizerCallback;
 import org.eclipse.dirigible.components.base.synchronizer.SynchronizersOrder;
+import org.eclipse.dirigible.components.engine.di.parser.ComponentMetadata;
+import org.eclipse.dirigible.components.engine.di.parser.ComponentParser;
 import org.eclipse.dirigible.components.engine.di.parser.ComponentRegister;
 import org.eclipse.dirigible.components.engine.di.service.ComponentService;
 import org.slf4j.Logger;
@@ -41,15 +45,17 @@ public class ComponentSynchronizer extends BaseSynchronizer<org.eclipse.dirigibl
     private static final Logger logger = LoggerFactory.getLogger(ComponentSynchronizer.class);
 
     /** The Constant FILE_EXTENSION_COMPONENT. */
-    public static final String FILE_EXTENSION_COMPONENT = "Component.js";
+    public static final String FILE_EXTENSION_COMPONENT = "Component.ts";
 
-    public static final String[] FILE_EXTENSIONS_COMPONENT = new String[] {"Component.js", "Repository.js", "Service.js"};
+    public static final String[] FILE_EXTENSIONS_COMPONENT = new String[] {"Component.ts", "Repository.ts", "Service.ts"};
 
     /** The component service. */
     private final ComponentService componentService;
 
     /** The synchronization callback. */
     private SynchronizerCallback callback;
+
+    private ComponentParser componentParser = new ComponentParser();
 
     /**
      * Instantiates a new component synchronizer.
@@ -83,6 +89,12 @@ public class ComponentSynchronizer extends BaseSynchronizer<org.eclipse.dirigibl
     @Override
     protected List<org.eclipse.dirigible.components.engine.di.domain.Component> parseImpl(String location, byte[] content)
             throws ParseException {
+        String source = new String(content, StandardCharsets.UTF_8);
+        ComponentMetadata metadata = componentParser.parse(location, source);
+        if (metadata.getComponentName() == null) {
+            return new ArrayList<org.eclipse.dirigible.components.engine.di.domain.Component>();
+        }
+
         org.eclipse.dirigible.components.engine.di.domain.Component component =
                 new org.eclipse.dirigible.components.engine.di.domain.Component();
         component.setLocation(location);
@@ -91,7 +103,7 @@ public class ComponentSynchronizer extends BaseSynchronizer<org.eclipse.dirigibl
                                .toString());
         component.setType(org.eclipse.dirigible.components.engine.di.domain.Component.ARTEFACT_TYPE);
         component.updateKey();
-        component.setContent(new String(content));
+        component.setContent(source);
         try {
             org.eclipse.dirigible.components.engine.di.domain.Component maybe = getService().findByKey(component.getKey());
             if (maybe != null) {

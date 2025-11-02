@@ -68,9 +68,13 @@ public class ComponentRegister implements InitializingBean {
             ParsedPath path = parseFilePath(location);
             String contextId = "default"; // path.projectName; // use projectName or moduleName as context
 
+            String filePath = path.filePath;
+            if (filePath.endsWith(".ts")) {
+                filePath = filePath.substring(0, filePath.length() - 3) + ".js";
+            }
             Value moduleValue = ComponentRegister.get()
                                                  .getComponentService()
-                                                 .executeJavaScript(path.projectName, path.filePath);
+                                                 .executeJavaScript(path.projectName, filePath);
 
             Value componentValue = moduleValue.getMember(moduleValue.getMemberKeys()
                                                                     .iterator()

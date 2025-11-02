@@ -163,30 +163,9 @@ public class ComponentParser {
                                     .argumentList()
                                     .argument(0)
                                     .getText();
-                if (argText.contains("name:")) {
-                    int idx = argText.indexOf("name:") + 5;
-                    name = argText.substring(idx)
-                                  .trim()
-                                  .replace("{", "")
-                                  .replace("}", "")
-                                  .replace("'", "")
-                                  .replace("\"", "")
-                                  .split(",")[0].trim();
-                }
-                meta.setComponentName(name);
 
-                if (argText.contains("module:")) {
-                    int idx = argText.indexOf("module:") + 7;
-                    moduleName = argText.substring(idx)
-                                        .trim()
-                                        .replace("{", "")
-                                        .replace("}", "")
-                                        .replace("'", "")
-                                        .replace("\"", "")
-                                        .split(",")[0].trim();
-                }
+                meta.setComponentName(argText);
             }
-            meta.setModuleName(moduleName);
         }
 
         /**

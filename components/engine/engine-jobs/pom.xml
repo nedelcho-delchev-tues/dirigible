@@ -50,6 +50,10 @@
 			<artifactId>dirigible-components-core-registry</artifactId>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+	    	<groupId>org.eclipse.dirigible</groupId>
+			<artifactId>dirigible-parsers-typescript</artifactId>
+    	</dependency>
 		
 		<!-- Engines -->
 		<dependency>
