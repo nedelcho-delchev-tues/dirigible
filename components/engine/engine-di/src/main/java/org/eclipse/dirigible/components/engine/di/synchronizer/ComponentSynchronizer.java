@@ -9,7 +9,9 @@
  */
 package org.eclipse.dirigible.components.engine.di.synchronizer;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.ParseException;
 import java.util.List;
 
@@ -40,6 +42,8 @@ public class ComponentSynchronizer extends BaseSynchronizer<org.eclipse.dirigibl
 
     /** The Constant FILE_EXTENSION_COMPONENT. */
     public static final String FILE_EXTENSION_COMPONENT = "Component.js";
+
+    public static final String[] FILE_EXTENSIONS_COMPONENT = new String[] {"Component.js", "Repository.js", "Service.js"};
 
     /** The component service. */
     private final ComponentService componentService;
@@ -264,6 +268,24 @@ public class ComponentSynchronizer extends BaseSynchronizer<org.eclipse.dirigibl
     @Override
     public String getArtefactType() {
         return org.eclipse.dirigible.components.engine.di.domain.Component.ARTEFACT_TYPE;
+    }
+
+    /**
+     * Checks if is accepted.
+     *
+     * @param file the file
+     * @param attrs the attrs
+     * @return true, if is accepted
+     */
+    @Override
+    public boolean isAccepted(Path file, BasicFileAttributes attrs) {
+        for (String extension : FILE_EXTENSIONS_COMPONENT) {
+            if (file.toString()
+                    .endsWith(extension)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }
