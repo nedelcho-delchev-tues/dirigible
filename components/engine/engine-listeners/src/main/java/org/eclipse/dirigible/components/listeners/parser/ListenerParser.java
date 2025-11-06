@@ -23,11 +23,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Parser that extracts metadata from TypeScript classes decorated with:
- *
- * @Listener({ name: "MyListener", kind: "event" })
- */
+// Parser that extracts metadata from TypeScript classes decorated with:
+// @Listener({ name: "MyListener", kind: "event" })
 public class ListenerParser {
 
     public static final Map<String, ListenerMetadata> LISTENERS = Collections.synchronizedMap(new HashMap<>());
