@@ -4,8 +4,7 @@
   "description": "TypeScript SDK for the Eclipse Dirigible platform.",
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "node ./build.js",
-    "prepare": "npm run build"
+    "build": "node ./build.js"
   },
   "repository": {
     "type": "git",
