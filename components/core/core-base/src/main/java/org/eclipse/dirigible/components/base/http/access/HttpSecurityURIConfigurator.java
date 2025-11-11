@@ -36,7 +36,7 @@ public class HttpSecurityURIConfigurator {
             "/index.html", //
             "/logout", //
             "/index-busy.html", //
-            "/stomp", //
+            "/stomp/**", //
             "/error/**", //
             "/error.html", //
             "/favicon.ico", //

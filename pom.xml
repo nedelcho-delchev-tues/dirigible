@@ -151,6 +151,7 @@
         <okhttp.version>5.2.1</okhttp.version>
 
         <jaxb.version>2.3.1</jaxb.version>
+        <jaxws-rt.version>4.0.3</jaxws-rt.version>
 
         <!-- Lucene -->
         <lucene.version>10.3.0</lucene.version>
@@ -866,6 +867,11 @@
             <groupId>jakarta.xml.ws</groupId>
             <artifactId>jakarta.xml.ws-api</artifactId>
         </dependency>
+        <dependency>
+  			<groupId>com.sun.xml.ws</groupId>
+	  		<artifactId>jaxws-rt</artifactId>
+	  		<version>${jaxws-rt.version}</version>
+		</dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>

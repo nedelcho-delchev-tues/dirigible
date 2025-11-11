@@ -13,7 +13,9 @@ import java.util.Map;
 
 import org.eclipse.dirigible.components.engine.javascript.service.JavascriptService;
 import org.eclipse.dirigible.components.websockets.domain.Websocket;
-import org.eclipse.dirigible.repository.api.RepositoryPath;
+import org.eclipse.dirigible.graalium.core.DirigibleJavascriptCodeRunner;
+import org.eclipse.dirigible.graalium.core.javascript.modules.Module;
+import org.graalvm.polyglot.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -77,11 +79,63 @@ public class WebsocketProcessor {
             // engine = "javascript";
             // }
             context.put("handler", module);
-            RepositoryPath path = new RepositoryPath(wrapper);
-            return getJavascriptService().handleRequest(path.getSegments()[0], path.constructPathFrom(1), null, context, false);
+
+            if ("onmessage".equals(context.get("method"))) {
+                return executeOnMessageHandler(module, context);
+            } else if ("onopen".equals(context.get("method"))) {
+                executeOnOpenHandler(module, context);
+            } else if ("onclose".equals(context.get("method"))) {
+                executeOnCloseHandler(module, context);
+            } else if ("onerror".equals(context.get("method"))) {
+                executeOnErrorHandler(module, context);
+            }
+
+            return null;
+
         } catch (Exception e) {
             throw new Exception(e);
         }
+    }
+
+    private String executeOnMessageHandler(String path, Map<Object, Object> context) {
+        try (DirigibleJavascriptCodeRunner runner = createJSCodeRunner(context)) {
+            Module module = runner.run(path);
+            Value result = runner.runMethod(module, "onMessage", context.get("message"), context.get("from"));
+            return result != null ? result.toString() : "";
+        }
+    }
+
+    private String executeOnOpenHandler(String path, Map<Object, Object> context) {
+        try (DirigibleJavascriptCodeRunner runner = createJSCodeRunner(context)) {
+            Module module = runner.run(path);
+            Value result = runner.runMethod(module, "onOpen");
+            return result != null ? result.toString() : "";
+        }
+    }
+
+    private String executeOnCloseHandler(String path, Map<Object, Object> context) {
+        try (DirigibleJavascriptCodeRunner runner = createJSCodeRunner(context)) {
+            Module module = runner.run(path);
+            Value result = runner.runMethod(module, "onClose");
+            return result != null ? result.toString() : "";
+        }
+    }
+
+    private String executeOnErrorHandler(String path, Map<Object, Object> context) {
+        try (DirigibleJavascriptCodeRunner runner = createJSCodeRunner(context)) {
+            Module module = runner.run(path);
+            Value result = runner.runMethod(module, "onError", context.get("error"));
+            return result != null ? result.toString() : "";
+        }
+    }
+
+    /**
+     * Creates the JS code runner.
+     *
+     * @return the dirigible javascript code runner
+     */
+    DirigibleJavascriptCodeRunner createJSCodeRunner(Map<Object, Object> context) {
+        return new DirigibleJavascriptCodeRunner(context, false);
     }
 
 }

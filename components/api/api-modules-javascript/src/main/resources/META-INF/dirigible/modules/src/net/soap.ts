@@ -2,9 +2,9 @@ import { Request } from "sdk/http/request";
 import { Base64 } from "sdk/utils/base64";
 import { Streams, InputStream } from "sdk/io/streams";
 
-const MessageFactory = Java.type("javax.xml.soap.MessageFactory");
-const MimeHeadersInternal = Java.type("javax.xml.soap.MimeHeaders");
-const SOAPConnectionFactory = Java.type("javax.xml.soap.SOAPConnectionFactory");
+const MessageFactory = Java.type("jakarta.xml.soap.MessageFactory");
+const MimeHeadersInternal = Java.type("jakarta.xml.soap.MimeHeaders");
+const SOAPConnectionFactory = Java.type("jakarta.xml.soap.SOAPConnectionFactory");
 
 /**
  * Utility class for creating, parsing, and calling SOAP messages.
