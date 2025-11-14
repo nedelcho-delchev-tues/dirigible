@@ -1005,7 +1005,7 @@ class TypeScriptUtils {
         let match;
         while ((match = TypeScriptUtils.#IMPORT_REGEX.exec(content)) !== null) {
             let modulePath = match[1];
-            if (!modulePath.startsWith('sdk/')) {
+            if (!modulePath.startsWith('@aerokit/sdk/')) {
                 if (!modulePath.endsWith(".json")) {
                     modulePath += ".ts";
                 }
@@ -1016,7 +1016,7 @@ class TypeScriptUtils {
     }
 
     static isGlobalImport(path) {
-        return !path.startsWith("/") && !path.startsWith("./") && !path.startsWith("../") && !path.startsWith("sdk/")
+        return !path.startsWith("/") && !path.startsWith("./") && !path.startsWith("../") && !path.startsWith("@aerokit/sdk/")
     }
 
     static loadImportedFiles = async (monaco, importedFiles, isReload = false) => {
