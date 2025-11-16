@@ -487,7 +487,7 @@ public class DataStore {
             return queryObject.getResultList();
         }
     }
-    
+
     /**
      * Query with named parameters.
      *
@@ -539,7 +539,7 @@ public class DataStore {
             return nativeQuery.list();
         }
     }
-    
+
     /**
      * Query native with named parameters.
      *

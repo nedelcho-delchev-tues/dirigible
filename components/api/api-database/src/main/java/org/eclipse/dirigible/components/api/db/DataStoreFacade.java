@@ -197,7 +197,7 @@ public class DataStoreFacade implements InitializingBean {
                                    .query(query, parametersElement, limit, offset);
         return JsonHelper.toJson(list);
     }
-    
+
     /**
      * Query with named parameters.
      *
@@ -233,7 +233,7 @@ public class DataStoreFacade implements InitializingBean {
                                    .queryNative(query, parametersElement, limit, offset);
         return JsonHelper.toJson(list);
     }
-    
+
     /**
      * Query native with named parameters.
      *
