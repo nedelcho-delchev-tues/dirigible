@@ -59,21 +59,21 @@ public class DataStore {
     private static final Logger logger = LoggerFactory.getLogger(DataStore.class);
     /** The datasources manager. */
     private final DataSourcesManager datasourcesManager;
-    
+
     /** The connection provider. */
     private final MultiTenantConnectionProviderImpl connectionProvider;
-    
+
     /** The tenant identifier resolver. */
     private final CurrentTenantIdentifierResolverImpl tenantIdentifierResolver;
     /** The mappings. */
     private final Map<String, String> mappings = new HashMap<>();
-    
+
     /** The counter for mapings changes. */
     private final AtomicInteger counter = new AtomicInteger(0);
-    
+
     /** The default datasource. */
     private final DataSource dataSource;
-    
+
     /** the session factory. */
     private SessionFactory sessionFactory;
 

@@ -38,7 +38,7 @@ public class EntityParser {
 
     /** The Constant ENTITIES. */
     public static final Map<String, EntityMetadata> ENTITIES = Collections.synchronizedMap(new HashMap<String, EntityMetadata>());
-    
+
     /** The Constant MD5. */
     public static final Map<String, String> MD5 = Collections.synchronizedMap(new HashMap<String, String>());
 

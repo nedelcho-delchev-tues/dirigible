@@ -21,19 +21,19 @@ public class HbmXmlDescriptor {
 
     /** The entity name. */
     private final String entityName;
-    
+
     /** The table name. */
     private final String tableName;
-    
+
     /** The id. */
     private final HbmIdDescriptor id;
-    
+
     /** The properties. */
     private final List<HbmPropertyDescriptor> properties = new ArrayList<>();
-    
+
     /** The collections. */
     private final List<HbmCollectionDescriptor> collections = new ArrayList<>();
-    
+
     /** The associations. */
     private final List<HbmAssociationDescriptor> associations = new ArrayList<>();
 
@@ -54,16 +54,16 @@ public class HbmXmlDescriptor {
      * Models the id element.
      */
     public static class HbmIdDescriptor {
-        
+
         /** The name. */
         private final String name;
-        
+
         /** The column. */
         private final String column;
-        
+
         /** The type. */
         private final String type;
-        
+
         /** The generator class. */
         private final String generatorClass;
 
@@ -124,16 +124,16 @@ public class HbmXmlDescriptor {
      * Models a property element.
      */
     public static class HbmPropertyDescriptor {
-        
+
         /** The name. */
         private final String name;
-        
+
         /** The column. */
         private final String column;
-        
+
         /** The type. */
         private final String type;
-        
+
         /** The length. */
         private final Integer length;
 
@@ -194,31 +194,31 @@ public class HbmXmlDescriptor {
      * The Class HbmCollectionDescriptor.
      */
     public static class HbmCollectionDescriptor {
-        
+
         /** The name. */
         public String name;
-        
+
         /** The table name. */
         public String tableName;
-        
+
         /** The join column. */
         public String joinColumn;
-        
+
         /** The entity name. */
         public String entityName;
-        
+
         /** The inverse. */
         public boolean inverse;
-        
+
         /** The lazy. */
         public boolean lazy;
-        
+
         /** The fetch. */
         public String fetch;
-        
+
         /** The cascade. */
         public String cascade;
-        
+
         /** The join column not null. */
         public boolean joinColumnNotNull;
 
@@ -350,22 +350,22 @@ public class HbmXmlDescriptor {
      * The Class HbmAssociationDescriptor.
      */
     public static class HbmAssociationDescriptor {
-        
+
         /** The name. */
         private final String name;
-        
+
         /** The entity name. */
         private final String entityName;
-        
+
         /** The join column. */
         private final String joinColumn;
-        
+
         /** The cascade. */
         private final String cascade;
-        
+
         /** The not null. */
         private final boolean notNull;
-        
+
         /** The lazy. */
         private final String lazy;
 

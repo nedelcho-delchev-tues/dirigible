@@ -537,19 +537,19 @@ public class EntityFieldMetadata {
 
         /** The name. */
         private String name;
-        
+
         /** The entity name. */
         private String entityName;
-        
+
         /** The join column. */
         private String joinColumn;
-        
+
         /** The cascade. */
         private String cascade;
-        
+
         /** The not null. */
         private boolean notNull;
-        
+
         /** The lazy. */
         private String lazy;
 
