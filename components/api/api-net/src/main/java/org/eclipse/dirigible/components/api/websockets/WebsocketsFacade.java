@@ -30,18 +30,6 @@ import org.springframework.messaging.simp.stomp.StompSession;
  */
 public class WebsocketsFacade {
 
-    /** The Constant DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_OPEN. */
-    public static final String DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_OPEN = "net/wrappers/onOpen.js";
-
-    /** The Constant DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_MESSAGE. */
-    public static final String DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_MESSAGE = "net/wrappers/onMessage.js";
-
-    /** The Constant DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_ERROR. */
-    public static final String DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_ERROR = "net/wrappers/onError.js";
-
-    /** The Constant DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_CLOSE. */
-    public static final String DIRIGIBLE_WEBSOCKET_WRAPPER_MODULE_ON_CLOSE = "net/wrappers/onClose.js";
-
     /** The logger. */
     private static Logger logger = LoggerFactory.getLogger(WebsocketsFacade.class);
 
