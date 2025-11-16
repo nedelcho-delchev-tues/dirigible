@@ -9,20 +9,20 @@
  */
 package org.eclipse.dirigible.components.database.params;
 
-import org.eclipse.dirigible.components.database.NamedParameterStatement;
-import org.eclipse.dirigible.components.database.Parameterized;
+import org.eclipse.dirigible.components.database.ParameterizedByIndex;
+import org.eclipse.dirigible.components.database.ParameterizedByName;
 
 import com.google.gson.JsonElement;
 
 abstract class BaseParamSetter implements ParamSetter {
 
-    protected void throwWrongValue(JsonElement sourceParam, String paramName, NamedParameterStatement preparedStatement)
+    protected void throwWrongValue(JsonElement sourceParam, String paramName, ParameterizedByName preparedStatement)
             throws IllegalArgumentException {
         throw new IllegalArgumentException(
                 "Wrong value [" + sourceParam + "] for parameter with name [" + paramName + "] for statement: " + preparedStatement);
     }
 
-    protected void throwWrongValue(JsonElement sourceParam, int paramIndex, Parameterized preparedStatement)
+    protected void throwWrongValue(JsonElement sourceParam, int paramIndex, ParameterizedByIndex preparedStatement)
             throws IllegalArgumentException {
         throw new IllegalArgumentException(
                 "Wrong value [" + sourceParam + "] at index [" + paramIndex + "] for statement: " + preparedStatement);

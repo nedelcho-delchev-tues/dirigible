@@ -17,7 +17,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Calendar;
 
-import org.eclipse.dirigible.components.database.Parameterized;
+import org.eclipse.dirigible.components.database.ParameterizedByIndex;
 import org.eclipse.dirigible.database.sql.DataTypeUtils;
 import org.hibernate.query.BindableType;
 import org.hibernate.query.ParameterMetadata;
@@ -27,7 +27,7 @@ import org.hibernate.query.QueryParameter;
 /**
  * The Class ParameterizedQuery.
  */
-public class ParameterizedQuery implements Parameterized {
+public class ParameterizedByIndexQuery implements ParameterizedByIndex {
 
     /** The statement this object is wrapping. */
     private final Query statement;
@@ -38,7 +38,7 @@ public class ParameterizedQuery implements Parameterized {
      * @param statement the database statement
      * @throws SQLException if the statement could not be created
      */
-    public ParameterizedQuery(Query statement) throws SQLException {
+    public ParameterizedByIndexQuery(Query statement) throws SQLException {
         this.statement = statement;
     }
 

@@ -14,8 +14,8 @@ import java.sql.Timestamp;
 import java.util.Optional;
 
 import org.eclipse.dirigible.commons.api.helpers.DateTimeUtils;
-import org.eclipse.dirigible.components.database.NamedParameterStatement;
-import org.eclipse.dirigible.components.database.Parameterized;
+import org.eclipse.dirigible.components.database.ParameterizedByIndex;
+import org.eclipse.dirigible.components.database.ParameterizedByName;
 import org.eclipse.dirigible.database.sql.DataTypeUtils;
 
 import com.google.gson.JsonElement;
@@ -42,7 +42,7 @@ class TimestampParamSetter extends BaseParamSetter {
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setParam(JsonElement sourceParam, int paramIndex, Parameterized preparedStatement) throws SQLException {
+    public void setParam(JsonElement sourceParam, int paramIndex, ParameterizedByIndex preparedStatement) throws SQLException {
 
         if (sourceParam.isJsonPrimitive() && sourceParam.getAsJsonPrimitive()
                                                         .isNumber()) {
@@ -74,7 +74,7 @@ class TimestampParamSetter extends BaseParamSetter {
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setParam(JsonElement sourceParam, String paramName, NamedParameterStatement preparedStatement) throws SQLException {
+    public void setParam(JsonElement sourceParam, String paramName, ParameterizedByName preparedStatement) throws SQLException {
         if (sourceParam.isJsonPrimitive() && sourceParam.getAsJsonPrimitive()
                                                         .isNumber()) {
             Timestamp value = new Timestamp(sourceParam.getAsJsonPrimitive()

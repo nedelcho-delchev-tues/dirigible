@@ -181,7 +181,7 @@ public class DataStoreFacade implements InitializingBean {
     }
 
     /**
-     * Query.
+     * Query with indexed parameters.
      *
      * @param query the entity query
      * @param parameters the query parameters
@@ -197,9 +197,27 @@ public class DataStoreFacade implements InitializingBean {
                                    .query(query, parametersElement, limit, offset);
         return JsonHelper.toJson(list);
     }
+    
+    /**
+     * Query with named parameters.
+     *
+     * @param query the entity query
+     * @param parameters the query parameters
+     * @param limit the limit
+     * @param offset the offset
+     * @return the string
+     * @throws SQLException
+     */
+    public static String queryNamed(String query, String parameters, int limit, int offset) throws SQLException {
+        Optional<JsonElement> parametersElement = DatabaseFacade.parseOptionalJson(parameters);
+        List list = DataStoreFacade.get()
+                                   .getDataStore()
+                                   .queryNamed(query, parametersElement, limit, offset);
+        return JsonHelper.toJson(list);
+    }
 
     /**
-     * Query native.
+     * Query native with indexed parameters.
      *
      * @param query the entity name
      * @param parameters the native query parameters
@@ -213,6 +231,24 @@ public class DataStoreFacade implements InitializingBean {
         List list = DataStoreFacade.get()
                                    .getDataStore()
                                    .queryNative(query, parametersElement, limit, offset);
+        return JsonHelper.toJson(list);
+    }
+    
+    /**
+     * Query native with named parameters.
+     *
+     * @param query the entity name
+     * @param parameters the native query parameters
+     * @param limit the limit
+     * @param offset the offset
+     * @return the string
+     * @throws SQLException
+     */
+    public static String queryNativeNamed(String query, String parameters, int limit, int offset) throws SQLException {
+        Optional<JsonElement> parametersElement = DatabaseFacade.parseOptionalJson(parameters);
+        List list = DataStoreFacade.get()
+                                   .getDataStore()
+                                   .queryNativeNamed(query, parametersElement, limit, offset);
         return JsonHelper.toJson(list);
     }
 

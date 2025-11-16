@@ -7,17 +7,24 @@
  *
  * SPDX-FileCopyrightText: Eclipse Dirigible contributors SPDX-License-Identifier: EPL-2.0
  */
-package org.eclipse.dirigible.components.database;
+package org.eclipse.dirigible.components.data.store;
 
 import java.io.InputStream;
-import java.math.BigDecimal;
-import java.sql.*;
-import java.util.*;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.Calendar;
 
-public class ParameterizedStatement implements ParameterizedByIndex {
+import org.eclipse.dirigible.components.database.ParameterizedByName;
+import org.hibernate.query.Query;
+
+/**
+ * The Class ParameterizedQuery.
+ */
+public class ParameterizedByNameQuery implements ParameterizedByName {
 
     /** The statement this object is wrapping. */
-    private final PreparedStatement statement;
+    private final Query statement;
 
     /**
      * Creates a ParameterizedStatement.
@@ -25,184 +32,184 @@ public class ParameterizedStatement implements ParameterizedByIndex {
      * @param statement the database statement
      * @throws SQLException if the statement could not be created
      */
-    public ParameterizedStatement(PreparedStatement statement) throws SQLException {
+    public ParameterizedByNameQuery(Query statement) throws SQLException {
         this.statement = statement;
     }
 
     /**
      * Sets a parameter.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value parameter value
      * @throws SQLException if an error occurred
      * @throws IllegalArgumentException if the parameter does not exist
      * @see PreparedStatement#setObject(int, java.lang.Object)
      */
     @Override
-    public void setObject(int index, Object value) throws SQLException {
-        statement.setObject(index, value);
+    public void setObject(String name, Object value) throws SQLException {
+        statement.setParameter(name, value);
     }
 
     /**
      * Sets a parameter.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value parameter value
      * @throws SQLException if an error occurred
      * @throws IllegalArgumentException if the parameter does not exist
      * @see PreparedStatement#setString(int, java.lang.String)
      */
     @Override
-    public void setString(int index, String value) throws SQLException {
-        statement.setString(index, value);
+    public void setString(String name, String value) throws SQLException {
+        statement.setParameter(name, value, String.class);
     }
 
     /**
      * Sets a parameter.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value parameter value
      * @throws SQLException if an error occurred
      * @throws IllegalArgumentException if the parameter does not exist
      * @see PreparedStatement#setInt(int, int)
      */
     @Override
-    public void setInt(int index, int value) throws SQLException {
-        statement.setInt(index, value);
+    public void setInt(String name, int value) throws SQLException {
+        statement.setParameter(name, value, Integer.class);
     }
 
     /**
      * Sets the byte.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setByte(int index, byte value) throws SQLException {
-        statement.setByte(index, value);
+    public void setByte(String name, byte value) throws SQLException {
+        statement.setParameter(name, value, Byte.class);
     }
 
     /**
      * Sets the short.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setShort(int index, short value) throws SQLException {
-        statement.setShort(index, value);
+    public void setShort(String name, short value) throws SQLException {
+        statement.setParameter(name, value, Short.class);
     }
 
     /**
      * Sets the float.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setFloat(int index, float value) throws SQLException {
-        statement.setFloat(index, value);
+    public void setFloat(String name, float value) throws SQLException {
+        statement.setParameter(name, value, Float.class);
     }
 
     /**
      * Sets the double.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setDouble(int index, double value) throws SQLException {
-        statement.setDouble(index, value);
+    public void setDouble(String name, double value) throws SQLException {
+        statement.setParameter(name, value, Double.class);
     }
 
     /**
      * Sets the boolean.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setBoolean(int index, boolean value) throws SQLException {
-        statement.setBoolean(index, value);
+    public void setBoolean(String name, boolean value) throws SQLException {
+        statement.setParameter(name, value, Boolean.class);
     }
 
     /**
      * Sets the binary stream.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @param length the length
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setBinaryStream(int index, InputStream value, int length) throws SQLException {
-        statement.setBinaryStream(index, value, length);
+    public void setBinaryStream(String name, InputStream value, int length) throws SQLException {
+        statement.setParameter(name, value, InputStream.class);
     }
 
     /**
      * Sets the binary stream.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @param length the length
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setBinaryStream(int index, InputStream value, long length) throws SQLException {
-        statement.setBinaryStream(index, value, length);
+    public void setBinaryStream(String name, InputStream value, long length) throws SQLException {
+        statement.setParameter(name, value, InputStream.class);
     }
 
     /**
      * Sets a parameter.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value parameter value
      * @throws SQLException if an error occurred
      * @throws IllegalArgumentException if the parameter does not exist
      * @see PreparedStatement#setInt(int, int)
      */
     @Override
-    public void setLong(int index, long value) throws SQLException {
-        statement.setLong(index, value);
+    public void setLong(String name, long value) throws SQLException {
+        statement.setParameter(name, value, Long.class);
     }
 
     /**
      * Sets a parameter.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value parameter value
      * @throws SQLException if an error occurred
      * @throws IllegalArgumentException if the parameter does not exist
      * @see PreparedStatement#setTimestamp(int, java.sql.Timestamp)
      */
     @Override
-    public void setTimestamp(int index, Timestamp value) throws SQLException {
-        statement.setTimestamp(index, value);
+    public void setTimestamp(String name, Timestamp value) throws SQLException {
+        statement.setParameter(name, value, Timestamp.class);
     }
 
     /**
      * Sets a parameter.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value parameter value
      * @throws SQLException if an error occurred
      * @throws IllegalArgumentException if the parameter does not exist
      * @see PreparedStatement#setDate(int, java.sql.Date)
      */
     @Override
-    public void setDate(int index, java.sql.Date value) throws SQLException {
-        statement.setDate(index, value);
+    public void setDate(String name, java.sql.Date value) throws SQLException {
+        statement.setParameter(name, value, java.sql.Date.class);
     }
 
     /**
      * Sets a parameter.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value parameter value
      * @param cal parameter cal
      * @throws SQLException if an error occurred
@@ -210,79 +217,45 @@ public class ParameterizedStatement implements ParameterizedByIndex {
      * @see PreparedStatement#setDate(int, java.sql.Date, Calendar)
      */
     @Override
-    public void setDate(int index, java.sql.Date value, Calendar cal) throws SQLException {
-        statement.setDate(index, value, cal);
+    public void setDate(String name, java.sql.Date value, Calendar cal) throws SQLException {
+        statement.setParameter(name, value, java.sql.Date.class);
     }
 
     /**
      * Sets the time.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setTime(int index, java.sql.Time value) throws SQLException {
-        statement.setTime(index, value);
+    public void setTime(String name, java.sql.Time value) throws SQLException {
+        statement.setParameter(name, value, java.sql.Time.class);
     }
 
     /**
      * Sets the time.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param value the value
      * @param cal the cal
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setTime(int index, java.sql.Time value, Calendar cal) throws SQLException {
-        statement.setTime(index, value, cal);
+    public void setTime(String name, java.sql.Time value, Calendar cal) throws SQLException {
+        statement.setParameter(name, value, java.sql.Time.class);
     }
 
     /**
      * Sets the null.
      *
-     * @param index parameter index
+     * @param name parameter name
      * @param sqlType the sql type
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setNull(int index, Integer sqlType) throws SQLException {
-        statement.setNull(index, sqlType);
-    }
-
-    @Override
-    public void setBigDecimal(int index, BigDecimal value) throws SQLException {
-        statement.setBigDecimal(index, value);
-    }
-
-    @Override
-    public void setObject(int index, Object value, int targetSqlType) throws SQLException {
-        statement.setObject(index, value, targetSqlType);
-    }
-
-    @Override
-    public Connection getConnection() throws SQLException {
-        return statement.getConnection();
-    }
-
-    @Override
-    public void addBatch() throws SQLException {
-        statement.addBatch();
-    }
-
-    @Override
-    public int getParameterCount() throws SQLException {
-        ParameterMetaData parameterMetaData = statement.getParameterMetaData();
-        int sqlParametersCount = parameterMetaData.getParameterCount();
-        return sqlParametersCount;
-    }
-
-    @Override
-    public int getParameterType(int sqlParamIndex) throws SQLException {
-        ParameterMetaData parameterMetaData = statement.getParameterMetaData();
-        int sqlType = parameterMetaData.getParameterType(sqlParamIndex);
-        return sqlType;
+    public void setNull(String name, Integer sqlType) throws SQLException {
+        statement.setParameter(name, null);
     }
 
 }

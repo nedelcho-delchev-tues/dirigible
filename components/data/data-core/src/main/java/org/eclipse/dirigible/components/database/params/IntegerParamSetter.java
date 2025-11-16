@@ -11,8 +11,8 @@ package org.eclipse.dirigible.components.database.params;
 
 import java.sql.SQLException;
 
-import org.eclipse.dirigible.components.database.NamedParameterStatement;
-import org.eclipse.dirigible.components.database.Parameterized;
+import org.eclipse.dirigible.components.database.ParameterizedByIndex;
+import org.eclipse.dirigible.components.database.ParameterizedByName;
 import org.eclipse.dirigible.database.sql.DataTypeUtils;
 
 import com.google.gson.JsonElement;
@@ -39,7 +39,7 @@ class IntegerParamSetter extends BaseParamSetter {
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setParam(JsonElement sourceParam, int paramIndex, Parameterized preparedStatement) throws SQLException {
+    public void setParam(JsonElement sourceParam, int paramIndex, ParameterizedByIndex preparedStatement) throws SQLException {
         if (sourceParam.isJsonPrimitive() && sourceParam.getAsJsonPrimitive()
                                                         .isNumber()) {
             int value = sourceParam.getAsJsonPrimitive()
@@ -66,7 +66,7 @@ class IntegerParamSetter extends BaseParamSetter {
      * @throws SQLException the SQL exception
      */
     @Override
-    public void setParam(JsonElement sourceParam, String paramName, NamedParameterStatement preparedStatement) throws SQLException {
+    public void setParam(JsonElement sourceParam, String paramName, ParameterizedByName preparedStatement) throws SQLException {
         if (sourceParam.isJsonPrimitive() && sourceParam.getAsJsonPrimitive()
                                                         .isNumber()) {
             int value = sourceParam.getAsJsonPrimitive()

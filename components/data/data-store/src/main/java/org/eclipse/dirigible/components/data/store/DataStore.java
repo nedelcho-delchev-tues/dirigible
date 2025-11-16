@@ -463,7 +463,7 @@ public class DataStore {
     }
 
     /**
-     * Query.
+     * Query with indexed parameters.
      *
      * @param query the query
      * @param parameters the query parameters
@@ -471,13 +471,38 @@ public class DataStore {
      * @param offset the offset
      * @return the list
      * @throws SQLException the SQL exception
-     * @formatting the formatting patterns if any
      */
     public List<Map> query(String query, Optional<JsonElement> parameters, int limit, int offset) throws SQLException {
         try (Session session = getSessionFactory().openSession()) {
             Query<Map> queryObject = session.createQuery(query, Map.class);
             if (parameters != null && parameters.isPresent()) {
-                ParametersSetter.setIndexedParameters(parameters.get(), new ParameterizedQuery(queryObject));
+                ParametersSetter.setIndexedParameters(parameters.get(), new ParameterizedByIndexQuery(queryObject));
+            }
+            if (limit > 0) {
+                queryObject.setMaxResults(limit);
+            }
+            if (offset >= 0) {
+                queryObject.setFirstResult(offset);
+            }
+            return queryObject.getResultList();
+        }
+    }
+    
+    /**
+     * Query with named parameters.
+     *
+     * @param query the query
+     * @param parameters the query parameters
+     * @param limit the limit
+     * @param offset the offset
+     * @return the list
+     * @throws SQLException the SQL exception
+     */
+    public List<Map> queryNamed(String query, Optional<JsonElement> parameters, int limit, int offset) throws SQLException {
+        try (Session session = getSessionFactory().openSession()) {
+            Query<Map> queryObject = session.createQuery(query, Map.class);
+            if (parameters != null && parameters.isPresent()) {
+                ParametersSetter.setNamedParameters(parameters.get(), new ParameterizedByNameQuery(queryObject));
             }
             if (limit > 0) {
                 queryObject.setMaxResults(limit);
@@ -490,7 +515,7 @@ public class DataStore {
     }
 
     /**
-     * Query.
+     * Query native with indexed parameters.
      *
      * @param query the query
      * @param parameters the parameters
@@ -503,7 +528,33 @@ public class DataStore {
         try (Session session = getSessionFactory().openSession()) {
             NativeQuery<Map> nativeQuery = session.createNativeQuery(query, Map.class);
             if (parameters != null && parameters.isPresent()) {
-                ParametersSetter.setIndexedParameters(parameters.get(), new ParameterizedQuery(nativeQuery));
+                ParametersSetter.setIndexedParameters(parameters.get(), new ParameterizedByIndexQuery(nativeQuery));
+            }
+            if (limit > 0) {
+                nativeQuery.setMaxResults(limit);
+            }
+            if (offset >= 0) {
+                nativeQuery.setFirstResult(offset);
+            }
+            return nativeQuery.list();
+        }
+    }
+    
+    /**
+     * Query native with named parameters.
+     *
+     * @param query the query
+     * @param parameters the parameters
+     * @param limit the limit
+     * @param offset the offset
+     * @return the list
+     * @throws SQLException the SQL exception
+     */
+    public List<Map> queryNativeNamed(String query, Optional<JsonElement> parameters, int limit, int offset) throws SQLException {
+        try (Session session = getSessionFactory().openSession()) {
+            NativeQuery<Map> nativeQuery = session.createNativeQuery(query, Map.class);
+            if (parameters != null && parameters.isPresent()) {
+                ParametersSetter.setNamedParameters(parameters.get(), new ParameterizedByNameQuery(nativeQuery));
             }
             if (limit > 0) {
                 nativeQuery.setMaxResults(limit);

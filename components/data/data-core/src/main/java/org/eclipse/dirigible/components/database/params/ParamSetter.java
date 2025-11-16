@@ -11,8 +11,8 @@ package org.eclipse.dirigible.components.database.params;
 
 import java.sql.SQLException;
 
-import org.eclipse.dirigible.components.database.NamedParameterStatement;
-import org.eclipse.dirigible.components.database.Parameterized;
+import org.eclipse.dirigible.components.database.ParameterizedByIndex;
+import org.eclipse.dirigible.components.database.ParameterizedByName;
 
 import com.google.gson.JsonElement;
 
@@ -34,7 +34,7 @@ public interface ParamSetter {
      * @param preparedStatement the prepared statement
      * @throws SQLException the SQL exception
      */
-    void setParam(JsonElement sourceParam, int paramIndex, Parameterized preparedStatement) throws SQLException;
+    void setParam(JsonElement sourceParam, int paramIndex, ParameterizedByIndex preparedStatement) throws SQLException;
 
     /**
      * Sets the param.
@@ -44,5 +44,5 @@ public interface ParamSetter {
      * @param preparedStatement the prepared statement
      * @throws SQLException the SQL exception
      */
-    void setParam(JsonElement sourceParam, String paramName, NamedParameterStatement preparedStatement) throws SQLException;
+    void setParam(JsonElement sourceParam, String paramName, ParameterizedByName preparedStatement) throws SQLException;
 }

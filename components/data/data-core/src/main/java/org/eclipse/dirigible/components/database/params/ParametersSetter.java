@@ -17,8 +17,8 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.eclipse.dirigible.components.database.DatabaseSystem;
-import org.eclipse.dirigible.components.database.NamedParameterStatement;
-import org.eclipse.dirigible.components.database.Parameterized;
+import org.eclipse.dirigible.components.database.ParameterizedByIndex;
+import org.eclipse.dirigible.components.database.ParameterizedByName;
 import org.eclipse.dirigible.components.database.domain.ColumnMetadata;
 import org.eclipse.dirigible.components.database.domain.TableMetadata;
 import org.eclipse.dirigible.components.database.helpers.DatabaseMetadataHelper;
@@ -59,7 +59,7 @@ public class ParametersSetter {
             new TimestampParamSetter(), //
             new TinyIntParamSetter());
 
-    public static void setNamedParameters(JsonElement parameters, NamedParameterStatement preparedStatement) throws SQLException {
+    public static void setNamedParameters(JsonElement parameters, ParameterizedByName preparedStatement) throws SQLException {
         if (!parameters.isJsonArray()) {
             throw new IllegalArgumentException("Parameters must be provided as a JSON array, e.g. [1, 'John', 9876]. Parameters ["
                     + parameters + "]. Statement: " + preparedStatement);
@@ -70,7 +70,7 @@ public class ParametersSetter {
         }
     }
 
-    private static void setNamedParameter(NamedParameterStatement preparedStatement, JsonElement parameterElement)
+    private static void setNamedParameter(ParameterizedByName preparedStatement, JsonElement parameterElement)
             throws IllegalArgumentException, SQLException {
 
         if (!parameterElement.isJsonObject()) {
@@ -81,8 +81,7 @@ public class ParametersSetter {
         setNamedJsonObjectParam(preparedStatement, parameterElement);
     }
 
-    private static void setNamedJsonObjectParam(NamedParameterStatement preparedStatement, JsonElement parameterElement)
-            throws SQLException {
+    private static void setNamedJsonObjectParam(ParameterizedByName preparedStatement, JsonElement parameterElement) throws SQLException {
         try {
             NamedParamJsonObject namedParamJsonObject = NamedParamJsonObject.fromJsonElement(parameterElement);
 
@@ -105,7 +104,7 @@ public class ParametersSetter {
         }
     }
 
-    private static void setNamedParamUsingSetter(NamedParameterStatement preparedStatement, JsonElement parameterElement, String dataType,
+    private static void setNamedParamUsingSetter(ParameterizedByName preparedStatement, JsonElement parameterElement, String dataType,
             JsonElement valueElement, String name) throws SQLException {
         try {
             ParamSetter paramSetter = findParamSetterForType(dataType);
@@ -135,8 +134,8 @@ public class ParametersSetter {
      * @param preparedStatement
      * @throws SQLException
      */
-    public static void setManyIndexedParametersForInsert(String insertSql, JsonElement parametersElement, Parameterized preparedStatement)
-            throws SQLException {
+    public static void setManyIndexedParametersForInsert(String insertSql, JsonElement parametersElement,
+            ParameterizedByIndex preparedStatement) throws SQLException {
         LOGGER.debug("Setting many indexed parameters for Snowflake prepared statement [{}]. Sql [{}]", preparedStatement, insertSql);
 
         Insert insertStatement = SqlParser.parseInsert(insertSql);
@@ -229,8 +228,8 @@ public class ParametersSetter {
         return parametersElement.getAsJsonArray();
     }
 
-    private static void setIndexedParameter(Parameterized preparedStatement, int sqlParamIndex, JsonElement parameterElement, int sqlType)
-            throws IllegalArgumentException, SQLException {
+    private static void setIndexedParameter(ParameterizedByIndex preparedStatement, int sqlParamIndex, JsonElement parameterElement,
+            int sqlType) throws IllegalArgumentException, SQLException {
 
         if (Types.NULL == sqlType || parameterElement.isJsonNull()) {
             preparedStatement.setNull(sqlParamIndex, sqlType);
@@ -264,7 +263,7 @@ public class ParametersSetter {
         throw new IllegalArgumentException(errMsg);
     }
 
-    private static void setIndexedJsonObjectParam(Parameterized preparedStatement, int sqlParamIndex, JsonElement parameterElement,
+    private static void setIndexedJsonObjectParam(ParameterizedByIndex preparedStatement, int sqlParamIndex, JsonElement parameterElement,
             int sqlType, ParamSetter paramSetter) throws SQLException {
         IndexedParamJsonObject paramJsonObject = IndexedParamJsonObject.fromJsonElement(parameterElement);
 
@@ -277,7 +276,7 @@ public class ParametersSetter {
         paramSetter.setParam(valueElement, sqlParamIndex, preparedStatement);
     }
 
-    private static JsonArray toParamsArray(JsonElement paramsArrayJsonElement, Parameterized preparedStatement) {
+    private static JsonArray toParamsArray(JsonElement paramsArrayJsonElement, ParameterizedByIndex preparedStatement) {
         if (!paramsArrayJsonElement.isJsonArray()) {
             throw new IllegalArgumentException("Parameters must be provided as a JSON array, e.g. [1, 'John', 9876]. Parameters ["
                     + paramsArrayJsonElement + "]. Statement: " + preparedStatement);
@@ -286,7 +285,7 @@ public class ParametersSetter {
         return paramsArrayJsonElement.getAsJsonArray();
     }
 
-    public static void setManyIndexedParameters(JsonElement parametersElement, Parameterized preparedStatement)
+    public static void setManyIndexedParameters(JsonElement parametersElement, ParameterizedByIndex preparedStatement)
             throws IllegalArgumentException, SQLException {
         JsonArray parametersArrays = getParametersArrays(parametersElement);
 
@@ -296,7 +295,7 @@ public class ParametersSetter {
         }
     }
 
-    public static void setIndexedParameters(JsonElement parameters, Parameterized preparedStatement) throws SQLException {
+    public static void setIndexedParameters(JsonElement parameters, ParameterizedByIndex preparedStatement) throws SQLException {
         JsonArray paramsArray = toParamsArray(parameters, preparedStatement);
 
         int sqlParametersCount = preparedStatement.getParameterCount();
@@ -316,7 +315,7 @@ public class ParametersSetter {
         }
     }
 
-    private static void setIndexedParameter(Parameterized preparedStatement, int sqlParamIndex, JsonElement parameterElement)
+    private static void setIndexedParameter(ParameterizedByIndex preparedStatement, int sqlParamIndex, JsonElement parameterElement)
             throws IllegalArgumentException, SQLException {
 
         int sqlType = preparedStatement.getParameterType(sqlParamIndex);
