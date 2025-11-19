@@ -330,20 +330,21 @@ class DatabaseFacadeIT extends IntegrationTest {
                       .isNull();
         }
 
-//        Not valid anymore
-//        @Test
-//        void testInsertWithInvalidParamsObjects() throws Throwable {
-//            String parametersJson = "[[],[],[],[]]";
-//
-//            String insertSql = createInsertInTestTableAllColumnsSql();
-//
-//            Exception thrownException =
-//                    assertThrows(JdbcSQLDataException.class, () -> DatabaseFacade.insert(insertSql, parametersJson, null));
-//
-//            assertThat(thrownException.getMessage()).contains(
-//                    "Parameter with index [1] must be primitive or object. Parameter element [[]]");
-//
-//        }
+        // Not valid anymore
+        // @Test
+        // void testInsertWithInvalidParamsObjects() throws Throwable {
+        // String parametersJson = "[[],[],[],[]]";
+        //
+        // String insertSql = createInsertInTestTableAllColumnsSql();
+        //
+        // Exception thrownException =
+        // assertThrows(JdbcSQLDataException.class, () -> DatabaseFacade.insert(insertSql, parametersJson,
+        // null));
+        //
+        // assertThat(thrownException.getMessage()).contains(
+        // "Parameter with index [1] must be primitive or object. Parameter element [[]]");
+        //
+        // }
 
         @Test
         void testInsertWithParamsObjectsArrayWithNulls() throws Throwable {

@@ -153,7 +153,7 @@ public abstract class AbstractTableBuilder<TABLE_BUILDER extends AbstractTableBu
             Boolean isFuzzyIndexEnabled, String... args) {
         return column(name, type, isPrimaryKey, isNullable, isUnique, false, isFuzzyIndexEnabled, args);
     }
-    
+
     /**
      * Column.
      *
@@ -167,8 +167,8 @@ public abstract class AbstractTableBuilder<TABLE_BUILDER extends AbstractTableBu
      * @param args the args
      * @return the creates the table builder
      */
-    public TABLE_BUILDER column(String name, DataType type, Boolean isPrimaryKey, Boolean isNullable, Boolean isUnique,
-    		Boolean isIdentity, Boolean isFuzzyIndexEnabled, String[] args) {
+    public TABLE_BUILDER column(String name, DataType type, Boolean isPrimaryKey, Boolean isNullable, Boolean isUnique, Boolean isIdentity,
+            Boolean isFuzzyIndexEnabled, String[] args) {
         return column(name, type, isPrimaryKey, isNullable, isUnique, false, isIdentity, isFuzzyIndexEnabled, args);
     }
 
