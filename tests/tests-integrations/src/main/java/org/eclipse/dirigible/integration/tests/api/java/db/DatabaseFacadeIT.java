@@ -12,7 +12,6 @@ package org.eclipse.dirigible.integration.tests.api.java.db;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.Date;
@@ -20,7 +19,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-
 import org.assertj.db.api.Assertions;
 import org.assertj.db.type.Table;
 import org.eclipse.dirigible.commons.api.helpers.GsonHelper;
@@ -36,7 +34,6 @@ import org.eclipse.dirigible.database.sql.dialects.SqlDialectFactory;
 import org.eclipse.dirigible.tests.base.IntegrationTest;
 import org.eclipse.dirigible.tests.framework.db.DBAsserter;
 import org.eclipse.dirigible.tests.framework.util.JsonAsserter;
-import org.h2.jdbc.JdbcSQLDataException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;

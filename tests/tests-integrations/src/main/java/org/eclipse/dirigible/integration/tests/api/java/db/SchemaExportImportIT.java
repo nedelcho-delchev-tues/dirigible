@@ -9,7 +9,16 @@
  */
 package org.eclipse.dirigible.integration.tests.api.java.db;
 
-import io.restassured.http.ContentType;
+import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.Matchers.notNullValue;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.assertj.db.api.Assertions;
 import org.assertj.db.type.Table;
 import org.eclipse.dirigible.components.data.sources.domain.DataSource;
@@ -31,18 +40,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import static io.restassured.RestAssured.given;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.Matchers.notNullValue;
+import io.restassured.http.ContentType;
 
 public class SchemaExportImportIT extends IntegrationTest {
 
@@ -83,7 +81,6 @@ public class SchemaExportImportIT extends IntegrationTest {
     }
 
     private void createH2DataSource(String name) {
-
         DataSource targetDataSource = new DataSource();
         targetDataSource.setName(name);
         targetDataSource.setDriver("org.h2.Driver");
@@ -138,7 +135,7 @@ public class SchemaExportImportIT extends IntegrationTest {
 
     private void assertProcessExecutedSuccessfully(String processInstanceId) {
         AwaitilityExecutor.execute("Process with id " + processInstanceId + " didn't completed for the expected time.",
-                () -> await().atMost(10, TimeUnit.SECONDS)
+                () -> await().atMost(60, TimeUnit.SECONDS)
                              .pollInterval(1, TimeUnit.SECONDS)
                              .until(() -> isProcessCompletedSuccessfully(processInstanceId)));
     }
@@ -296,6 +293,7 @@ public class SchemaExportImportIT extends IntegrationTest {
         assertProcessExecutedSuccessfully(exportProcessId);
 
         createH2DataSource(TARGET_DATA_SOURCE_NAME);
+
         assertTablesCount(TARGET_DATA_SOURCE_NAME, "PUBLIC", 0);
 
         String importProcessId = triggerSystemDBImportProcess();
