@@ -240,7 +240,7 @@ jobs:
   sast-docker-scout-scan:
     if: ${{ inputs.code-scans }}
     runs-on: ubuntu-latest
-    needs: release-docker-images
+    needs: release-docker-manifest
     permissions:
       security-events: write # Required to upload SARIF to GitHub Security tab
 
@@ -282,7 +282,7 @@ jobs:
     if: ${{ inputs.code-scans }}
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
-    needs: release-docker-images
+    needs: release-docker-manifest
     permissions:
       security-events: write # Required to upload SARIF to GitHub Security tab
 
@@ -348,7 +348,7 @@ jobs:
   dast-scan:
     if: ${{ inputs.code-scans }}
     name: Perform DAST testing using ZAP
-    needs: release-docker-images
+    needs: release-docker-manifest
     runs-on: ubuntu-latest
 
     services:
