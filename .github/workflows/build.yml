@@ -60,10 +60,8 @@ jobs:
       - name: Install TypeScript and esbuild
         run: npm install -g typescript esbuild
 
-      - name: Setup Docker Buildx
-        run: |
-          docker buildx create --name dirigible-builder
-          docker buildx use dirigible-builder
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Maven Build
         run: mvn clean install -P quick-build
