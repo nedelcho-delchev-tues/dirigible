@@ -926,13 +926,6 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.junit.vintage</groupId>
-                <artifactId>junit-vintage-engine</artifactId>
-                <version>5.13.4</version>
-                <scope>test</scope>
-            </dependency>
-
-            <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-java</artifactId>
                 <version>4.39.0</version>
