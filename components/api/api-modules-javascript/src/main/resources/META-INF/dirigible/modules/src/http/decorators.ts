@@ -1,4 +1,4 @@
-import * as rs from "./rs"
+import * as rs from "@aerokit/sdk/http/rs"
 
 const router = rs.service();
 let instance = null;

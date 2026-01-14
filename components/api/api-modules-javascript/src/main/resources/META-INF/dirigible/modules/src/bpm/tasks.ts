@@ -2,8 +2,8 @@
  * API Tasks
  */
 
-import { Streams } from "../io";
-import { Values } from "./values";
+import { Streams } from "@aerokit/sdk/io";
+import { Values } from "@aerokit/sdk/bpm/values";
 
 const BpmFacade = Java.type("org.eclipse.dirigible.components.api.bpm.BpmFacade");
 

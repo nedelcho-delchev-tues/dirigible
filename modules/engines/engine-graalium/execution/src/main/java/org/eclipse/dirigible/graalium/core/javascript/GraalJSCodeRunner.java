@@ -402,7 +402,7 @@ public class GraalJSCodeRunner implements CodeRunner<Source, Value> {
                 if (guestObject.isException()) {
                     String exMessage = getExceptionMessage(guestObject);
                     if (exMessage == null) {
-                        e.getMessage();
+                        exMessage = e.getMessage();
                     }
                     String exClassName = getExceptionClass(guestObject);
                     Throwable exCause = getExceptionCause(guestObject);

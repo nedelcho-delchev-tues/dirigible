@@ -190,15 +190,30 @@ public class DirigibleSourceProvider implements JavascriptSourceProvider {
      * @return the path
      */
     public Path unpackedToFileSystem(Path pathToUnpack, Path pathToLookup) {
+        String ext = "";
+        String fileToLookup = pathToLookup.toString();
+        if (!fileToLookup.endsWith(".js") && !fileToLookup.endsWith(".mjs") && !fileToLookup.endsWith(".json")) {
+            fileToLookup += ".mjs";
+            if (check(fileToLookup + ".mjs")) {
+                ext = ".mjs";
+                fileToLookup += ext;
+            }
+            if (check(fileToLookup + ".js")) {
+                ext = ".js";
+                fileToLookup += ext;
+            }
+            if (check(fileToLookup + ".json")) {
+                ext = ".json";
+                fileToLookup += ext;
+            }
+        }
+
         String fileToUnpack = pathToUnpack.toAbsolutePath()
                                           .toString();
-        if (!fileToUnpack.endsWith(".js") && !fileToUnpack.endsWith(".mjs")) {
-            fileToUnpack += ".mjs";
+        if (!fileToUnpack.endsWith(".js") && !fileToUnpack.endsWith(".mjs") && !fileToUnpack.endsWith(".json")) {
+            fileToUnpack += ext;
         }
-        String fileToLookup = pathToLookup.toString();
-        if (!fileToLookup.endsWith(".js") && !fileToLookup.endsWith(".mjs")) {
-            fileToLookup += ".mjs";
-        }
+
         String path = File.separator + "META-INF" + File.separator + "dirigible" + File.separator + fileToLookup;
         try (InputStream bundled = this.getClass()
                                        .getResourceAsStream(path)) {
@@ -217,6 +232,16 @@ public class DirigibleSourceProvider implements JavascriptSourceProvider {
             return Path.of(fileToUnpack);
         } catch (IOException ex) {
             throw new RuntimeException("Failed to unpack [" + fileToLookup + "] to [" + fileToUnpack + "]", ex);
+        }
+    }
+
+    private boolean check(String fileName) {
+        String path = File.separator + "META-INF" + File.separator + "dirigible" + File.separator + fileName;
+        try (InputStream bundled = this.getClass()
+                                       .getResourceAsStream(path)) {
+            return bundled != null;
+        } catch (IOException e) {
+            return false;
         }
     }
 }
