@@ -190,58 +190,24 @@ public class DirigibleSourceProvider implements JavascriptSourceProvider {
      * @return the path
      */
     public Path unpackedToFileSystem(Path pathToUnpack, Path pathToLookup) {
-        String ext = "";
-        String fileToLookup = pathToLookup.toString();
-        if (!fileToLookup.endsWith(".js") && !fileToLookup.endsWith(".mjs") && !fileToLookup.endsWith(".json")) {
-            fileToLookup += ".mjs";
-            if (check(fileToLookup + ".mjs")) {
-                ext = ".mjs";
-                fileToLookup += ext;
-            }
-            if (check(fileToLookup + ".js")) {
-                ext = ".js";
-                fileToLookup += ext;
-            }
-            if (check(fileToLookup + ".json")) {
-                ext = ".json";
-                fileToLookup += ext;
-            }
-        }
-
-        String fileToUnpack = pathToUnpack.toAbsolutePath()
-                                          .toString();
-        if (!fileToUnpack.endsWith(".js") && !fileToUnpack.endsWith(".mjs") && !fileToUnpack.endsWith(".json")) {
-            fileToUnpack += ext;
-        }
-
-        String path = File.separator + "META-INF" + File.separator + "dirigible" + File.separator + fileToLookup;
+        String path = File.separator + "META-INF" + File.separator + "dirigible" + File.separator + pathToLookup.toString();
         try (InputStream bundled = this.getClass()
                                        .getResourceAsStream(path)) {
             Files.createDirectories(pathToUnpack.getParent());
-            if (!Files.exists(Path.of(fileToUnpack))) {
-                LOGGER.debug("File [{}] does NOT exist. Will be created", fileToUnpack);
-                Files.createFile(Path.of(fileToUnpack));
+            if (!Files.exists(pathToUnpack)) {
+                LOGGER.debug("File [{}] does NOT exist. Will be created", pathToUnpack);
+                Files.createFile(pathToUnpack);
             } else {
-                LOGGER.debug("File [{}] exists and will NOT be created", fileToUnpack);
+                LOGGER.debug("File [{}] exists and will NOT be created", pathToUnpack);
             }
             if (null == bundled) {
                 throw new IllegalStateException(
-                        "Failed to load resource from path [" + path + "] and cannot be unpacked to [" + fileToUnpack + "]");
+                        "Failed to load resource from path [" + path + "] and cannot be unpacked to [" + pathToUnpack + "]");
             }
-            Files.copy(bundled, Path.of(fileToUnpack), StandardCopyOption.REPLACE_EXISTING);
-            return Path.of(fileToUnpack);
+            Files.copy(bundled, pathToUnpack, StandardCopyOption.REPLACE_EXISTING);
+            return pathToUnpack;
         } catch (IOException ex) {
-            throw new RuntimeException("Failed to unpack [" + fileToLookup + "] to [" + fileToUnpack + "]", ex);
-        }
-    }
-
-    private boolean check(String fileName) {
-        String path = File.separator + "META-INF" + File.separator + "dirigible" + File.separator + fileName;
-        try (InputStream bundled = this.getClass()
-                                       .getResourceAsStream(path)) {
-            return bundled != null;
-        } catch (IOException e) {
-            return false;
+            throw new RuntimeException("Failed to unpack [" + pathToLookup + "] to [" + pathToUnpack + "]", ex);
         }
     }
 }
