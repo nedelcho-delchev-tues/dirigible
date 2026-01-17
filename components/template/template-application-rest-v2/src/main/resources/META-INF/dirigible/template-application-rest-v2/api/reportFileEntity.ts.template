@@ -8,11 +8,14 @@ import { user } from "@aerokit/sdk/security"
 import { ForbiddenError } from "../utils/ForbiddenError";
 #end
 import { HttpUtils } from "../utils/HttpUtils";
+import { Injected, Inject } from '@aerokit/sdk/component'
 
 @Controller
+@Injected()
 class ${name}Service {
 
-    private readonly repository = new ${name}Repository();
+    @Inject('${name}Repository')
+    private readonly repository!: ${name}Repository;
 
     @Get("/")
     public filter(_: any, ctx: any) {

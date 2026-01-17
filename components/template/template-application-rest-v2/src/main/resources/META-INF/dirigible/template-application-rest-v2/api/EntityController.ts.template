@@ -16,7 +16,7 @@ import { user } from '@aerokit/sdk/security'
 #end
 import { Options } from '@aerokit/sdk/db'
 import { Extensions } from "@aerokit/sdk/extensions"
-// import { Injected, Inject } from '@aerokit/sdk/component'
+import { Injected, Inject } from '@aerokit/sdk/component'
 import { ${name}Repository } from '../../data/${perspectiveName}/${name}Repository'
 import { ${name}Entity } from '../../data/${perspectiveName}/${name}Entity'
 #if($importsCode && $importsCode != "")
@@ -28,12 +28,11 @@ const validationModules = await Extensions.loadExtensionModules('${projectName}-
 
 @Controller
 @Documentation('${projectName} - ${name} Controller')
-// @Injected()
+@Injected()
 class ${name}Controller {
 
-    // @Inject('${name}Repository')
-    // private readonly repository!: ${name}Repository;
-    private readonly repository = new ${name}Repository();
+    @Inject('${name}Repository')
+    private readonly repository!: ${name}Repository;
 
     @Get('/')
     @Documentation('Get All ${name}')
