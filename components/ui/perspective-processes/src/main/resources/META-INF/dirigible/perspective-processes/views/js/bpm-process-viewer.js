@@ -44,22 +44,22 @@ bpmProcessViewer.controller('BpmProcessViewerController', ($scope, $http, Dialog
 
         for (let task of serviceTasks) {
             if (task.getAttribute('flowable:type') === 'mail') {
-                const sendTask = xmlDoc.createElementNS(
+                const receiveTask = xmlDoc.createElementNS(
                     task.namespaceURI,
-                    'sendTask'
+                    'receiveTask'
                 );
 
                 for (const attr of task.attributes) {
                     if (attr.name !== 'flowable:type') {
-                        sendTask.setAttribute(attr.name, attr.value);
+                        receiveTask.setAttribute(attr.name, attr.value);
                     }
                 }
 
                 while (task.firstChild) {
-                    sendTask.appendChild(task.firstChild);
+                    receiveTask.appendChild(task.firstChild);
                 }
 
-                task.parentNode.replaceChild(sendTask, task);
+                task.parentNode.replaceChild(receiveTask, task);
             }
         };
 
