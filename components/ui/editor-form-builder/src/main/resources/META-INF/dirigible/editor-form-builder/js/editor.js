@@ -18,6 +18,7 @@ editorView.controller('DesignerController', ($scope, $window, $document, $timeou
     const contextMenuHub = new ContextMenuHub();
     let genFile = '';
     let workspace = '';
+    let metadata;
     $scope.canRegenerate = false
     $scope.selectedTab = 'designer';
     $scope.changed = false;
@@ -1780,6 +1781,9 @@ editorView.controller('DesignerController', ($scope, $window, $document, $timeou
         if (!$scope.state.error) {
             $scope.state.isBusy = true;
             WorkspaceService.loadContent($scope.dataParameters.filePath).then((response) => {
+                if (response.data.hasOwnProperty('metadata')) {
+                    metadata = response.data.metadata;
+                }
                 $scope.$evalAsync(() => {
                     if (response.data.hasOwnProperty('feeds')) {
                         $scope.formData.feeds = response.data.feeds;
@@ -1841,6 +1845,7 @@ editorView.controller('DesignerController', ($scope, $window, $document, $timeou
 
     function saveContents() {
         const formFile = {
+            metadata: metadata,
             feeds: $scope.formData.feeds,
             scripts: $scope.formData.scripts,
             code: $scope.formData.code,
