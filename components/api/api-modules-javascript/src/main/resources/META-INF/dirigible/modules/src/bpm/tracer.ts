@@ -37,11 +37,13 @@ export class Tracer {
 
     private getId(): string {
         const executionContext = Process.getExecutionContext();
-        const processDefinitionId = executionContext.getProcessDefinitionId();
-        const processInstanceId = executionContext.getProcessInstanceId();
-        const businessKey = executionContext.getProcessInstanceBusinessKey();
-        const activityId = executionContext.getCurrentActivityId();
-
-        return `[${processDefinitionId}][${processInstanceId}][${businessKey}][${activityId}]`;
+        if (executionContext) {
+            const processDefinitionId = executionContext.getProcessDefinitionId();
+            const processInstanceId = executionContext.getProcessInstanceId();
+            const businessKey = executionContext.getProcessInstanceBusinessKey();
+            const activityId = executionContext.getCurrentActivityId();
+            return `[${processDefinitionId}][${processInstanceId}][${businessKey}][${activityId}]`;
+        }
+        return '[no-execution-context]';
     }
 }
