@@ -21,6 +21,7 @@ import org.eclipse.dirigible.components.base.artefact.topology.TopologyFactory;
 import org.eclipse.dirigible.components.base.artefact.topology.TopologyWrapper;
 import org.eclipse.dirigible.components.base.healthcheck.status.HealthCheckStatus;
 import org.eclipse.dirigible.components.base.healthcheck.status.HealthCheckStatus.Jobs.JobStatus;
+import org.eclipse.dirigible.components.base.synchronizer.SynchronizationWatcher;
 import org.eclipse.dirigible.components.base.synchronizer.Synchronizer;
 import org.eclipse.dirigible.components.base.synchronizer.SynchronizerCallback;
 import org.eclipse.dirigible.components.ide.problems.domain.Problem;
