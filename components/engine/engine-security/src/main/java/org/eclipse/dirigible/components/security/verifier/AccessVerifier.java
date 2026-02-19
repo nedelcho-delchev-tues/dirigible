@@ -54,7 +54,7 @@ public class AccessVerifier {
     }
 
     @PostConstruct
-    @Scheduled(fixedRate = 30_000)
+    @Scheduled(fixedRate = 8_000)
     public void scheduledRefreshCache() {
         refreshCache(false);
     }
