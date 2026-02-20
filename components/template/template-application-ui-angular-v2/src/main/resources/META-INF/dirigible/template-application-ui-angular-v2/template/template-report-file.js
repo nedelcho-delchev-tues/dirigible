@@ -59,8 +59,8 @@ export function generate(model, parameters) {
 
 export function getTemplate(parameters) {
     return {
-        name: "Application Report - Table",
-        description: "Application Table Report",
+        name: "Application Report - Table V2",
+        description: "Application Table Report V2",
         extension: "report",
         sources: reportFileTemplate.getSources(),
         parameters: [
