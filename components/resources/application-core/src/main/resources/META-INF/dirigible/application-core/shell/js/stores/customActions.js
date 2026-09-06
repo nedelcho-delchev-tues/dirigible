@@ -28,7 +28,8 @@
  *
  * It is a global Alpine store so every generated view reads it the same way:
  *   $store.customActions.getActions(perspective, view, 'page')    -> the view's toolbar actions
- *   $store.customActions.getActions(perspective, view, 'entity')  -> the view's per-record actions
+ *   $store.customActions.getActions(perspective, view, 'entity', record) -> the view's per-record actions,
+ *                                                                  minus those the record's status bars
  *   $store.customActions.trigger(action, id)                      -> open the action page in the
  *                                                                    app-wide dialog (an entity action
  *                                                                    passes the record id as ?id=)
@@ -146,13 +147,17 @@ document.addEventListener('alpine:init', () => {
     //
     // `record` (optional, entity actions only) is the record the buttons would act on: an action the
     // record's current status can never accept is left out entirely rather than offered and refused
-    // (issue #7073). Callers that have the row - every generated view does - should pass it.
+    // (issues #7073 and #7068) - a transition outside its `from:` statuses, and a create-from whose
+    // source has already left the statuses it generates from (a proforma already INVOICED stops
+    // carrying a live "Generate Invoice" button). Callers that have the row - every generated view
+    // does - should pass it; one that has none sees exactly what it saw before, the server's own
+    // refusal staying the contract.
     getActions(view, type, record) {
       return (this.actions || []).filter((a) =>
         a && a.view === view &&
         (type === 'entity' ? a.type === 'entity'
                            : (a.type === 'page' || a.type === undefined || a.type === null)) &&
-        this.appliesTo(a, record));
+        this.appliesTo(a, record) && this.isAvailable(a, record));
     },
 
     // Whether an action can apply to a record AT ALL. A transition descriptor mirrors its `from:`
@@ -169,6 +174,27 @@ document.addEventListener('alpine:init', () => {
       const current = record[action.statusProperty];
       if (current === undefined || current === null || current === '') return true;
       return action.from.some((from) => String(from) === String(current));
+    },
+
+    // Whether a guarded create-from is offered on this record (issue #7068). The `guard` descriptor
+    // carries the source statuses the create-from accepts (`allowed`) or refuses (`blocked`). It
+    // fails open for the same reason `appliesTo` does: an absent guard, an absent record or a record
+    // carrying no value for the guarded property all leave the action visible - hiding a button on a
+    // value we do not have is how an action vanishes for no reason the user can see.
+    isAvailable(action, record) {
+      const guard = action && action.guard;
+      if (!guard || !guard.property || !record) return true;
+      const raw = record[guard.property];
+      if (raw === null || raw === undefined || raw === '') return true;
+      const current = Number(raw);
+      if (Number.isNaN(current)) return true;
+      if (Array.isArray(guard.allowed) && guard.allowed.length) {
+        return guard.allowed.some((s) => Number(s) === current);
+      }
+      if (Array.isArray(guard.blocked) && guard.blocked.length) {
+        return !guard.blocked.some((s) => Number(s) === current);
+      }
+      return true;
     },
 
     // Trigger a contributed action. Two flavours, decided by the descriptor:
