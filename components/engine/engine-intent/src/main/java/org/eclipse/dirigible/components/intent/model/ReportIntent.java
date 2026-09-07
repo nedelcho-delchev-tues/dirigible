@@ -216,6 +216,50 @@ public class ReportIntent {
         return measures;
     }
 
+    /**
+     * Whether the report AGGREGATES - a ledger kind, or any declared measure. Its rows are then groups,
+     * not records, which is what a {@code kind: count} dashboard widget must not confuse (dirigible
+     * #7102).
+     */
+    public boolean isAggregated() {
+        return isLedgerKind() || measures.stream()
+                                         .anyMatch(measure -> measure != null && !measure.isBlank());
+    }
+
+    /**
+     * The declared {@code count(*)} measure, or {@code null}. It is the one measure whose per-group
+     * values SUM to the report's record count, so it - and not the number of result rows - is what a
+     * {@code kind: count} widget over an aggregating report shows.
+     */
+    public String getCountMeasure() {
+        return measures.stream()
+                       .filter(ReportIntent::isCountAll)
+                       .findFirst()
+                       .orElse(null);
+    }
+
+    /**
+     * Whether the measure is {@code count(*)} - or {@code count()}, the spelling the generator treats
+     * alike - however it is spaced. Compared as a whitespace-free key rather than matched by a pattern:
+     * the expression is authored text, and a regex of adjacent {@code \s*} runs over it is a
+     * polynomial-backtracking surface for no gain.
+     */
+    private static boolean isCountAll(String measure) {
+        if (measure == null) {
+            return false;
+        }
+        StringBuilder compact = new StringBuilder(measure.length());
+        for (int i = 0; i < measure.length(); i++) {
+            char character = measure.charAt(i);
+            if (!Character.isWhitespace(character)) {
+                compact.append(character);
+            }
+        }
+        String key = compact.toString()
+                            .toLowerCase(Locale.ROOT);
+        return "count(*)".equals(key) || "count()".equals(key);
+    }
+
     public void setMeasures(List<String> measures) {
         this.measures = measures == null ? new ArrayList<>() : measures;
     }
