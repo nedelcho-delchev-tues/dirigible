@@ -4655,7 +4655,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             if (expression == null) {
                 return null;
             }
-            terms.add(Map.of("property", targetProp, "expr", expression));
+            terms.add(term("property", targetProp, "expr", expression));
         }
         return terms;
     }
@@ -4701,7 +4701,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
         if ("day".equals(period)) {
             // A single day needs no range - and rendering it as one would make the generated guard say
             // `between(today, today)` where the author wrote `run: day`.
-            return Map.of("property", property, "expr", TODAY);
+            return term("property", property, "expr", TODAY);
         }
         String lower = switch (period) {
             case "week" -> TODAY + ".with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))";
@@ -4719,7 +4719,29 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             case "quarter" -> ".plusMonths(3).minusDays(1)";
             default -> ".plusYears(1).minusDays(1)";
         };
-        return Map.of("kind", "range", "property", property, "lower", lower, "upper", upper);
+        return term("kind", "range", "property", property, "lower", lower, "upper", upper);
+    }
+
+    /**
+     * One key term, in the order its keys are written here. The glue is a serialized artifact a regen
+     * rewrites in place, so a term's byte order has to be a property of the intent and nothing else -
+     * {@code Map.of} iterates in an order derived from a per-JVM random salt, which made the same
+     * intent serialize {@code {property, expr}} on one container and {@code {expr, property}} on the
+     * next (issue #7130). A hunk like that carries no meaning, has to be read and explained on every
+     * regen sweep, and would defeat a byte-identity check between two generations of one intent.
+     *
+     * @param keysAndValues the term's keys and values, alternating, in declaration order
+     * @return the term, iterating in that order
+     */
+    private static Map<String, Object> term(Object... keysAndValues) {
+        if (keysAndValues.length % 2 != 0) {
+            throw new IllegalArgumentException("a term is written as key/value pairs, got " + keysAndValues.length + " arguments");
+        }
+        Map<String, Object> term = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < keysAndValues.length; i += 2) {
+            term.put(String.valueOf(keysAndValues[i]), keysAndValues[i + 1]);
+        }
+        return term;
     }
 
     /**
