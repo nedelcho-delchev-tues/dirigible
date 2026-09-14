@@ -251,6 +251,15 @@ public class LocalRegistryWatcher implements DisposableBean {
      * @throws IOException Signals that an I/O exception has occurred.
      */
     private void registerAll(final Path start) throws IOException {
+        if (isIgnored(start)) {
+            // A top-level ignored folder created at runtime reaches here directly (the walk's own
+            // isIgnored guard below only protects a folder that already existed when its ANCESTOR
+            // was registered) - without this, it would be watched for the rest of its life and every
+            // write inside it would force a synchronization pass, honouring the ignore list only for
+            // folders that happened to exist at boot.
+            logger.debug("Skipping ignored directory registration: {}", start);
+            return;
+        }
         register(start);
         Files.walkFileTree(start, new SimpleFileVisitor<>() {
             @Override
