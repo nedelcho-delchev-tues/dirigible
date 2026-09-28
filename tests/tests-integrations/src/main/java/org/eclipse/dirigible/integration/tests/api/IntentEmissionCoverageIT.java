@@ -2541,6 +2541,20 @@ class IntentEmissionCoverageIT extends IntegrationTest {
         String billHeaderRepository = contentOf("gen/emission/data/bill/BillRepository.java");
         assertTrue(billHeaderRepository.contains("totals.put(\"BalanceDue\", entity.BalanceDue)"),
                 "the totals recompute must persist the refreshed calculated field: " + billHeaderRepository);
+
+        // Frozen header card (#7501): Bill is the fixture's only MANAGE_DOCUMENT master carrying
+        // immutableWhen (function: Document + Status == 2), power-only (its Person relation carries
+        // no personal: true, so it has no my-surface). The card must render (not merely disable the
+        // edit form) and format each value through headerDisplay() rather than the raw form value -
+        // a DATE field (dueOn) is the one the review's "raw model values" finding named.
+        String billDocumentView = contentOf("gen/emission/views/Bill/Bill-document.html");
+        assertTrue(billDocumentView.contains("x-show=\"!mutable\""),
+                "immutableWhen on a MANAGE_DOCUMENT master must render the frozen header card, not only disable the edit form");
+        assertTrue(billDocumentView.contains("headerDisplay('DueOn')"),
+                "the frozen header card must read a DATE field through headerDisplay(), not print the raw form value");
+        String billDocumentPage = contentOf("gen/emission/js/components/pages/Bill/BillDocumentPage.js");
+        assertTrue(billDocumentPage.contains("case 'DueOn': return this.displayDate(v);"),
+                "headerDisplay() must format the DATE field through the instance date format: " + billDocumentPage);
         // A full-row update() PRESERVES the system-owned columns over the payload - and reports the
         // discard when the payload carried a value of its own that is not the stored one (#6937).
         // Silence there made a system writer on the wrong path indistinguishable from a working one:
