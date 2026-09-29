@@ -61,7 +61,7 @@
          (display:contents keeps the grid layout intact). -->
     <fieldset :disabled="!mutable" style="display: contents;">
 #end
-    <div class="grid grid-cols-1 sm:grid-cols-12 gap-4" style="max-width: 900px">
+    <div class="grid grid-cols-1 sm:grid-cols-12 gap-4" style="max-width: 900px"#if($immutableStatusProperty || $immutableAlways || $periodLock) x-show="mutable"#end>
 #foreach($property in $properties)
 #if(!$property.dataAutoIncrement && !$property.sensitiveProperty && $property.name != "ProcessId" && !$property.isHiddenProperty && (!$property.auditType || $property.auditType == "NONE") && $property.name != "Name" && $property.name != "$!{personalProperty}" && $property.isReadOnlyProperty != "true" && $property.widgetType != "DOCUMENT_STATUS" && !($property.widgetType == "DOCUMENT_NUMBER" && $property.numberSeries) && $property.aggregate != "true")
       <div x-h-field class="#if($property.widgetType =="MULTISELECT")col-span-12#elseif($property.widgetSize && $property.widgetSize != "")sm:col-span-${property.widgetSize}#{else}sm:col-span-6#end"#visibleGate($property) :data-invalid="fieldError === '${property.name}'">
@@ -149,6 +149,30 @@
     </div>
 #if($immutableStatusProperty || $immutableAlways || $periodLock)
     </fieldset>
+
+    <!-- ===== Frozen header summary (issue #7501): once immutableWhen fires, the tall edit grid
+         above (hidden by x-show="mutable" on it) is replaced by this concise Label:Value card - no
+         input chrome, no blank rows, two columns. Same property set the edit grid renders; each
+         value is formatted by headerDisplay() (my-document-page.js.template) - the same widget-aware
+         formatting displayItem gives a line cell - so a DROPDOWN/MULTISELECT shows its label(s), a
+         date/number its instance format, a checkbox Yes/No, and visibility is gated on that formatted
+         output rather than the raw form value (an empty MULTISELECT is an array, which a raw !== ''
+         test would not catch). -->
+    <div x-show="!mutable" x-h-card class="w-full" style="max-width: 900px">
+      <div x-h-card-content>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+#foreach($property in $properties)
+#if(!$property.dataAutoIncrement && !$property.sensitiveProperty && $property.name != "ProcessId" && !$property.isHiddenProperty && (!$property.auditType || $property.auditType == "NONE") && $property.name != "Name" && $property.name != "$!{personalProperty}" && $property.isReadOnlyProperty != "true" && $property.widgetType != "DOCUMENT_STATUS" && !($property.widgetType == "DOCUMENT_NUMBER" && $property.numberSeries) && $property.aggregate != "true")
+#if($property.widgetLabel)#set($frozenLabel = $property.widgetLabelJs)#else#set($frozenLabel = $property.name)#end
+          <div class="vbox" x-show="#if($property.roleRead)canSee('${property.name}') && #end headerDisplay('${property.name}') !== ''">
+            <span class="text-xs text-muted-foreground" x-text="T('$projectName:${tprefix}.t.${property.dataName}', '${frozenLabel}')"></span>
+            <span class="text-sm wrap-anywhere#if($property.widgetType == "TEXTAREA") whitespace-pre-wrap#end" x-text="headerDisplay('${property.name}')"></span>
+          </div>
+#end
+#end
+        </div>
+      </div>
+    </div>
 #end
 
 #if($documentItemsLayout == "chat")
