@@ -801,6 +801,9 @@ class ModelParameterProcessorTest {
                                                                                .get("entityClass"));
         assertEquals("gen.sales_order.data.expenses.ExpenseRepository", restrictors.get(0)
                                                                                    .get("repositoryClass"));
+        // The refusal names the referencing entity the way the page does, not by its raw identifier.
+        assertEquals("Expense", restrictors.get(0)
+                                           .get("referencingLabel"));
     }
 
     /** A restrictor naming an entity that was not generated is dropped, not emitted broken. */

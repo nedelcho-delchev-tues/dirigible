@@ -1012,6 +1012,10 @@ final class ModelParameterProcessor {
                 String referencingPackage = "gen." + str(parameters, "javaGenFolderName") + ".data." + referencingPerspective + ".";
                 restrictor.put("entityClass", referencingPackage + str(referencing, "name") + "Entity");
                 restrictor.put("repositoryClass", referencingPackage + str(referencing, "name") + "Repository");
+                // The refusal names the referencing entity the way a person reading the page knows it,
+                // not by its raw identifier - the same source the composition cascade's own refusal
+                // uses for its child.
+                restrictor.put("referencingLabel", strOr(referencing, "entityLabel", str(referencing, "name")));
                 resolved.add(restrictor);
             }
             entity.put("deleteRestrictors", resolved);

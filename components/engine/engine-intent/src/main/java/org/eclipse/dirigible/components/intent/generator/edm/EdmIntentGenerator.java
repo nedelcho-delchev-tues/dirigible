@@ -3004,7 +3004,10 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
                 continue; // an unnamed / skipped entity
             }
             for (RelationIntent relation : entity.getRelations()) {
-                if (!relation.isTargetDeleteRestricted()) {
+                if (!relation.isTargetDeleteRestricted() || relation.isCrossModel()) {
+                    // The parser refuses a cross-model whenTargetDeleted, so this only guards a
+                    // hand-authored model reaching the generator another way - the sweep must never
+                    // stamp a restrictor whose repository this model does not generate.
                     continue;
                 }
                 Map<String, Object> targetMap = builtByName.get(relation.getTo());

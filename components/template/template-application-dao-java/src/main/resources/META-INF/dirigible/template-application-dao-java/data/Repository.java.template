@@ -1440,17 +1440,26 @@ public class ${name}Repository extends JavaRepository<${name}Entity> {
      * {@code whenTargetDeleted: restrict}). Checked before any composition cascade, on both {@code
      * delete} and {@code deleteById} - a restricted reference is not this record's own child to sweep
      * away with it.
+     *
+     * <p>
+     * A read-then-act guard, like every other reference check the platform generates: a row inserted
+     * between this count and the delete is not seen. Closing that needs a database constraint, which
+     * this platform deliberately does not emit for a foreign key - referential integrity is a
+     * business-layer check here.
      */
     private void requireNotReferenced(Object id) {
         if (id == null) {
             return;
         }
 #foreach($restrictor in $deleteRestrictors)
-        if (!new ${restrictor.repositoryClass}()
+        int ${restrictor.referencingEntity}Referencing = new ${restrictor.repositoryClass}()
                 .findAll(org.eclipse.dirigible.components.data.store.java.repository.Criteria.create().eq("${restrictor.fkProperty}", id))
-                .isEmpty()) {
-            throw new DeleteRestrictionException(
-                    "This ${entityLabel} is referenced by ${restrictor.referencingEntity} records and cannot be deleted");
+                .size();
+        if (${restrictor.referencingEntity}Referencing > 0) {
+            // The count is the caller's next question - "what still points at this?" - so the refusal
+            // answers it rather than making them go and look.
+            throw new DeleteRestrictionException("This ${entityLabel} is referenced by " + ${restrictor.referencingEntity}Referencing
+                    + " ${restrictor.referencingLabel} record(s) and cannot be deleted");
         }
 #end
     }

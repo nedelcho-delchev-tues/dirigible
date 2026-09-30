@@ -52,6 +52,11 @@ class DeleteRestrictorRepositoryTemplateIT {
                 "the guard must construct the REFERENCING entity's repository directly: " + rendered);
         assertTrue(rendered.contains(".eq(\"Category\", id))"), "the guard must query by the referencing entity's own FK property");
         assertTrue(rendered.contains("throw new DeleteRestrictionException("), "a non-empty match must refuse the delete");
+        // The issue asks the refusal to name the referencing entity AND its count.
+        assertTrue(rendered.contains(".size();"), "the guard must count the referencing rows, not just test emptiness");
+        assertTrue(rendered.contains("is referenced by \" + ExpenseReferencing"), "the refusal must carry the count: " + rendered);
+        assertTrue(rendered.contains("Expense record(s) and cannot be deleted"),
+                "the refusal must name the referencing entity by its label: " + rendered);
 
         // Called at the very top of BOTH verbs, before any composition cascade.
         int deleteBody = rendered.indexOf("public void delete(ExpenseCategoryEntity entity) {");
@@ -99,6 +104,7 @@ class DeleteRestrictorRepositoryTemplateIT {
         restrictor.put("fkProperty", "Category");
         restrictor.put("entityClass", "gen.expenses.data.expenses.ExpenseEntity");
         restrictor.put("repositoryClass", "gen.expenses.data.expenses.ExpenseRepository");
+        restrictor.put("referencingLabel", "Expense");
         return restrictor;
     }
 
