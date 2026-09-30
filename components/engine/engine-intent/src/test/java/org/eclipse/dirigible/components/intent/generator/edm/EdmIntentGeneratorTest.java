@@ -835,17 +835,23 @@ class EdmIntentGeneratorTest {
         Map<String, Object> request = entityByName(entities(model), "VacationRequest");
         assertEquals("Status", request.get("workflowStatusProperty"));
         assertEquals("1", request.get("workflowStatusInitial"));
+        // A process COMPUTES the column, so #7339's wholesale claim is unchanged: not preserve-only,
+        // so a differing value is still refused.
+        assertNull(request.get("workflowStatusPreserveOnly"));
         // Same status nomenclature, no flow over it - an ordinary writable column.
         assertNull(entityByName(entities(model), "Employee").get("workflowStatusProperty"));
     }
 
     /**
-     * A {@code transitions:} button does NOT claim the column: it is a user action over the status, and
-     * the construct that guards the other hand writes is {@code lifecycle:}, enforced in the repository
-     * - whose refusal would be observable from nowhere if the plain write were closed here.
+     * A {@code transitions:} button claims the column (#7553): the button carries its target seed id
+     * itself, so a plain PUT of that same value is a bypass of the button's own {@code from:}/{@code
+     * when:} guards, not a parallel legitimate write. The button's own write (the generated
+     * {@code Transition} controller) reaches the repository through the targeted {@code updateProperty}
+     * primitive, never through the entity controller this guard sits on, so refusing it here costs the
+     * button nothing.
      */
     @Test
-    void aTransitionAloneLeavesTheStatusWritable() {
+    void aTransitionTargetedStatusIsEmittedAsWorkflowOwned() {
         String yaml = """
                 name: ledger
                 entities:
@@ -863,7 +869,85 @@ class EdmIntentGeneratorTest {
                   - { name: void, forEntity: JournalEntry, from: [1], setStatus: 2, label: Void }
                 """;
         Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "ledger");
-        assertNull(entityByName(entities(model), "JournalEntry").get("workflowStatusProperty"));
+        Map<String, Object> entry = entityByName(entities(model), "JournalEntry");
+        assertEquals("Status", entry.get("workflowStatusProperty"));
+        assertEquals("1", entry.get("workflowStatusInitial"));
+        // A button writes one declared seed id rather than computing the column, so it earns the
+        // PRESERVE half only - an omitted status is kept instead of nulled, and nothing is refused.
+        assertEquals("true", entry.get("workflowStatusPreserveOnly"));
+    }
+
+    /**
+     * The transition case is preserve-only however many buttons the entity carries: refusing a value a
+     * button happens to write would take away the plain update path a gated {@code checks:} rule is
+     * enforced on, whose gate status is normally exactly that value.
+     */
+    @Test
+    void severalTransitionsStillOnlyPreserveTheColumn() {
+        String yaml = """
+                name: ledger
+                entities:
+                  - name: EntryStatus
+                    kind: setting
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string }
+                  - name: JournalEntry
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: Status, kind: manyToOne, to: EntryStatus, function: EntityStatus, init: 1 }
+                transitions:
+                  - { name: void, forEntity: JournalEntry, from: [1], setStatus: 3, label: Void }
+                  - { name: close, forEntity: JournalEntry, from: [1], setStatus: 4, label: Close }
+                """;
+        Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "ledger");
+        Map<String, Object> entry = entityByName(entities(model), "JournalEntry");
+        assertEquals("Status", entry.get("workflowStatusProperty"));
+        assertEquals("true", entry.get("workflowStatusPreserveOnly"));
+    }
+
+    /**
+     * A capacity roll-up's {@code status:} is the roll-up's column, exactly as a {@code processes:}
+     * step's is the flow's (#7553): the roll-up recomputes it via the targeted {@code updateDerived}
+     * primitive as payments arrive, so a plain PUT that jumps the invoice straight to PAID - or omits
+     * the column and nulls it - bypasses that computation entirely.
+     */
+    @Test
+    void aRollupOwnedStatusIsEmittedAsWorkflowOwned() {
+        String yaml = """
+                name: sales
+                entities:
+                  - name: InvoiceStatus
+                    kind: setting
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string }
+                  - name: Invoice
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: total, type: decimal }
+                      - { name: paid, type: decimal }
+                      - { name: balance, type: decimal }
+                    relations:
+                      - { name: Status, kind: manyToOne, to: InvoiceStatus, function: EntityStatus, init: 1 }
+                  - name: Payment
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: amount, type: decimal }
+                    relations:
+                      - { name: invoice, kind: manyToOne, to: Invoice }
+                rollups:
+                  - { name: invoicePaid, entity: Payment, via: invoice, field: paid, op: sum, of: amount,
+                      capacity: total, balance: balance, status: Status, statusWhenFull: 3, statusWhenPartial: 4 }
+                """;
+        Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "sales");
+        Map<String, Object> invoice = entityByName(entities(model), "Invoice");
+        assertEquals("Status", invoice.get("workflowStatusProperty"));
+        assertEquals("1", invoice.get("workflowStatusInitial"));
+        // A roll-up COMPUTES the column, so it claims the whole of it - not preserve-only, exactly as a
+        // process-owned status behaves since #7339.
+        assertNull(invoice.get("workflowStatusPreserveOnly"));
     }
 
     @Test
