@@ -73,6 +73,8 @@ class EdmIntentGeneratorTest {
         // the four audit columns are present.
         assertEquals("true", propertyByName(customer, "Uuid").get("dataUnique"));
         assertEquals("true", propertyByName(customer, "Uuid").get("generatedUuid"));
+        // A plain `type: uuid` field carries no numbering marker - it may be seeded/imported (#7548).
+        assertNull(propertyByName(customer, "Uuid").get("numberStampOnIssue"));
         assertEquals("CREATED_AT", propertyByName(customer, "CreatedAt").get("auditType"));
         assertEquals("UPDATED_BY", propertyByName(customer, "UpdatedBy").get("auditType"));
 
@@ -102,11 +104,16 @@ class EdmIntentGeneratorTest {
         assertEquals("SalesInvoice", siNumber.get("numberSeries"));
         assertEquals("true", siNumber.get("generatedUuid"));
         assertNull(siNumber.get("numberStampOnCreate"));
+        // ...and is marked apart from a plain `type: uuid` field (#7548): the generated repository must
+        // discard a client-supplied placeholder value on create, which a legitimately seeded/imported
+        // uuid field must not.
+        assertEquals("true", siNumber.get("numberStampOnIssue"));
 
         // stampOn: create -> the real number is stamped on insert (numberStampOnCreate), no placeholder.
         Map<String, Object> pfNumber = propertyByName(entityByName(entities, "Proforma"), "Number");
         assertEquals("true", pfNumber.get("numberStampOnCreate"));
         assertNull(pfNumber.get("generatedUuid"));
+        assertNull(pfNumber.get("numberStampOnIssue"));
         // Neither carries a documentary `numberStampOn`: an attribute no template and no generation
         // stage reads is a liability, not documentation (#6543).
         assertNull(siNumber.get("numberStampOn"));
