@@ -833,12 +833,15 @@ class EdmIntentGeneratorTest {
     }
 
     /**
-     * A {@code transitions:} button does NOT claim the column: it is a user action over the status, and
-     * the construct that guards the other hand writes is {@code lifecycle:}, enforced in the repository
-     * - whose refusal would be observable from nowhere if the plain write were closed here.
+     * A {@code transitions:} button claims the column (#7553): the button carries its target seed id
+     * itself, so a plain PUT of that same value is a bypass of the button's own {@code from:}/{@code
+     * when:} guards, not a parallel legitimate write. The button's own write (the generated
+     * {@code Transition} controller) reaches the repository through the targeted {@code updateProperty}
+     * primitive, never through the entity controller this guard sits on, so refusing it here costs the
+     * button nothing.
      */
     @Test
-    void aTransitionAloneLeavesTheStatusWritable() {
+    void aTransitionTargetedStatusIsEmittedAsWorkflowOwned() {
         String yaml = """
                 name: ledger
                 entities:
@@ -856,7 +859,49 @@ class EdmIntentGeneratorTest {
                   - { name: void, forEntity: JournalEntry, from: [1], setStatus: 2, label: Void }
                 """;
         Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "ledger");
-        assertNull(entityByName(entities(model), "JournalEntry").get("workflowStatusProperty"));
+        Map<String, Object> entry = entityByName(entities(model), "JournalEntry");
+        assertEquals("Status", entry.get("workflowStatusProperty"));
+        assertEquals("1", entry.get("workflowStatusInitial"));
+    }
+
+    /**
+     * A capacity roll-up's {@code status:} is the roll-up's column, exactly as a {@code processes:}
+     * step's is the flow's (#7553): the roll-up recomputes it via the targeted {@code updateDerived}
+     * primitive as payments arrive, so a plain PUT that jumps the invoice straight to PAID - or omits
+     * the column and nulls it - bypasses that computation entirely.
+     */
+    @Test
+    void aRollupOwnedStatusIsEmittedAsWorkflowOwned() {
+        String yaml = """
+                name: sales
+                entities:
+                  - name: InvoiceStatus
+                    kind: setting
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string }
+                  - name: Invoice
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: total, type: decimal }
+                      - { name: paid, type: decimal }
+                      - { name: balance, type: decimal }
+                    relations:
+                      - { name: Status, kind: manyToOne, to: InvoiceStatus, function: EntityStatus, init: 1 }
+                  - name: Payment
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: amount, type: decimal }
+                    relations:
+                      - { name: invoice, kind: manyToOne, to: Invoice }
+                rollups:
+                  - { name: invoicePaid, entity: Payment, via: invoice, field: paid, op: sum, of: amount,
+                      capacity: total, balance: balance, status: Status, statusWhenFull: 3, statusWhenPartial: 4 }
+                """;
+        Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "sales");
+        Map<String, Object> invoice = entityByName(entities(model), "Invoice");
+        assertEquals("Status", invoice.get("workflowStatusProperty"));
+        assertEquals("1", invoice.get("workflowStatusInitial"));
     }
 
     @Test
