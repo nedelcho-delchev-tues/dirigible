@@ -2822,11 +2822,12 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
      * that property is synthesized rather than authored, and the parser refuses a cell or a
      * {@code map:} key naming anything but an authored field or to-one.)</li>
      * <li>{@code compareOnlyWhenDerived} - the column is filled only when the write leaves it empty: a
-     * {@code uuid} field, or a {@code number:} field (a {@code stampOn: create} allocation, or the UUID
-     * placeholder a {@code stampOn: issue} carries until the issue step). A value the rule does derive
-     * is stored verbatim and still says what it always said; an empty one is answered by a value no
-     * handler can derive - a fresh UUID, the next number in the series - so it asserts nothing. The
-     * same treatment, and the same generated helper, as a default only the database can apply.</li>
+     * {@code uuid} field. A value the rule does derive is stored verbatim and still says what it always
+     * said; an empty one is answered by a value no handler can derive - a fresh UUID - so it asserts
+     * nothing. The same treatment, and the same generated helper, as a default only the database can
+     * apply. A {@code number:} field used to be here and is NOT any more: since #7548 the create
+     * discards what the payload carried and allocates its own, which makes it an unconditional fill
+     * belonging to the bucket above.</li>
      * </ul>
      *
      * @param target the map to write the keys onto - {@code compareOnlyWhenDerived} is raised on top of
@@ -2859,6 +2860,15 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
         } else if (updatedOnRewrite && (field.isAggregate() || field.isReadOnly())) {
             fill = "preserves from the stored row on every rewrite of the post - the assigned value is kept only until the first"
                     + " amendment";
+        } else if (field.getNumber() != null) {
+            // Since #7548 the create DISCARDS whatever the payload carried in a `number:` column and
+            // fills it itself - the series allocation for `stampOn: create`, the placeholder a
+            // `stampOn: issue` carries until the issue step. So it is an unconditional fill like the
+            // ones above, not the fill-when-empty one below: left in the comparison it would compare a
+            // derived expression against a value the write never stores, and no redelivery could ever
+            // clear the mismatch.
+            fill = "allocates its own value on create, discarding what the payload carried (#7548) - the assigned value is never"
+                    + " stored";
         }
         if (fill != null) {
             target.put("overwrittenOnSave", true);
@@ -2870,7 +2880,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             }
             return;
         }
-        if ("uuid".equalsIgnoreCase(field.getType()) || field.getNumber() != null) {
+        if ("uuid".equalsIgnoreCase(field.getType())) {
             target.put("compareOnlyWhenDerived", true);
         }
     }

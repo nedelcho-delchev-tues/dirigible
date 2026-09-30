@@ -231,10 +231,11 @@ class GluePostingsAmendTest {
 
     @Test
     void aColumnTheWriteFillsOnlyWhenEmptyIsComparedOnlyForTheRowsThatDeriveIt() {
-        // The conditional half of the same class: a uuid (and a `number:` field, the same auto-fill) is
-        // assigned by the write only when the row leaves it empty. A value the rule does derive is
-        // stored verbatim and still says what it said; an empty one is answered by a value no handler
-        // can derive, so it asserts nothing - the treatment a database-only default already gets.
+        // The conditional half of the same class: a uuid is assigned by the write only when the row
+        // leaves it empty. A value the rule does derive is stored verbatim and still says what it said;
+        // an empty one is answered by a value no handler can derive, so it asserts nothing - the
+        // treatment a database-only default already gets. A `number:` field was in this bucket until
+        // #7548 made its create discard the payload's value unconditionally; see the test below.
         Map<String, Object> posting =
                 postingOf(yaml(WITH_STATUS)
                                            .replace("      - { name: credit, type: decimal, precision: 18, scale: 2, defaultValue: 0 }",
@@ -244,6 +245,27 @@ class GluePostingsAmendTest {
                                                    "- { Account: rule(revenueAccount), credit: \"Net\", reference: \"Reference\" }"));
         assertEquals(Boolean.TRUE, comparedProperty(posting, "Reference").get("compareOnlyWhenDerived"));
         assertEquals(Boolean.FALSE, comparedProperty(posting, "Reference").get("overwrittenOnSave"));
+    }
+
+    /**
+     * A {@code number:} column is filled UNCONDITIONALLY since #7548 - the create discards whatever the
+     * payload carried and allocates its own - so it must be dropped from the comparison entirely, like
+     * every other unconditional fill. Left in it (as the fill-when-empty bucket it used to share with
+     * {@code uuid}), the comparison would hold a derived expression against a value the write never
+     * stores, and no redelivery could clear the mismatch: the posting would rewrite itself forever.
+     */
+    @Test
+    void aNumberColumnTheWriteAlwaysAllocatesIsNotCompared() {
+        Map<String, Object> posting =
+                postingOf(yaml(WITH_STATUS)
+                                           .replace("      - { name: credit, type: decimal, precision: 18, scale: 2, defaultValue: 0 }",
+                                                   "      - { name: credit, type: decimal, precision: 18, scale: 2, defaultValue: 0 }\n"
+                                                           + "      - { name: docNumber, type: string, length: 32,"
+                                                           + " number: { series: Journal Entry, stampOn: create } }")
+                                           .replace("- { Account: rule(revenueAccount), credit: \"Net\" }",
+                                                   "- { Account: rule(revenueAccount), credit: \"Net\", docNumber: \"Reference\" }"));
+        assertEquals(Boolean.TRUE, comparedProperty(posting, "DocNumber").get("overwrittenOnSave"));
+        assertEquals(Boolean.FALSE, comparedProperty(posting, "DocNumber").get("compareOnlyWhenDerived"));
     }
 
     @Test
