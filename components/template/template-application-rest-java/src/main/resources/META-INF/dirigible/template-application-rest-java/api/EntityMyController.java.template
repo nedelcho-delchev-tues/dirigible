@@ -1,3 +1,14 @@
+## System-owned columns a CREATE must not take from the payload (#7549) - the create-side mirror of
+## the `preservedOnUpdate` set update() already honours: platform-managed read-only fields (an
+## author's readOnly:, roll-up targets) and aggregate footer fields (an invoice's Net / Total / Paid).
+## An aggregate recomputed on update is exempt for the same reason it is there, and the numbering /
+## uuid placeholders keep their own fill logic (#7548).
+#set($haveSystemOwnedOnCreate = false)
+#foreach($property in $properties)
+#if(!$property.dataPrimaryKey && !$property.generatedUuid && !$property.numberStampOnCreate && ($property.isReadOnlyProperty || ($property.aggregate && !$property.calculatedPropertyExpressionUpdate && !$property.calculatedActionOnUpdate)))
+#set($haveSystemOwnedOnCreate = true)
+#end
+#end
 package gen.${javaGenFolderName}.api.${javaPerspectiveName};
 
 ## A duplicate is the same refusal whichever door the caller used: a collision with a business key is
@@ -196,6 +207,9 @@ public class ${name}MyController {
 #end
 #if($masterLock)
         requireMasterMutable(entity.${masterLock.fkProperty});
+#end
+#if($haveSystemOwnedOnCreate)
+        dropSystemOwnedOnCreate(entity);
 #end
 #if($periodLock)
         // Nothing new may be filed into a closed period either - that is what closing one means.
@@ -1039,4 +1053,23 @@ public class ${name}MyController {
         }
         return false;
     }
+
+#if($haveSystemOwnedOnCreate)
+    // The create half of the system-owned column rule (#7549). update() takes these from the stored
+    // row rather than the payload; a POST used to store whatever it carried, so a client could set a
+    // ticket's Solution, or a payslip's Net, and have it survive into the totals and the reports.
+    //
+    // It lives HERE rather than in the repository on purpose: this is a rule about what a USER may
+    // hand in, like `immutableWhen:`, `visibleTo:` and the workflow-owned status - not a business
+    // invariant like `checks:` or `lifecycle:`. The generated system writers (a create-from, a
+    // posting, an arrival) create rows through the repository and never through this controller, so
+    // the values the MODEL tells them to assign are kept, which is the trusted path the rule needs.
+    private void dropSystemOwnedOnCreate(${name}Entity entity) {
+#foreach($property in $properties)
+#if(!$property.dataPrimaryKey && !$property.generatedUuid && !$property.numberStampOnCreate && ($property.isReadOnlyProperty || ($property.aggregate && !$property.calculatedPropertyExpressionUpdate && !$property.calculatedActionOnUpdate)))
+        entity.${property.name} = null;
+#end
+#end
+    }
+#end
 }
