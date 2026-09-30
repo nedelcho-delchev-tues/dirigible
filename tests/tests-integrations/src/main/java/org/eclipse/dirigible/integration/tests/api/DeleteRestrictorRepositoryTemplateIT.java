@@ -59,7 +59,7 @@ class DeleteRestrictorRepositoryTemplateIT {
         assertTrue(deleteBody >= 0 && deleteByIdBody >= 0, "both delete verbs must be present: " + rendered);
         assertTrue(rendered.substring(deleteBody, rendered.indexOf('\n', deleteBody + 60))
                            .contains("requireNotReferenced")
-                        || rendered.indexOf("requireNotReferenced(entity.Id);") > deleteBody, "delete(entity) must call the guard first");
+                || rendered.indexOf("requireNotReferenced(entity.Id);") > deleteBody, "delete(entity) must call the guard first");
         assertTrue(rendered.indexOf("requireNotReferenced(id);") > deleteByIdBody, "deleteById(id) must call the guard first");
 
         assertNoUnresolvedReferences(rendered);
