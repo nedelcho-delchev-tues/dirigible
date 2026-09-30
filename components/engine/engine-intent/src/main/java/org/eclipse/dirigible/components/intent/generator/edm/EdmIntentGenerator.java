@@ -1291,6 +1291,10 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
             // generation stage - exactly the unconsumed attribute the audit now reports (#6543).
             if ("issue".equalsIgnoreCase(number.getStampOn())) {
                 p.put("generatedUuid", "true"); // UUID placeholder on create; stamped at the issue step
+                // Distinguishes this placeholder from a plain `type: uuid` field, which shares the same
+                // generatedUuid fill-when-blank mechanism but - unlike a numbering placeholder - may
+                // legitimately be seeded/imported with an explicit value (dirigible #7548).
+                p.put("numberStampOnIssue", "true");
             } else {
                 p.put("numberStampOnCreate", "true"); // real number allocated + formatted on insert
             }
