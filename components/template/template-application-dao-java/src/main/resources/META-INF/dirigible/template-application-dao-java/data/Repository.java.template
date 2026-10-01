@@ -706,7 +706,7 @@ public class ${name}Repository extends JavaRepository<${name}Entity> {
 #end
         return updated;
     }
-#if(($documentChecks && $documentChecks.size() > 0) || $hasLabel || $lifecycleEdges || $history == "true" || $documentItem || ($groupingKeys && $groupingKeys.size() > 0))
+#if(($documentChecks && $documentChecks.size() > 0) || $hasLabel || $lifecycleEdges || $history == "true" || $documentItem || $hasGatedRollupGuards || ($groupingKeys && $groupingKeys.size() > 0))
 
     /**
      * Targeted single-column write with this entity's semantics preserved: routed through
