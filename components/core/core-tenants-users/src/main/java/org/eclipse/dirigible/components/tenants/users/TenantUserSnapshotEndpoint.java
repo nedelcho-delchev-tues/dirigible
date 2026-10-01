@@ -15,7 +15,6 @@ import org.eclipse.dirigible.components.base.endpoint.BaseEndpoint;
 import org.eclipse.dirigible.components.tenants.provisioning.external.TenantProvisioningApiEnabledCondition;
 import org.eclipse.dirigible.components.tenants.provisioning.external.TenantProvisioningRoles;
 import org.springframework.context.annotation.Conditional;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,15 +22,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.annotation.security.RolesAllowed;
-import jakarta.validation.Valid;
 
 /**
- * The users callback of the tenant provisioning API: an external provisioning system records here
- * what it did for a user - invited them, assigned them a role, or failed - so a tenant owner sees
- * it in the application without the application ever calling that system.
+ * The users snapshot endpoint of the tenant provisioning API: the external provisioning system -
+ * the source of truth of who belongs to a tenant - writes its users here, either the ones that
+ * changed or, with {@code complete: true}, the tenant's full list. A tenant owner then sees them in
+ * the application without the application ever calling that system.
  *
  * <p>
  * It exists exactly when the tenant provisioning API does, behind the same roles, and its URL is
@@ -41,43 +41,43 @@ import jakarta.validation.Valid;
 @RequestMapping(BaseEndpoint.PREFIX_ENDPOINT_TENANT_PROVISIONING + "tenants/{tenantId}/users")
 @RolesAllowed({TenantProvisioningRoles.TENANT_PROVISIONER, TenantProvisioningRoles.ADMINISTRATOR, TenantProvisioningRoles.OPERATOR})
 @Conditional(TenantProvisioningApiEnabledCondition.class)
-class ApplicationUserProvisioningEndpoint extends BaseEndpoint {
+class TenantUserSnapshotEndpoint extends BaseEndpoint {
 
-    /** The service. */
-    private final ApplicationUserService service;
+    /** The replica. */
+    private final TenantUserReplicaService replica;
 
     /**
      * Instantiates the endpoint.
      *
-     * @param service the service
+     * @param replica the replica
      */
-    ApplicationUserProvisioningEndpoint(ApplicationUserService service) {
-        this.service = service;
+    TenantUserSnapshotEndpoint(TenantUserReplicaService replica) {
+        this.replica = replica;
     }
 
     /**
-     * Records the outcome of a request for a user.
+     * Applies the provisioning system's users. Answers 200 whatever the counters: a user whose revision
+     * is not newer is ignored, which is normal, never an error.
      *
      * @param tenantId the tenant id
-     * @param upsert the outcome
-     * @return 201 when the user was created, 200 when it existed
+     * @param body the users
+     * @return what the apply did
      */
     @PutMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<ApplicationUserState> record(@PathVariable("tenantId") String tenantId,
-            @Valid @RequestBody ApplicationUserUpsert upsert) {
-        ApplicationUserService.CallbackResult result = service.applyCallback(tenantId, upsert);
-        return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
-                             .body(result.state());
+    ResponseEntity<TenantUserSync.Result> apply(@PathVariable("tenantId") String tenantId, @RequestBody TenantUserSync body) {
+        return ResponseEntity.ok(replica.apply(tenantId, body));
     }
 
     /**
-     * The users of a tenant.
+     * The users of a tenant, for diagnostics.
      *
      * @param tenantId the tenant id
-     * @return the users
+     * @param includeRemoved whether the hidden tombstones are included
+     * @return the users, by email
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<List<ApplicationUserState>> list(@PathVariable("tenantId") String tenantId) {
-        return ResponseEntity.ok(service.listOf(tenantId));
+    ResponseEntity<List<TenantUserView>> list(@PathVariable("tenantId") String tenantId,
+            @RequestParam(name = "includeRemoved", defaultValue = "false") boolean includeRemoved) {
+        return ResponseEntity.ok(replica.list(tenantId, includeRemoved));
     }
 }
