@@ -2631,6 +2631,62 @@ class EdmIntentGeneratorTest {
     }
 
     @Test
+    // whenTargetDeleted: restrict (#7547) is authored on the REFERENCING side, so its own sweep
+    // stamps the reverse index onto the TARGET - facts only (which entity, which FK), never a URL or
+    // a package: those are resolved once at Java-generation time.
+    void whenTargetDeletedEmitsTheReverseIndexOnItsTarget() {
+        String yaml = """
+                name: expenses
+                entities:
+                  - name: ExpenseCategory
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string, required: true }
+                  - name: Expense
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: amount, type: decimal }
+                    relations:
+                      - { name: category, kind: manyToOne, to: ExpenseCategory, required: true, whenTargetDeleted: restrict }
+                """;
+        Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "expenses");
+        List<Map<String, Object>> entities = entities(model);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> restrictors =
+                (List<Map<String, Object>>) entityByName(entities, "ExpenseCategory").get("deleteRestrictors");
+        assertEquals(1, restrictors.size());
+        assertEquals("Expense", restrictors.get(0)
+                                           .get("referencingEntity"));
+        assertEquals("Category", restrictors.get(0)
+                                            .get("fkProperty"));
+
+        // Nothing is stamped on the declaring (Expense) side - the reverse index lives only on the
+        // target, which is the entity whose delete gets guarded.
+        assertNull(entityByName(entities, "Expense").get("deleteRestrictors"));
+    }
+
+    @Test
+    // No whenTargetDeleted anywhere -> no attribute at all, so an existing model regenerates
+    // byte-identically.
+    void noWhenTargetDeletedEmitsNoDeleteRestrictors() {
+        String yaml = """
+                name: expenses
+                entities:
+                  - name: ExpenseCategory
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                  - name: Expense
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: category, kind: manyToOne, to: ExpenseCategory, required: true }
+                """;
+        Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "expenses");
+        assertNull(entityByName(entities(model), "ExpenseCategory").get("deleteRestrictors"));
+    }
+
+    @Test
     // `related:` emits a read-only register carrying the source's key, its back-reference and the
     // metadata its columns render from - and no URL, which belongs to the generation parameters.
     void relatedEmitsTheReverseOfTheIncomingAssociation() {
