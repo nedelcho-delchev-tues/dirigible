@@ -460,6 +460,7 @@ public final class IntentParser {
             validateSnapshotLanguage(entity, model, compositionParent, issues);
             validateSnapshotFileName(entity, model, compositionParent, issues);
             validateLocksWithMaster(entity, model, compositionParent, issues);
+            validateVisibleWhen(entity, model, compositionParent, issues);
             for (FieldIntent field : entity.getFields()) {
                 String ff = field.getFunction();
                 if (ff != null && !ff.isBlank() && !FIELD_FUNCTIONS.contains(ff.trim()
@@ -3710,6 +3711,81 @@ public final class IntentParser {
         }
     }
 
+    /**
+     * Validate {@code visibleWhen} (dirigible #7502), the status gate on what the generated views show.
+     *
+     * <p>
+     * On a field, the condition reads the record's own fields and to-one relations - the terms the form
+     * holds. On an entity, it gates that entity's detail panel on its composition MASTER's page, so it
+     * is only meaningful on a composition child, is read against the master record the page holds, and
+     * its terms are the master's. The line-items table of a document master is the document itself, not
+     * a detail panel, so it cannot carry one either. Each term is held to the {@code requiredWhen}
+     * grammar ({@code ==} / {@code !=}, ANDed in the list form) by the same validator: a condition the
+     * page cannot evaluate would hide the field or panel for good, or never - with every step green.
+     *
+     * <p>
+     * A {@code required} field cannot carry one: until the condition holds, the create form would
+     * demand a value from an input it does not show. The status-gated form of "required" is a
+     * {@code requiredWhen} check, which is also what enforces it.
+     */
+    private static void validateVisibleWhen(EntityIntent entity, IntentModel model, Map<String, String> compositionParent,
+            List<String> issues) {
+        String name = entity.getName();
+        Map<String, EntityIntent> byName = IntentEntities.byName(model);
+        for (FieldIntent field : entity.getFields()) {
+            if (field.getVisibleWhen() == null) {
+                continue;
+            }
+            String subject = "entity [" + name + "] field [" + field.getName() + "] visibleWhen";
+            if (field.isPrimaryKey()) {
+                issues.add(subject + " - the primary key is never rendered as an input, so there is nothing to hide");
+                continue;
+            }
+            if (field.isRequired()) {
+                issues.add(subject + " - the field is required, so the create form would demand a value from an input it hides;"
+                        + " drop `required` and declare a status-gated `checks: requiredWhen` instead");
+            }
+            validateVisibleWhenTerms(entity, byName, field.getVisibleWhen(), subject, issues);
+        }
+        if (entity.getVisibleWhen() == null) {
+            return;
+        }
+        String subject = "entity [" + name + "] visibleWhen";
+        String master = compositionParent.get(name);
+        if (master == null) {
+            issues.add(subject + " gates a detail panel on its master's page, but [" + name + "] is not a composition child"
+                    + " - declare it on the child collection, or put visibleWhen on a field");
+            return;
+        }
+        EntityIntent parent = entityByName(model, master);
+        if (parent == null) {
+            issues.add(subject + " reads its composition master [" + master + "], which is not an entity of this model");
+            return;
+        }
+        if (name.equals(IntentEntities.documentMasters(model.getEntities(), compositionParent)
+                                      .get(master))) {
+            issues.add(subject + " - [" + name + "] is the line items of document [" + master
+                    + "], which the document page renders as the document itself, not as a detail panel");
+            return;
+        }
+        validateVisibleWhenTerms(parent, byName, entity.getVisibleWhen(), subject, issues);
+    }
+
+    private static void validateVisibleWhenTerms(EntityIntent record, Map<String, EntityIntent> byName, Object when, String subject,
+            List<String> issues) {
+        if (!(when instanceof String) && !(when instanceof List<?>)) {
+            issues.add(subject + " must be a condition string or a list of them, e.g. `visibleWhen: \"Status != DRAFT\"`");
+            return;
+        }
+        List<String> terms = CheckSupport.terms(when);
+        if (terms.isEmpty()) {
+            issues.add(subject + " must not be an empty list");
+        }
+        for (String term : terms) {
+            validateGuardTerm(record, byName, term, subject, issues);
+        }
+    }
+
     private static boolean locksItself(EntityIntent entity) {
         return Boolean.TRUE.equals(entity.getImmutable()) || (entity.getImmutableWhen() != null && !entity.getImmutableWhen()
                                                                                                           .isBlank());
@@ -4222,6 +4298,7 @@ public final class IntentParser {
                     issues.add("entity [" + entity.getName() + "] relation [" + relation.getName() + "] points to unknown entity ["
                             + relation.getTo() + "]");
                 }
+                validateWhenTargetDeleted(entity, relation, crossModel, issues);
                 if (relation.getDependsOn() != null) {
                     String subject = "entity [" + entity.getName() + "] relation [" + relation.getName() + "]";
                     boolean toOne = "manyToOne".equals(relation.getKind()) || "oneToOne".equals(relation.getKind());
@@ -4435,6 +4512,9 @@ public final class IntentParser {
         }
         if (!isBlank(relation.getWhenMasterDeleted())) {
             unsupported.add("whenMasterDeleted");
+        }
+        if (!isBlank(relation.getWhenTargetDeleted())) {
+            unsupported.add("whenTargetDeleted");
         }
         if (relation.getPickable() != null) {
             unsupported.add("pickable");
@@ -5127,6 +5207,48 @@ public final class IntentParser {
                 }
                 return;
             }
+        }
+    }
+
+    /**
+     * {@code whenTargetDeleted: restrict} on a to-one association refuses a DELETE of the TARGET while
+     * this entity still references it, naming both entities and the count (v1 same-model only - the
+     * generated repository constructs the target's repository directly, which a cross-model reference
+     * cannot resolve; the cross-model case is deferred follow-up work). Valid only on a
+     * manyToOne/oneToOne that is NOT a composition - composition already answers "what happens to my
+     * children when I, the master, am deleted" through {@link #validateWhenMasterDeleted}, and this key
+     * is the opposite direction: what happens to ME when the entity I POINT AT is deleted.
+     *
+     * @param entity the entity declaring the relation
+     * @param relation the relation
+     * @param crossModel whether the relation targets another intent model
+     * @param issues the issue list to add to
+     */
+    private static void validateWhenTargetDeleted(EntityIntent entity, RelationIntent relation, boolean crossModel, List<String> issues) {
+        String whenTargetDeleted = relation.getWhenTargetDeleted();
+        if (whenTargetDeleted == null) {
+            return;
+        }
+        String subject = "entity [" + entity.getName() + "] relation [" + relation.getName() + "]";
+        String value = whenTargetDeleted.trim();
+        if (!"restrict".equals(value)) {
+            issues.add(subject + " whenTargetDeleted [" + whenTargetDeleted
+                    + "] must be `restrict` (refuse the target's delete while this relation still references it) - `nullify`/`cascade` are not supported yet");
+            return;
+        }
+        if (!"manyToOne".equals(relation.getKind()) && !"oneToOne".equals(relation.getKind())) {
+            issues.add(subject + " declares whenTargetDeleted but only a manyToOne/oneToOne association points at a target whose"
+                    + " delete this could restrict");
+            return;
+        }
+        if (relation.isComposition()) {
+            issues.add(subject
+                    + " is a composition so its master's delete is whenMasterDeleted's question, not whenTargetDeleted's - the target here is the PARENT this entity is a detail of");
+            return;
+        }
+        if (crossModel) {
+            issues.add(subject
+                    + " is cross-model so whenTargetDeleted is not yet supported - the target's repository is generated in another model and cannot be constructed here");
         }
     }
 

@@ -10,13 +10,16 @@
 ## the value to - the page asked the controller which fields it withholds (canSee). Emits nothing for
 ## an unrestricted property. The server ignoring the field on writes stays the authoritative half;
 ## this only keeps an input that could never be saved off the form.
-#macro(visibleGate $property)#if($property.roleRead) x-show="canSee('${property.name}')"#end#end
+## Status-gated field (intent `visibleWhen:`, #7502): absent until the condition holds against the
+## record the page shows (visibleWhenJs, rendered by ModelParameterProcessor). An element holds one
+## x-show, so a field carrying both gates gets them ANDed in it. UI-only - the value is still served.
+#macro(visibleGate $property)#if($property.roleRead && $property.visibleWhenJs) x-show="canSee('${property.name}') && ${property.visibleWhenJs}"#elseif($property.roleRead) x-show="canSee('${property.name}')"#elseif($property.visibleWhenJs) x-show="${property.visibleWhenJs}"#end#end
 ## A field shown as a value, not a control (the Details card): the row is shown only when the
 ## shared basePage.fieldDisplay text is non-empty and the caller may see the field (issue #7522).
 ## The value itself is printed by the record page's own fieldText helpers (issue #7491).
 #macro(valueOptions $property)#if($property.widgetType == "CHECKBOX")[{ value: true, text: T('$projectName:${tprefix}.defaults.yes', 'Yes') }, { value: false, text: T('$projectName:${tprefix}.defaults.no', 'No') }]#elseif(($property.widgetType == "DROPDOWN" || $property.widgetType == "DOCUMENT_STATUS" || $property.widgetType == "MULTISELECT") && $property.aggregate != "true")options${property.name}#{else}null#end#end
 #macro(valueDisplay $property)fieldDisplay(form.${property.name}, '$!{property.widgetType}', '#if($property.isFloatType)$!{property.formatPattern}#end', #valueOptions($property))#end
-#macro(valueGate $property)x-show="#if($property.roleRead)canSee('${property.name}') && #end#valueDisplay($property) !== ''"#end
+#macro(valueGate $property)x-show="#if($property.roleRead)canSee('${property.name}') && #end#if($property.visibleWhenJs)${property.visibleWhenJs} && #end#valueDisplay($property) !== ''"#end
 ## The EntityStatus relation (widget DOCUMENT_STATUS) renders as a read-only coloured badge in the
 ## title bar (same treatment as the document layout), never as an editable input.
 #set($statusProp = "")
@@ -449,7 +452,7 @@
     <div class="vbox gap-4 w-full"
          x-show="(isEdit || isPreview) && detailDefs.length && state !== 'loading' && state !== 'load-failure'">
       <template x-for="d in detailDefs" :key="d.entity + ':' + id">
-        <div x-data="detailPanel({...d, returnTo: '/${name}/' + id + (isPreview ? '/preview' : '/edit')}, id, form)" class="vbox gap-4 w-full">
+        <div x-data="detailPanel({...d, returnTo: '/${name}/' + id + (isPreview ? '/preview' : '/edit')}, id, form)" x-show="visibleWhenHolds(d.visibleWhen, form)" class="vbox gap-4 w-full">
           <!-- Each group is separated from the one above by a rule, not by its own frame, so the
                record reads as one card (issue #7491). -->
           <div x-h-separator data-orientation="horizontal"></div>

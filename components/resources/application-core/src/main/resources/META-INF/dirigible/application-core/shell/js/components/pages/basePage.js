@@ -291,6 +291,23 @@ function basePage() {
     },
 
     /**
+     * Whether a status-gated panel shows (intent `visibleWhen:` on a composition child, dirigible
+     * #7502): every term - `{ property, equal, value }`, ANDed - holds against the master record the
+     * panel is rendered under. Values compare as text, so a numeric status FK matches its seed id
+     * whether the record carries it as a number or a string. A panel without terms always shows; one
+     * whose master is not loaded yet stays hidden rather than flashing up and disappearing.
+     */
+    visibleWhenHolds(terms, record) {
+      if (!Array.isArray(terms) || !terms.length) return true;
+      if (!record || typeof record !== 'object') return false;
+      return terms.every((t) => {
+        const cur = record[t.property];
+        const eq = String(cur === undefined || cur === null ? '' : cur) === String(t.value);
+        return t.equal ? eq : !eq;
+      });
+    },
+
+    /**
      * Display text of a field shown as a value rather than a control - the read-only Details card and
      * the frozen header card (issue #7522). The same formatting a line cell gets: a DROPDOWN resolves
      * its option label, a MULTISELECT (an array or a stored "1,3" key list) its labels, a date goes

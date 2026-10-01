@@ -94,6 +94,7 @@ final class ModelParameterProcessor {
             resolveLabelParts(entities);
             resolveRelatedRegisters(entities, parameters);
             resolveRollupGuards(entities);
+            resolveDeleteRestrictors(entities, parameters);
         }
         resolveDependentWidgets(entities);
         collectPerspectives(entities, parameters);
@@ -133,6 +134,29 @@ final class ModelParameterProcessor {
 
         for (Map<String, Object> property : asMaps(entity.get("properties"))) {
             processProperty(property, entity, entities, parameters);
+        }
+        resolveVisibleWhen(entity);
+    }
+
+    /**
+     * Renders the {@code visibleWhen} conditions (dirigible #7502) into the JavaScript the views
+     * evaluate: on a property, the expression its form / document input's {@code x-show} folds in
+     * ({@code visibleWhenJs}); on a composition child, the term list its detail registration hands the
+     * shared panel ({@code visibleWhenTermsJs}), read against the master record. A condition that does
+     * not render leaves no key, so the templates emit no gate.
+     *
+     * @param entity the entity
+     */
+    private static void resolveVisibleWhen(Map<String, Object> entity) {
+        for (Map<String, Object> property : asMaps(entity.get("properties"))) {
+            String expression = VisibleWhenLiterals.formExpression(str(property, "visibleWhen"), entity);
+            if (expression != null) {
+                property.put("visibleWhenJs", expression);
+            }
+        }
+        String terms = VisibleWhenLiterals.termsLiteral(str(entity, "visibleWhen"));
+        if (terms != null) {
+            entity.put("visibleWhenTermsJs", terms);
         }
     }
 
@@ -1175,6 +1199,41 @@ final class ModelParameterProcessor {
     }
 
     /**
+     * Resolves each entity's {@code deleteRestrictors} (intent {@code whenTargetDeleted: restrict})
+     * into the referencing entity's generated FQN, so the DAO can construct that repository directly
+     * and query it - same-model only, exactly like {@link #inheritMasterLock} resolves a composition
+     * parent's coordinates from the child's own FK metadata.
+     *
+     * @param entities every entity in the model
+     * @param parameters the generation parameters
+     */
+    private static void resolveDeleteRestrictors(List<Map<String, Object>> entities, Map<String, Object> parameters) {
+        for (Map<String, Object> entity : entities) {
+            List<Map<String, Object>> restrictors = asMaps(entity.get("deleteRestrictors"));
+            if (restrictors.isEmpty()) {
+                continue;
+            }
+            List<Map<String, Object>> resolved = new ArrayList<>();
+            for (Map<String, Object> restrictor : restrictors) {
+                Map<String, Object> referencing = findEntity(entities, str(restrictor, "referencingEntity"));
+                if (referencing == null) {
+                    continue; // the referencing entity was not generated - drop rather than emit a broken reference
+                }
+                String referencingPerspective = NamingHelper.sanitizeJavaIdentifier(str(referencing, "perspectiveName"));
+                String referencingPackage = "gen." + str(parameters, "javaGenFolderName") + ".data." + referencingPerspective + ".";
+                restrictor.put("entityClass", referencingPackage + str(referencing, "name") + "Entity");
+                restrictor.put("repositoryClass", referencingPackage + str(referencing, "name") + "Repository");
+                // The refusal names the referencing entity the way a person reading the page knows it,
+                // not by its raw identifier - the same source the composition cascade's own refusal
+                // uses for its child.
+                restrictor.put("referencingLabel", strOr(referencing, "entityLabel", str(referencing, "name")));
+                resolved.add(restrictor);
+            }
+            entity.put("deleteRestrictors", resolved);
+        }
+    }
+
+    /**
      * Propagates the personal scope from a composition parent to its direct children - one hop only,
      * which is what the generated surfaces support. A deeper child simply has no personal surface.
      *
@@ -1374,6 +1433,11 @@ final class ModelParameterProcessor {
             // A see-only child (intent personalReadOnly) refuses the panel's Add with 403, so the panel
             // must not offer it.
             panel.put("readOnly", readOnlyKey != null && truthy(child, readOnlyKey));
+            // A status-gated panel (intent `visibleWhen:`, #7502): the terms the scoped page reads
+            // against the record it holds before showing the panel. Absent = always shown.
+            if (child.get("visibleWhenTermsJs") != null) {
+                panel.put("visibleWhen", child.get("visibleWhenTermsJs"));
+            }
             panel.put("columns", panelColumns(child, fkProperty));
             children.add(panel);
         }
