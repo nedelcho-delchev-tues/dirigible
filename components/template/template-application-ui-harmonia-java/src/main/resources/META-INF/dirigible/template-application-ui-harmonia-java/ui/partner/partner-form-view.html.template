@@ -19,14 +19,17 @@
 ## to - the page asked the controller which fields it withholds (canSee). Emits nothing for an
 ## unrestricted property. Owning the record (or being the partner it belongs to) does not grant a
 ## role, so this surface hides exactly what its own controller strips from the wire.
-#macro(visibleGate $property)#if($property.roleRead) x-show="canSee('${property.name}')"#end#end
+## Status-gated field (intent `visibleWhen:`, #7502): absent until the condition holds against the
+## record the page shows (visibleWhenJs, rendered by ModelParameterProcessor). An element holds one
+## x-show, so a field carrying both gates gets them ANDed in it. UI-only - the value is still served.
+#macro(visibleGate $property)#if($property.roleRead && $property.visibleWhenJs) x-show="canSee('${property.name}') && ${property.visibleWhenJs}"#elseif($property.roleRead) x-show="canSee('${property.name}')"#elseif($property.visibleWhenJs) x-show="${property.visibleWhenJs}"#end#end
 ## A field shown as a value, not a control (the read-only cards): its display text through the
 ## shared basePage.fieldDisplay - option label(s), instance date format, a float's own pattern, the
 ## translated Yes/No (a checkbox's options are its two states) - and the row shown only when that
 ## text is non-empty and the caller may see the field (issue #7522).
 #macro(valueOptions $property)#if($property.widgetType == "CHECKBOX")[{ value: true, text: T('$projectName:${tprefix}.defaults.yes', 'Yes') }, { value: false, text: T('$projectName:${tprefix}.defaults.no', 'No') }]#elseif($property.widgetType == "DROPDOWN" || $property.widgetType == "DOCUMENT_STATUS" || $property.widgetType == "MULTISELECT")options['${property.name}']#{else}null#end#end
 #macro(valueDisplay $property)fieldDisplay(form.${property.name}, '$!{property.widgetType}', '#if($property.isFloatType)$!{property.formatPattern}#end', #valueOptions($property))#end
-#macro(valueGate $property)x-show="#if($property.roleRead)canSee('${property.name}') && #end#valueDisplay($property) !== ''"#end
+#macro(valueGate $property)x-show="#if($property.roleRead)canSee('${property.name}') && #end#if($property.visibleWhenJs)${property.visibleWhenJs} && #end#valueDisplay($property) !== ''"#end
 <div x-data="${name}PartnerFormPage" class="vbox w-full">
 
   <!-- Sticky action bar (issue #7434): the Harmonia `clear` toolbar paints the page background so the
@@ -189,7 +192,7 @@
     <template x-if="mode === 'edit'">
       <div class="vbox gap-4" style="max-width: 900px">
         <template x-for="child in children" :key="child.name">
-          <div x-h-card>
+          <div x-h-card x-show="visibleWhenHolds(child.visibleWhen, form)">
             <div x-h-card-header class="hbox items-center">
               <span x-h-card-title x-text="child.label"></span>
               <div class="flex-1"></div>
