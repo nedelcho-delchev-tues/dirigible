@@ -475,7 +475,9 @@ field may declare:
   freezes it for WHEN it falls, and the two compose (an entity may declare either, both or neither).
   Unlike the status guard it also refuses a **create** dated inside a closed window and an update
   that would MOVE a record into one - once March is closed, nothing dated in March may appear,
-  change or vanish. Workflow/system writes through the repository stay possible, as always. A date
+  change or vanish. The lock is enforced in the generated REPOSITORY as well (#7590), so a posting,
+  a create-from or a schedule booking into a closed period is refused with the same sentence (a 400,
+  or the failure of the handler that carried it) - a closed period is closed for the system too. A date
   covered by no period is open (periods are opened as they are needed) and an unset date falls in
   none. The lock reaches composition CHILDREN exactly as the status one does. Boundary: the register
   must be an entity of the SAME model - the guard is generated into this model's controllers, which
