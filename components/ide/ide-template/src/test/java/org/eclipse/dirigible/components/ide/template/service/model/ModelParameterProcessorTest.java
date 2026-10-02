@@ -1380,6 +1380,69 @@ class ModelParameterProcessorTest {
      *
      * @return the parameters
      */
+
+    /**
+     * A roll-up's capacity guard carries WHICH rows count and WHEN it runs (#7542). Both halves are
+     * rendered here, where the property's own Java shape is known: a boxed equality against a bare
+     * literal is the #7237 class of guard that reads as authored and is never true.
+     */
+    @Test
+    void aFilteredAndGatedCapacityGuardRendersItsQueryItsRowTestAndItsMessage() {
+        Map<String, Object> status = property("Status", "INTEGER");
+        Map<String, Object> total = property("Total", "DECIMAL");
+        Map<String, Object> guard = new LinkedHashMap<>();
+        guard.put("parentEntity", "Contract");
+        guard.put("capacityField", "Ceiling");
+        guard.put("filter", List.of(clause("ne", "Status", "number", "3")));
+        guard.put("guardStatusProperty", "Status");
+        guard.put("guardStatusValue", "2");
+        guard.put("message", "Only {remaining} of {capacity} left; asked {requested}.");
+        Map<String, Object> entity = entity("CallOff", "CallOffs", status, total);
+        entity.put("rollupGuards", List.of(guard));
+        Map<String, Object> parameters = parameters();
+        parameters.put("javaRuntime", Boolean.TRUE);
+
+        ModelParameterProcessor.process(model(entity), parameters);
+
+        assertEquals(".ne(\"Status\", 3)", guard.get("filterChain"));
+        assertEquals("!(entity.Status != null && entity.Status.longValue() == 3L)", guard.get("incomingMatch"),
+                "the row in hand is tested by VALUE - a boxed equality across two widths is never true");
+        assertEquals("\"Only \" + guardParent.Ceiling.subtract(guardConsumed) + \" of \" + guardParent.Ceiling + \" left; asked \""
+                + " + guardIncoming + \".\"", guard.get("messageExpression"));
+        assertEquals("true", entity.get("hasGatedRollupGuards"),
+                "the targeted write path has to run the gated guards too - a workflow setter is how a document reaches the gate");
+    }
+
+    /** A guard declaring neither key renders exactly as it did before #7542. */
+    @Test
+    void anUnfilteredUngatedCapacityGuardRendersNothingExtra() {
+        Map<String, Object> guard = new LinkedHashMap<>();
+        guard.put("parentEntity", "Contract");
+        guard.put("capacityField", "Ceiling");
+        Map<String, Object> entity = entity("CallOff", "CallOffs", property("Total", "DECIMAL"));
+        entity.put("rollupGuards", List.of(guard));
+        Map<String, Object> parameters = parameters();
+        parameters.put("javaRuntime", Boolean.TRUE);
+
+        ModelParameterProcessor.process(model(entity), parameters);
+
+        assertNull(guard.get("filterChain"));
+        assertNull(guard.get("incomingMatch"));
+        assertNull(guard.get("messageExpression"));
+        assertNull(entity.get("hasGatedRollupGuards"));
+    }
+
+    private static Map<String, Object> clause(String op, String property, String kind, String text) {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("kind", kind);
+        value.put("text", text);
+        Map<String, Object> clause = new LinkedHashMap<>();
+        clause.put("op", op);
+        clause.put("property", property);
+        clause.put("value", value);
+        return clause;
+    }
+
     private static Map<String, Object> parameters() {
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("projectName", "bookstore");

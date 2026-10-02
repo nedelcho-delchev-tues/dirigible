@@ -1772,6 +1772,7 @@ public final class IntentParser {
             if (!names.add(name)) {
                 issues.add("duplicate rollup [" + name + "]");
             }
+            validateRollupMembershipAndTiming(rollup, name, byName, issues);
             if (rollup.isCrossModelChild()) {
                 validateCrossModelChildRollup(rollup, name, byName, usesAliases, issues);
                 continue;
@@ -5567,6 +5568,86 @@ public final class IntentParser {
         if (CheckSupport.javaLiteral(type, comparison.literal()) == null) {
             issues.add(subject + " when [" + term + "] compares [" + comparison.property() + "], a [" + type + "], with ["
                     + comparison.literal() + "], which is not a value of that type");
+        }
+    }
+
+    /**
+     * Validate a roll-up's row filter and its capacity-guard gate (issue #7542).
+     *
+     * <p>
+     * {@code where:} says WHICH of the child's rows the roll-up counts at all - without it a cancelled
+     * or voided document keeps consuming the parent's capacity for ever and its replacement can never
+     * be issued. {@code guardAt:} says WHEN the capacity guard runs: a row carrying its own typed
+     * amount is guarded on every write, but one whose amount is a DOCUMENT TOTAL is recomputed from its
+     * lines after the header is written, so an ungated guard only ever sees the 0 the header was
+     * created with.
+     *
+     * <p>
+     * Both are refused on a CROSS-MODEL child: its rows are written by the owner's repository, which is
+     * also where its capacity guard would have to be emitted, so a filter or a gate declared here would
+     * narrow nothing and gate nothing - the same reason {@code capacity:} itself is refused on that
+     * direction.
+     *
+     * <p>
+     * The operator set is deliberately narrower than a schedule's: only {@code eq} / {@code ne}. The
+     * filter is applied twice - to the asynchronous recompute, as a query, and to the synchronous
+     * guard, where the row being written has to be tested IN JAVA before its amount is added to the sum
+     * - and an exact equality is the only comparison whose two renderings cannot disagree. It is also
+     * all the motivating case needs (exclude the statuses that no longer count).
+     */
+    private static void validateRollupMembershipAndTiming(RollupIntent rollup, String name, Map<String, EntityIntent> byName,
+            List<String> issues) {
+        boolean hasWhere = rollup.getWhere() != null && !rollup.getWhere()
+                                                               .isEmpty();
+        boolean hasGuardAt = rollup.getGuardAt() != null && !rollup.getGuardAt()
+                                                                   .isBlank();
+        if (!hasWhere && !hasGuardAt) {
+            return;
+        }
+        if (rollup.isCrossModelChild()) {
+            issues.add("rollup [" + name + "] counts a cross-model child [" + rollup.getModel() + ":" + rollup.getEntity()
+                    + "], so where / guardAt are not supported - the rows are written by the owner's repository, which is where"
+                    + " the filter and the capacity guard would have to be emitted; declare them in the model that owns the child");
+            return;
+        }
+        EntityIntent child = byName.get(rollup.getEntity());
+        if (hasWhere) {
+            for (ScheduleConditionIntent condition : rollup.getWhere()) {
+                if (condition.getField() == null || condition.getField()
+                                                             .isBlank()) {
+                    issues.add("rollup [" + name + "] has a where-condition with no field");
+                    continue;
+                }
+                String op = condition.getOp();
+                if (!"eq".equals(op) && !"ne".equals(op)) {
+                    issues.add("rollup [" + name + "] where-condition uses operator [" + op
+                            + "] (supported: eq/ne) - the filter is applied both as a query and, for the row being written, as a Java"
+                            + " comparison, and an exact equality is the only one whose two renderings cannot disagree");
+                }
+                if (condition.getValue() == null) {
+                    issues.add("rollup [" + name + "] where-condition on [" + condition.getField() + "] has no value");
+                }
+                if (child != null && !hasPropertyIgnoreCase(child, condition.getField())) {
+                    issues.add("rollup [" + name + "] where-condition reads [" + condition.getField()
+                            + "], which is not a field or to-one relation of [" + rollup.getEntity() + "]");
+                }
+                validateWhereStatusValue(condition, child, "rollup [" + name + "]", issues);
+            }
+        }
+        if (hasGuardAt) {
+            if (rollup.getCapacity() == null || rollup.getCapacity()
+                                                      .isBlank()) {
+                issues.add("rollup [" + name + "] declares guardAt [" + rollup.getGuardAt()
+                        + "] with no capacity - guardAt names the status the CAPACITY guard is enforced at, so there is nothing to gate");
+            }
+            if (child != null && entityStatusRelationOf(child) == null) {
+                issues.add("rollup [" + name + "] declares guardAt [" + rollup.getGuardAt() + "], but [" + rollup.getEntity()
+                        + "] declares no function: EntityStatus relation to read the gate from");
+            }
+            if (!isIntegerLiteral(rollup.getGuardAt())) {
+                issues.add("rollup [" + name + "] guardAt [" + rollup.getGuardAt() + "] is not a status - name the seeded status of ["
+                        + rollup.getEntity() + "] (resolved to its id at parse) or give the numeric seed id");
+            }
         }
     }
 

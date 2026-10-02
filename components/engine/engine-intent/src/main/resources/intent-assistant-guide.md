@@ -3974,6 +3974,44 @@ at parse (the balance IS capacity minus the sum). `status` stays refused on this
 the parent through the owner's own status seeds and its displaced-status column, which is the owner's
 lifecycle to declare.
 
+**WHICH rows count, and WHEN the ceiling is enforced (`where:` / `guardAt:` / `message:`).**
+Without a filter a roll-up counts EVERY child, so a cancelled or voided row keeps consuming the
+parent's capacity for ever and its replacement can never be issued. `where:` is the same
+`{ field, op, value }` triples a `schedules[].where` carries, over the CHILD's own fields and to-one
+relations, with a status named by its seed name like every other status site:
+```yaml
+rollups:
+  - name: contractCommitted
+    entity: CallOff
+    via: Contract
+    field: committed
+    op: sum
+    of: total
+    capacity: ceiling
+    where:
+      - { field: Status, op: ne, value: CANCELLED }   # eq / ne only
+    guardAt: ISSUED
+    message: "Only {remaining} left of {capacity}; this call-off asks {requested}."
+```
+One authored definition, two readers: the filter narrows the asynchronous recompute AND the
+synchronous re-sum the capacity guard runs, so the stored balance and the enforced ceiling cannot
+disagree. A row the filter excludes is not guarded at all - cancelling an allocation must never be
+refused by the very ceiling the cancellation frees. **Only `eq` / `ne`**: the filter is rendered twice
+(as a query and as a Java comparison of the row in hand) and an exact equality is the only comparison
+whose two renderings cannot disagree.
+
+`guardAt:` says WHEN the capacity guard runs. Without it the check runs on every write of the child,
+which is right for a row carrying its own typed amount (an allocation's) and useless for one whose
+amount is a DOCUMENT TOTAL - that is recomputed from the lines after the header is written, so the
+guard only ever sees the 0 the header was created with. Naming a status moves the check to the moment
+the document is persisted carrying it (its lines, and so its total, are in by then) and leaves a DRAFT
+free to exceed the ceiling while it is still being edited. It requires `capacity:` and a
+`function: EntityStatus` relation on the child. `message:` is the refusal, with `{capacity}`, `{sum}`,
+`{requested}` and `{remaining}` placeholders.
+
+Both are refused on a cross-model CHILD: those rows are written by the owner's repository, which is
+also where their guard would have to be emitted.
+
 **Rules:** `via` must be a to-one (`manyToOne` / `oneToOne`) relation of the child entity; `field`
 must be an existing field on the parent (**integer** for `count`, **numeric** for `sum`). For the sum
 extras: `capacity`/`balance` are numeric parent fields, `status` a to-one relation of the parent, and

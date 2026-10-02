@@ -36,6 +36,7 @@ import org.eclipse.dirigible.components.intent.generator.SetFieldSupport;
 import org.eclipse.dirigible.components.intent.generator.IntentNaming;
 import org.eclipse.dirigible.components.intent.generator.NotificationSupport;
 import org.eclipse.dirigible.components.intent.generator.ResolvePathSupport;
+import org.eclipse.dirigible.components.intent.generator.ScheduleSupport;
 import org.eclipse.dirigible.components.intent.model.GeneratesIntent;
 import org.eclipse.dirigible.components.intent.model.TransitionIntent;
 import org.eclipse.dirigible.components.intent.generator.IntentSettings;
@@ -972,6 +973,27 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
             guard.put("capacityField", IntentNaming.pascalCase(rollup.getCapacity()));
             guard.put("ofField", IntentNaming.pascalCase(rollup.getOf()));
             guard.put("childIdField", "Id");
+            // WHICH rows count (#7542). The very clauses the asynchronous recompute queries by, so the
+            // stored balance and the enforced ceiling are one authored definition - the guard re-sums
+            // synchronously from the child's own store, and a row the filter excludes must be excluded
+            // from that sum too, or the two disagree by exactly the rows the author retired.
+            List<Map<String, Object>> filter = ScheduleSupport.conditions(rollup.getWhere());
+            if (!filter.isEmpty()) {
+                guard.put("filter", filter);
+            }
+            // WHEN the check runs. Without a gate it runs on every write of the child, which is right
+            // for a row carrying its own typed amount and useless for one whose amount is a DOCUMENT
+            // TOTAL - that is recomputed from the lines after the header is written, so the guard would
+            // only ever see the 0 the header was created with.
+            RelationIntent guardStatus = notBlank(rollup.getGuardAt()) ? entityStatusRelation(child) : null;
+            if (guardStatus != null) {
+                guard.put("guardStatusProperty", IntentNaming.pascalCase(guardStatus.getName()));
+                guard.put("guardStatusValue", rollup.getGuardAt()
+                                                    .trim());
+            }
+            if (notBlank(rollup.getMessage())) {
+                guard.put("message", rollup.getMessage());
+            }
             // Two roll-ups may name the same relation and capacity column (a sum and a count of the same
             // allocation, say). The guard they describe is one and the same check, so it is emitted once -
             // twice would refuse nothing extra and only duplicate the parent's import.
