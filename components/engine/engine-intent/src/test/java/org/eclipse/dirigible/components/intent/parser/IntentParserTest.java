@@ -3375,4 +3375,66 @@ class IntentParserTest {
                      .anyMatch(i -> i.contains("composition child")),
                 "a composition child is already an editable collection, got: " + ex.getIssues());
     }
+
+    /**
+     * A header value required when ANY line satisfies a condition (#7560) - the legal ground a
+     * zero-rated line calls for (ЗДДС чл. 114). Read where the lines are, so it needs the gate.
+     */
+    @Test
+    void aHeaderValueMayBeRequiredWhenAnyLineMatches() {
+        String yaml = """
+                name: billing
+                seeds:
+                  - name: invoice-statuses
+                    entity: InvoiceStatus
+                    rows:
+                      - { id: 1, name: DRAFT }
+                      - { id: 2, name: ISSUED }
+                entities:
+                  - name: InvoiceStatus
+                    kind: setting
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string }
+                  - name: Invoice
+                    checks:
+                      - { kind: requiredWhen, field: vatGround, whenAnyItem: "vatRate == 0", status: ISSUED,
+                          message: "A zero-rated line needs its legal ground (VAT Act art. 114)" }
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: vatGround, type: string, length: 200 }
+                    relations:
+                      - { name: Status, kind: manyToOne, to: InvoiceStatus, function: EntityStatus, init: DRAFT }
+                      - { name: lines, kind: oneToMany, to: InvoiceLine }
+                  - name: InvoiceLine
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: vatRate, type: decimal }
+                    relations:
+                      - { name: Invoice, kind: manyToOne, to: Invoice, composition: true, required: true }
+                """;
+        IntentModel model = IntentParser.parse(yaml);
+        assertEquals(2, model.getEntities()
+                             .get(1)
+                             .getChecks()
+                             .get(0)
+                             .getStatus(),
+                "the gate resolves the seeded name to its id");
+
+        java.util.function.Function<String, String> refusalOf =
+                broken -> assertThrows(IntentValidationException.class, () -> IntentParser.parse(broken)).getMessage();
+        // The lines are read where the document is persisted carrying its status, never on every write.
+        assertTrue(refusalOf.apply(yaml.replace(", status: ISSUED", ""))
+                            .contains("whenAnyItem requires a `status` gate"));
+        // A line condition reads the line itself.
+        assertTrue(refusalOf.apply(yaml.replace("vatRate == 0", "Invoice.vatGround == 'x'"))
+                            .contains("walks a relation"));
+        assertTrue(refusalOf.apply(yaml.replace("vatRate == 0", "vatRatio == 0"))
+                            .contains("is not a field or to-one relation of the items entity [InvoiceLine]"));
+        assertTrue(refusalOf.apply(yaml.replace("vatRate == 0", "vatRate == 'zero'"))
+                            .contains("which is not a value of that type"));
+        // Nothing to read the lines of.
+        assertTrue(refusalOf.apply(yaml.replace("composition: true, ", ""))
+                            .contains("requires the entity to own a composition child"));
+    }
 }

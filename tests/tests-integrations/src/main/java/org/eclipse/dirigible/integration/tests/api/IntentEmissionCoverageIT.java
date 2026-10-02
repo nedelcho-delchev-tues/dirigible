@@ -250,6 +250,11 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                   # gated check above uses, and enforced by the controller on every write.
                   - { kind: requiredWhen, field: note, when: ["Account.taxCode == 'EXEMPT'", "Account.Parent != 0"],
                       message: "An entry against a tax-exempt account must say why in its note" }
+                  # ...and required when ANY LINE satisfies a condition (#7560): the legal ground a
+                  # zero-rated line calls for (ЗДДС чл. 114). Gated, since the lines are read where the
+                  # document is persisted; the rate is a decimal, compared by value.
+                  - { kind: requiredWhen, field: vatGround, whenAnyItem: "vatRate == 0", status: 2,
+                      message: "A zero-rated line needs its legal ground (VAT Act art. 114)" }
                   # Two values of the SAME row, related (#7095) - one temporal pair and one numeric,
                   # the two comparison families the generated code emits differently.
                   - { kind: compare, field: due,  op: ge, than: date,  message: 'A "due" date is never before the entry date' }
@@ -268,6 +273,7 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                   # POSTED - a status name, resolved against the entry's own nomenclature.
                   - { name: paid,   type: decimal, visibleWhen: "Status == POSTED" }
                   - { name: note,   type: string, length: 200 }
+                  - { name: vatGround, type: string, length: 200 }
                 relations:
                   - { name: Account, kind: manyToOne, to: Account, leafOnly: true }
                   - { name: Status,  kind: manyToOne, to: EntryStatus, function: EntityStatus, init: 1 }
@@ -381,6 +387,7 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                   # is what makes the generated handler call the default-aware comparison helper, and so
                   # what makes it emit that helper's method at all (#7177).
                   - { name: weight, type: decimal, defaultValue: 0 }
+                  - { name: vatRate, type: decimal }
                   # #6336 on a document ITEM: the pattern must reach the item-dialog column metadata.
                   - { name: reference, type: string, length: 20, pattern: '^[A-Z]{3}-[0-9]{4}$' }
                   # conditional dependsOn (#6358): the copied Unit property is picked by the open
@@ -2347,6 +2354,13 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                         && entryRepository.contains("AccountRepository().findById(hop0Fk)")
                         && entryRepository.contains("java.util.Objects.equals(entity.Note, \"audited\")"),
                 "checks: requiredWhen must load the hop, test the condition and refuse the empty value, got: " + entryRepository);
+        // ...and required when ANY line satisfies the condition (#7560): the repository reads the lines
+        // at the gate and tests the rate BY VALUE - a boxed equality on a decimal never holds.
+        assertTrue(
+                entryRepository.contains("A zero-rated line needs its legal ground (VAT Act art. 114)")
+                        && entryRepository.contains("for (EntryLineEntity item : new EntryLineRepository().findAll(")
+                        && entryRepository.contains("compareTo(new java.math.BigDecimal(\"0\")) == 0"),
+                "checks: requiredWhen whenAnyItem must read the lines at the gate and compare the rate by value, got: " + entryRepository);
         // ...and every check walking the same relation shares ONE load of its row per call (#7526): the
         // repository declares a single per-call map, and each check's hop goes through it keyed by the
         // repository and the foreign key - N checks over Account.* cost one findById, not N.
@@ -5065,6 +5079,48 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                                                          + uncodedAccount.get() + ",\"Note\":\"audited\",\"Status\":2}")
                                                  .when()
                                                  .put(API + "/entry/EntryController/" + auditedEntry.get())
+                                                 .then()
+                                                 .statusCode(200));
+
+        // checks: requiredWhen over the LINES, at runtime (#7560): a zero-rated line makes the header's
+        // legal ground required at POSTED - refused without it, posted with it, and an entry whose lines
+        // carry no zero rate is posted with no ground at all (the plain entry above).
+        AtomicInteger zeroRatedEntry = new AtomicInteger();
+        restAssuredExecutor.execute(() -> zeroRatedEntry.set(given().contentType("application/json")
+                                                                    .body("{\"Date\":\"2026-01-23\",\"Account\":" + uncodedAccount.get()
+                                                                            + "}")
+                                                                    .when()
+                                                                    .post(API + "/entry/EntryController")
+                                                                    .then()
+                                                                    .statusCode(200)
+                                                                    .extract()
+                                                                    .path("Id")));
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{\"Entry\":" + zeroRatedEntry.get() + ",\"Debit\":10,\"VatRate\":0}")
+                                                 .when()
+                                                 .post(API + "/entry/EntryLineController")
+                                                 .then()
+                                                 .statusCode(200));
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{\"Entry\":" + zeroRatedEntry.get() + ",\"Credit\":10,\"VatRate\":20}")
+                                                 .when()
+                                                 .post(API + "/entry/EntryLineController")
+                                                 .then()
+                                                 .statusCode(200));
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{\"Id\":" + zeroRatedEntry.get() + ",\"Date\":\"2026-01-23\",\"Account\":"
+                                                         + uncodedAccount.get() + ",\"Status\":2}")
+                                                 .when()
+                                                 .put(API + "/entry/EntryController/" + zeroRatedEntry.get())
+                                                 .then()
+                                                 .statusCode(400)
+                                                 .body("message", containsString("A zero-rated line needs its legal ground")));
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{\"Id\":" + zeroRatedEntry.get() + ",\"Date\":\"2026-01-23\",\"Account\":"
+                                                         + uncodedAccount.get()
+                                                         + ",\"VatGround\":\"ЗДДС чл. 114, ал. 1, т. 12\",\"Status\":2}")
+                                                 .when()
+                                                 .put(API + "/entry/EntryController/" + zeroRatedEntry.get())
                                                  .then()
                                                  .statusCode(200));
 

@@ -5452,7 +5452,7 @@ public final class IntentParser {
      * sends the document) names the status it is needed at.
      */
     private static void validateRequiredWhen(EntityIntent entity, CheckIntent check, java.util.Map<String, EntityIntent> byName,
-            String subject, List<String> issues) {
+            java.util.List<EntityIntent> entities, String subject, List<String> issues) {
         if (check.getField() == null || check.getField()
                                              .isBlank()) {
             issues.add(subject + " requires `field`: the value that must be present - a field of [" + entity.getName()
@@ -5464,10 +5464,14 @@ public final class IntentParser {
                 issues.add(subject + " field " + path.failure());
             }
         }
-        if (check.getWhen() == null) {
-            issues.add(
-                    subject + " requires `when`: the condition under which the value is required, e.g." + " `when: \"SentMethod == 1\"`");
-        } else {
+        boolean anyItem = check.getWhenAnyItem() != null;
+        if (anyItem) {
+            validateRequiredWhenAnyItem(entity, check, byName, entities, subject, issues);
+        }
+        if (check.getWhen() == null && !anyItem) {
+            issues.add(subject + " requires `when`: the condition under which the value is required, e.g. `when: \"SentMethod == 1\"`"
+                    + " - or `whenAnyItem`, a condition over the document's lines");
+        } else if (check.getWhen() != null) {
             List<String> terms = CheckSupport.terms(check.getWhen());
             if (terms.isEmpty()) {
                 issues.add(subject + " when must not be an empty list");
@@ -5486,6 +5490,70 @@ public final class IntentParser {
         if (check.getStatus() != null && entityStatusRelationOf(entity) == null) {
             issues.add(subject + " carries a `status` gate but [" + entity.getName()
                     + "] declares no `function: EntityStatus` relation to read it from");
+        }
+    }
+
+    /**
+     * The {@code whenAnyItem} half of a {@code requiredWhen} (issue #7560): a header value required
+     * when ANY line satisfies a condition - the legal ground a zero-rated line calls for (ЗДДС чл.
+     * 114).
+     *
+     * <p>
+     * Refused where it could only be inert or wrong: an entity owning no items (nothing to read the
+     * lines of); no {@code status} gate (the lines are read where the document is persisted, so an
+     * ungated rule would have to read them on every REST write, where the generated controllers read
+     * only the row - and a draft assembled line by line would be refused mid-way); a term naming a hop
+     * (a line condition reads the line itself); a property the items entity does not declare; a type an
+     * equality is not exact on; a literal that is not a value of that type.
+     */
+    private static void validateRequiredWhenAnyItem(EntityIntent entity, CheckIntent check, java.util.Map<String, EntityIntent> byName,
+            java.util.List<EntityIntent> entities, String subject, List<String> issues) {
+        EntityIntent items = compositionChildOf(entity, entities);
+        if (items == null) {
+            issues.add(subject + " whenAnyItem requires the entity to own a composition child (the document's items)");
+            return;
+        }
+        if (check.getStatus() == null || check.getStatus() <= 0) {
+            issues.add(subject + " whenAnyItem requires a `status` gate (an EntityStatus seed id) - the lines are read where the"
+                    + " document is persisted carrying it, not on every user write");
+        }
+        List<String> terms = CheckSupport.terms(check.getWhenAnyItem());
+        if (terms.isEmpty()) {
+            issues.add(subject + " whenAnyItem must not be an empty list");
+        }
+        for (String term : terms) {
+            CheckSupport.Comparison comparison = CheckSupport.parse(term);
+            if (comparison == null) {
+                issues.add(subject + " whenAnyItem [" + term + "] must be `<Property> ==|!= <literal>` - a number, a quoted string or a"
+                        + " bare word, read off each line");
+                continue;
+            }
+            if (ResolvePathSupport.isPath(comparison.property())) {
+                issues.add(subject + " whenAnyItem [" + term + "] walks a relation - a line condition reads the line itself; put the"
+                        + " value on the line");
+                continue;
+            }
+            FieldIntent field = CheckSupport.field(items, comparison.property());
+            RelationIntent relation = field == null ? CheckSupport.toOne(items, comparison.property()) : null;
+            if (field == null && relation == null) {
+                issues.add(subject + " whenAnyItem [" + term + "] reads [" + comparison.property()
+                        + "], which is not a field or to-one relation of the items entity [" + items.getName() + "]");
+                continue;
+            }
+            if (CheckSupport.isNullTest(comparison)) {
+                continue;
+            }
+            String type = CheckSupport.guardType(field != null ? field.getType() : CheckSupport.relationKeyType(relation, byName));
+            if (!CheckSupport.GUARD_TYPES.contains(type) && !CheckSupport.DECIMAL_TYPES.contains(type)) {
+                issues.add(subject + " whenAnyItem [" + term + "] compares [" + comparison.property() + "], a [" + type
+                        + "] - a line condition compares a string, a number, a boolean or a to-one");
+                continue;
+            }
+            String literalType = CheckSupport.DECIMAL_TYPES.contains(type) ? "decimal" : relation != null ? "long" : type;
+            if (CheckSupport.javaLiteral(literalType, comparison.literal()) == null) {
+                issues.add(subject + " whenAnyItem [" + term + "] compares [" + comparison.property() + "], a [" + type + "], with ["
+                        + comparison.literal() + "], which is not a value of that type");
+            }
         }
     }
 
@@ -5763,7 +5831,7 @@ public final class IntentParser {
             return;
         }
         if ("requiredWhen".equals(kind)) {
-            validateRequiredWhen(entity, check, byName, subject, issues);
+            validateRequiredWhen(entity, check, byName, entities, subject, issues);
             return;
         }
         if ("forbidWhen".equals(kind)) {

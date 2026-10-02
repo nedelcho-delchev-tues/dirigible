@@ -81,6 +81,16 @@ public final class CheckSupport {
      */
     public static final String NULL_TEST_TYPE = "null";
 
+    /**
+     * The types a condition over a document's LINES may compare besides {@link #GUARD_TYPES} (issue
+     * #7560): an amount or a rate, compared BY VALUE - {@code vatRate == 0} is the rule the kind exists
+     * for, and a boxed {@code equals} on a decimal column would never hold.
+     */
+    public static final Set<String> DECIMAL_TYPES = Set.of("decimal", "double");
+
+    /** The local a line is read off in a generated items loop. */
+    public static final String ITEM = "item";
+
     /** The field types a {@code compare} check orders, by the family they compare inside. */
     private static final Map<String, String> COMPARE_FAMILIES = Map.of("date", "date", "timestamp", "timestamp", "integer", "number", "int",
             "number", "long", "number", "decimal", "number", "double", "number");
@@ -171,6 +181,7 @@ public final class CheckSupport {
             case "integer", "int" -> value.matches("-?\\d+") ? value : null;
             case "long" -> value.matches("-?\\d+") ? value + "L" : null;
             case "boolean" -> "true".equals(value) || "false".equals(value) ? value : null;
+            case "decimal", "double" -> value.matches("-?\\d+(\\.\\d+)?") ? "new java.math.BigDecimal(\"" + value + "\")" : null;
             default -> null;
         };
     }
@@ -259,6 +270,52 @@ public final class CheckSupport {
             terms.add(read);
         }
         return terms.isEmpty() ? null : terms;
+    }
+
+    /**
+     * Reads a condition over the document's LINES (issue #7560): each comparison names a field or a
+     * to-one of the ITEMS entity and is read off the {@link #ITEM} local of a generated loop. The
+     * record-local grammar and type rule apply, widened by {@link #DECIMAL_TYPES} - the condition the
+     * kind exists for is an amount or a rate against a literal, compared by value.
+     *
+     * @param items the document's items entity
+     * @param byName the local entities by name
+     * @param when the authored condition
+     * @return the terms, or {@code null} when there is no condition or a comparison does not read
+     */
+    public static List<Map<String, Object>> itemConditionTerms(EntityIntent items, Map<String, EntityIntent> byName, Object when) {
+        if (items == null) {
+            return null;
+        }
+        List<Map<String, Object>> terms = new ArrayList<>();
+        for (String term : terms(when)) {
+            Comparison comparison = parse(term);
+            Map<String, Object> read = comparison == null ? null : itemTerm(items, byName, comparison);
+            if (read == null) {
+                return null;
+            }
+            terms.add(read);
+        }
+        return terms.isEmpty() ? null : terms;
+    }
+
+    /** A comparison over a line's own field or to-one, or {@code null} when it does not read. */
+    private static Map<String, Object> itemTerm(EntityIntent items, Map<String, EntityIntent> byName, Comparison comparison) {
+        FieldIntent field = field(items, comparison.property());
+        RelationIntent relation = field == null ? toOne(items, comparison.property()) : null;
+        if (field == null && relation == null) {
+            return null;
+        }
+        String property = IntentNaming.pascalCase(comparison.property());
+        if (isNullTest(comparison)) {
+            return nullTerm(ITEM, property, comparison);
+        }
+        String type = guardType(field != null ? field.getType() : relationKeyType(relation, byName));
+        if (DECIMAL_TYPES.contains(type)) {
+            return term(ITEM, property, comparison, "decimal", false);
+        }
+        boolean numericKey = field == null && NUMERIC_GUARD_TYPES.contains(type);
+        return term(ITEM, property, comparison, numericKey ? "long" : type, numericKey);
     }
 
     /** A comparison over the record's own field or to-one, or {@code null} when it does not read. */

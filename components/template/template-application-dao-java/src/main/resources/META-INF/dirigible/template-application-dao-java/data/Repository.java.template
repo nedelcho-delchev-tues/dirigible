@@ -277,7 +277,7 @@ package gen.${javaGenFolderName}.data.${javaPerspectiveName};
 ## model that declares nothing else.
 #if($documentChecks)
 #foreach($check in $documentChecks)
-#if($check.kind == "itemsSumEqual" || $check.kind == "itemsMin")
+#if($check.kind == "itemsSumEqual" || $check.kind == "itemsMin" || $check.anyItemJavaExpression)
 #set($haveItemChecks = "true")
 #end
 #end
@@ -1136,8 +1136,26 @@ public class ${name}Repository extends JavaRepository<${name}Entity> {
                     : (${load.entityClass}) loadedHops.computeIfAbsent("${load.repositoryClass}:" + ${load.local}Fk,
                             hopKey -> new ${load.repositoryClass}().findById(${load.local}Fk));
 #end
+#if($check.anyItemJavaExpression)
+            // ...required when ANY line satisfies the condition (#7560) - the legal ground a zero-rated
+            // line calls for. The lines are read here, where the document is persisted carrying the gate.
+            boolean anyItem${foreach.count} = false;
+            for (${check.itemsEntity}Entity item : new ${check.itemsEntity}Repository().findAll(
+                    Criteria.create().eq("${check.itemsFk}", entity.${pkPropertyName}))) {
+                if (${check.anyItemJavaExpression}) {
+                    anyItem${foreach.count} = true;
+                    break;
+                }
+            }
+#set($requiredGuard = "anyItem" + $foreach.count)
+#if($check.guardJavaExpression)
+#set($requiredGuard = "(" + $check.guardJavaExpression + ") && anyItem" + $foreach.count)
+#end
+#else
+#set($requiredGuard = $check.guardJavaExpression)
+#end
             Object requiredValue = ${check.valueExpression};
-            if ((${check.guardJavaExpression}) && (requiredValue == null || String.valueOf(requiredValue).isBlank())) {
+            if ((${requiredGuard}) && (requiredValue == null || String.valueOf(requiredValue).isBlank())) {
                 throw new ValidationException("${check.messageJavaLiteral}");
             }
 #elseif($check.kind == "forbidWhen")

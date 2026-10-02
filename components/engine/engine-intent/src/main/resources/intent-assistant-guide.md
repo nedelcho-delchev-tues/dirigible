@@ -595,6 +595,13 @@ field may declare:
     mandatory); `whenNull: refuse` rejects the write instead. Reach for this instead of writing the
     rule as a `calculatedActionOnCreate`/`OnUpdate` guard class - it is the shape every
     allocation, transfer, timesheet and assignment entity carries.
+  - `{ kind: requiredWhen, field: vatGround, whenAnyItem: "vatRate == 0", status: ISSUED, message: "..." }`
+    (#7560): a header value required when **ANY LINE** satisfies the condition - the legal ground a
+    zero-rated line calls for (ЗДДС чл. 114). `whenAnyItem` uses the `when` grammar over the ITEMS
+    entity's fields and to-ones, read off each line; an amount or a rate compares by value. It needs
+    the `status:` gate (the lines are read where the document is persisted carrying it, never on every
+    write). `when` and `whenAnyItem` may be combined (both must hold). A line term may not walk a
+    relation - put the value on the line.
   - `{ kind: requiredWhen, field: driver, when: "Status == IDENTIFIED", status: IDENTIFIED, message: "..." }`
     (#7094): a **conditionally required** value - `field` must be present whenever `when` holds.
     `field` is the entity's own field or a one-hop `Relation.field`; `when` is a guard (see *the event

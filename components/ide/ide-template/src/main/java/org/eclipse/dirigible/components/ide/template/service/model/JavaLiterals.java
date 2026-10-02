@@ -225,8 +225,11 @@ public final class JavaLiterals {
                 if (literal == null) {
                     return null; // a term the generator did not type - never rendered as a weaker guard
                 }
-                String comparison = flag(term, "numericKey") ? "(" + access + " != null && " + access + ".longValue() == " + literal + ")"
-                        : "java.util.Objects.equals(" + access + ", " + literal + ")";
+                String comparison = "decimal".equals(text(term, "type"))
+                        ? "(" + access + " != null && new java.math.BigDecimal(String.valueOf(" + access + ")).compareTo(" + literal
+                                + ") == 0)"
+                        : flag(term, "numericKey") ? "(" + access + " != null && " + access + ".longValue() == " + literal + ")"
+                                : "java.util.Objects.equals(" + access + ", " + literal + ")";
                 test = equal ? comparison : "!" + comparison;
             }
             if (expression.length() > 0) {
@@ -463,6 +466,8 @@ public final class JavaLiterals {
             case "long" -> value.matches("-?\\d+") ? value + "L" : null;
             case "number" -> value.matches("-?\\d+(\\.\\d+)?") ? value : null;
             case "boolean" -> "true".equals(value) || "false".equals(value) ? value : null;
+            // An amount or a rate (#7560), compared by value against the column's own BigDecimal.
+            case "decimal" -> value.matches("-?\\d+(\\.\\d+)?") ? "new java.math.BigDecimal(\"" + value + "\")" : null;
             default -> null;
         };
     }

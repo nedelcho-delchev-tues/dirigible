@@ -3570,4 +3570,56 @@ class EdmIntentGeneratorTest {
     private static String literalJava(Map<String, Object> check) {
         return JavaLiterals.compareLiteralExpression((Map<String, Object>) check.get("value"));
     }
+
+    /**
+     * A {@code requiredWhen} over the LINES (#7560) carries the items coordinates and its item terms as
+     * data - an amount or a rate typed {@code decimal}, compared by value in the template layer.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aRequiredWhenOverTheLinesEmitsTheItemsAndTheirTypedTerms() {
+        String yaml = """
+                name: billing
+                seeds:
+                  - name: invoice-statuses
+                    entity: InvoiceStatus
+                    rows:
+                      - { id: 1, name: DRAFT }
+                      - { id: 2, name: ISSUED }
+                entities:
+                  - name: InvoiceStatus
+                    kind: setting
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string }
+                  - name: Invoice
+                    checks:
+                      - { kind: requiredWhen, field: vatGround, whenAnyItem: "vatRate == 0", status: ISSUED,
+                          message: "A zero-rated line needs its legal ground (VAT Act art. 114)" }
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: vatGround, type: string, length: 200 }
+                    relations:
+                      - { name: Status, kind: manyToOne, to: InvoiceStatus, function: EntityStatus, init: DRAFT }
+                      - { name: lines, kind: oneToMany, to: InvoiceLine }
+                  - name: InvoiceLine
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                      - { name: vatRate, type: decimal }
+                    relations:
+                      - { name: Invoice, kind: manyToOne, to: Invoice, composition: true, required: true }
+                """;
+        Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "billing");
+        List<Map<String, Object>> checks = (List<Map<String, Object>>) entityByName(entities(model), "Invoice").get("checks");
+        assertEquals(1, checks.size());
+        Map<String, Object> check = checks.get(0);
+        assertEquals("InvoiceLine", check.get("itemsEntity"));
+        assertEquals("Invoice", check.get("itemsFk"));
+        assertEquals("2", check.get("status"));
+        assertEquals("Status", check.get("statusProperty"));
+        assertNull(check.get("when"), "no record-local condition was authored");
+        assertEquals(List.of(
+                Map.of("owner", "item", "property", "VatRate", "equal", true, "type", "decimal", "value", "0", "numericKey", false)),
+                check.get("whenAnyItem"));
+    }
 }
