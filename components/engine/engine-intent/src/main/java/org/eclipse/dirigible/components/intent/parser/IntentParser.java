@@ -4350,7 +4350,7 @@ public final class IntentParser {
                     issues.add("entity [" + entity.getName() + "] relation [" + relation.getName() + "] points to unknown entity ["
                             + relation.getTo() + "]");
                 }
-                validateWhenTargetDeleted(entity, relation, crossModel, issues);
+                validateWhenTargetDeleted(entity, relation, issues);
                 if (relation.getDependsOn() != null) {
                     String subject = "entity [" + entity.getName() + "] relation [" + relation.getName() + "]";
                     boolean toOne = "manyToOne".equals(relation.getKind()) || "oneToOne".equals(relation.getKind());
@@ -5266,30 +5266,35 @@ public final class IntentParser {
         }
     }
 
+    /** The values {@code whenTargetDeleted} accepts. */
+    private static final Set<String> TARGET_DELETE_RULES = Set.of("restrict", "nullify", "cascade");
+
     /**
-     * {@code whenTargetDeleted: restrict} on a to-one association refuses a DELETE of the TARGET while
-     * this entity still references it, naming both entities and the count (v1 same-model only - the
-     * generated repository constructs the target's repository directly, which a cross-model reference
-     * cannot resolve; the cross-model case is deferred follow-up work). Valid only on a
-     * manyToOne/oneToOne that is NOT a composition - composition already answers "what happens to my
-     * children when I, the master, am deleted" through {@link #validateWhenMasterDeleted}, and this key
-     * is the opposite direction: what happens to ME when the entity I POINT AT is deleted.
+     * {@code whenTargetDeleted} on a to-one association = what a DELETE of the TARGET does to the
+     * records still pointing at it (#7547): {@code restrict} refuses it (the default, also when the key
+     * is absent), {@code nullify} clears their foreign key, {@code cascade} deletes them with it.
+     * Same-model or cross-model alike - the referencing repository contributes the rule the target's
+     * delete applies. Valid only on a manyToOne/oneToOne that is NOT a composition - composition
+     * already answers "what happens to my children when I, the master, am deleted" through
+     * {@link #validateWhenMasterDeleted}, and this key is the opposite direction: what happens to ME
+     * when the entity I POINT AT is deleted. {@code nullify} needs a column that may be empty, so it is
+     * refused on a required relation.
      *
      * @param entity the entity declaring the relation
      * @param relation the relation
-     * @param crossModel whether the relation targets another intent model
      * @param issues the issue list to add to
      */
-    private static void validateWhenTargetDeleted(EntityIntent entity, RelationIntent relation, boolean crossModel, List<String> issues) {
+    private static void validateWhenTargetDeleted(EntityIntent entity, RelationIntent relation, List<String> issues) {
         String whenTargetDeleted = relation.getWhenTargetDeleted();
         if (whenTargetDeleted == null) {
             return;
         }
         String subject = "entity [" + entity.getName() + "] relation [" + relation.getName() + "]";
         String value = whenTargetDeleted.trim();
-        if (!"restrict".equals(value)) {
+        if (!TARGET_DELETE_RULES.contains(value)) {
             issues.add(subject + " whenTargetDeleted [" + whenTargetDeleted
-                    + "] must be `restrict` (refuse the target's delete while this relation still references it) - `nullify`/`cascade` are not supported yet");
+                    + "] must be `restrict` (refuse the target's delete while this relation references it, the default), `nullify`"
+                    + " (clear this relation) or `cascade` (delete this record with it)");
             return;
         }
         if (!"manyToOne".equals(relation.getKind()) && !"oneToOne".equals(relation.getKind())) {
@@ -5302,9 +5307,8 @@ public final class IntentParser {
                     + " is a composition so its master's delete is whenMasterDeleted's question, not whenTargetDeleted's - the target here is the PARENT this entity is a detail of");
             return;
         }
-        if (crossModel) {
-            issues.add(subject
-                    + " is cross-model so whenTargetDeleted is not yet supported - the target's repository is generated in another model and cannot be constructed here");
+        if ("nullify".equals(value) && relation.isRequired()) {
+            issues.add(subject + " is required, so whenTargetDeleted: nullify cannot clear it - use `restrict` or `cascade`");
         }
     }
 

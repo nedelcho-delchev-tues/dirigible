@@ -755,6 +755,43 @@ class ModelParameterProcessorTest {
         assertEquals("currencies", referenced.get("genFolderName"));
     }
 
+    /**
+     * whenTargetDeleted (#7547): every relation carrying a rule learns the target's generated entity
+     * class - the package its repository class is resolved into, the owner model's for a cross-model
+     * target - and the entity is flagged, so its repository contributes the rule the target's delete
+     * applies. A relation carrying no rule (a hand-authored {@code .model} without the key) gets
+     * neither.
+     */
+    @Test
+    void aTargetDeleteRuleResolvesTheTargetsEntityClass() {
+        Map<String, Object> employee = property("Employee", "INTEGER");
+        employee.put("relationshipEntityName", "Employee");
+        employee.put("relationshipEntityPerspectiveName", "Employees");
+        employee.put("widgetType", "DROPDOWN");
+        employee.put("whenTargetDeleted", "restrict");
+        Map<String, Object> category = property("Category", "INTEGER");
+        category.put("relationshipEntityName", "ExpenseCategory");
+        category.put("relationshipEntityPerspectiveName", "Claims");
+        category.put("widgetType", "DROPDOWN");
+        category.put("whenTargetDeleted", "cascade");
+        Map<String, Object> approver = property("Approver", "INTEGER");
+        approver.put("relationshipEntityName", "Employee");
+        approver.put("relationshipEntityPerspectiveName", "Employees");
+        approver.put("widgetType", "DROPDOWN");
+        Map<String, Object> claim = entity("ExpenseClaim", "Claims", property("Id", "INTEGER"), employee, category, approver);
+        Map<String, Object> projection = entity("Employee", "Employees", property("Name", "VARCHAR"));
+        projection.put("type", "PROJECTION");
+        projection.put("projectionReferencedModel", "/hr-app/hr.model");
+
+        ModelParameterProcessor.process(model(claim, projection), javaParameters());
+
+        assertEquals("gen.hr.data.employees.EmployeeEntity", employee.get("targetEntityClass"),
+                "a cross-model target resolves to its owner");
+        assertEquals("gen.sales_order.data.claims.ExpenseCategoryEntity", category.get("targetEntityClass"));
+        assertEquals(Boolean.TRUE, claim.get("hasTargetDeleteRules"));
+        assertNull(approver.get("targetEntityClass"));
+    }
+
     @Test
     void resolvesAProjectionOwnerFromTheOlderThreeSegmentReferenceToo() {
         Map<String, Object> foreignKey = property("Currency", "INTEGER");
@@ -877,53 +914,10 @@ class ModelParameterProcessorTest {
     }
 
     /**
-     * whenTargetDeleted: restrict (intent #7547) - the target carries FACTS only (the referencing
-     * entity's name + its FK property); this pass resolves the referencing entity's own generated
-     * coordinates into the FQNs the DAO constructs directly, same as
-     * {@link #aCompositionChildInheritsItsMastersStatusLock} resolves the PARENT's.
-     */
-    @Test
-    void aDeleteRestrictorResolvesToTheReferencingEntitysFqn() {
-        Map<String, Object> category = entity("ExpenseCategory", "expenses", property("Id", "INTEGER"));
-        Map<String, Object> restrictor = new LinkedHashMap<>();
-        restrictor.put("referencingEntity", "Expense");
-        restrictor.put("fkProperty", "Category");
-        category.put("deleteRestrictors", new java.util.ArrayList<>(List.of(restrictor)));
-        Map<String, Object> expense = entity("Expense", "expenses", property("Id", "INTEGER"));
-
-        ModelParameterProcessor.process(model(category, expense), javaParameters());
-
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> restrictors = (List<Map<String, Object>>) category.get("deleteRestrictors");
-        assertEquals(1, restrictors.size());
-        assertEquals("gen.sales_order.data.expenses.ExpenseEntity", restrictors.get(0)
-                                                                               .get("entityClass"));
-        assertEquals("gen.sales_order.data.expenses.ExpenseRepository", restrictors.get(0)
-                                                                                   .get("repositoryClass"));
-        // The refusal names the referencing entity the way the page does, not by its raw identifier.
-        assertEquals("Expense", restrictors.get(0)
-                                           .get("referencingLabel"));
-    }
-
-    /** A restrictor naming an entity that was not generated is dropped, not emitted broken. */
-    @Test
-    void anUnresolvableDeleteRestrictorIsDropped() {
-        Map<String, Object> category = entity("ExpenseCategory", "expenses", property("Id", "INTEGER"));
-        Map<String, Object> restrictor = new LinkedHashMap<>();
-        restrictor.put("referencingEntity", "Ghost");
-        restrictor.put("fkProperty", "Category");
-        category.put("deleteRestrictors", new java.util.ArrayList<>(List.of(restrictor)));
-
-        ModelParameterProcessor.process(model(category), javaParameters());
-
-        assertEquals(List.of(), category.get("deleteRestrictors"));
-    }
-
-    /**
      * The parent side of a junction's {@code checks: agree} (#7589): the guard carries facts only and
      * this pass resolves the junction's repository FQN and the message's Java-literal twin - a quoted
      * field name in the message must not end the literal it is written into. A guard naming a junction
-     * that was not generated is dropped, as an unresolvable restrictor is.
+     * that was not generated is dropped.
      */
     @Test
     void anAgreeGuardResolvesToTheJunctionsRepositoryAndEscapesItsMessage() {
