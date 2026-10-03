@@ -1610,4 +1610,35 @@ class ModelParameterProcessorTest {
         return parameters;
     }
 
+    /** The condition over the lines (#7560) renders against the loop's `item`, a decimal by value. */
+    @Test
+    void aRequiredWhenOverTheLinesRendersItsItemConditionByValue() {
+        Map<String, Object> check = new LinkedHashMap<>();
+        check.put("kind", "requiredWhen");
+        check.put("status", "2");
+        check.put("statusProperty", "Status");
+        check.put("valueExpression", "entity.VatGround");
+        check.put("message", "needs a ground");
+        Map<String, Object> term = new LinkedHashMap<>();
+        term.put("owner", "item");
+        term.put("property", "VatRate");
+        term.put("equal", Boolean.TRUE);
+        term.put("type", "decimal");
+        term.put("value", "0");
+        term.put("numericKey", Boolean.FALSE);
+        check.put("whenAnyItem", List.of(term));
+        Map<String, Object> entity = entity("Invoice", "Invoices", property("VatGround", "VARCHAR"));
+        entity.put("checks", List.of(check));
+        Map<String, Object> parameters = parameters();
+        parameters.put("javaRuntime", Boolean.TRUE);
+
+        ModelParameterProcessor.process(model(entity), parameters);
+
+        assertEquals(
+                "((item == null ? null : item.VatRate) != null && new java.math.BigDecimal(String.valueOf((item == null ? null : item.VatRate)))"
+                        + ".compareTo(new java.math.BigDecimal(\"0\")) == 0)",
+                check.get("anyItemJavaExpression"));
+        assertNull(check.get("guardJavaExpression"), "no record-local condition was authored");
+        assertEquals(List.of(check), entity.get("documentChecks"), "gated, so the repository's");
+    }
 }

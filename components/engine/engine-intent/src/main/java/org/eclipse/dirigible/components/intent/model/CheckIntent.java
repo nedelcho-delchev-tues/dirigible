@@ -112,6 +112,16 @@ public class CheckIntent {
      * customer). A status name resolves to its seed id, as in every other guard.
      */
     private Object when;
+
+    /**
+     * Optional, {@code requiredWhen} only (issue #7560): a condition over the document's LINES - the
+     * value is required when ANY item satisfies it ("the legal ground for a zero VAT rate is required
+     * at ISSUED when any line has {@code vatRate == 0}", ЗДДС чл. 114). The same
+     * {@code <Property> ==|!= <literal>} grammar as {@link #when}, read off each line; an amount or
+     * rate compares by value. Requires the {@link #status} gate: the lines are read where the document
+     * is persisted carrying it, never on every user write.
+     */
+    private Object whenAnyItem;
     /**
      * The {@code status} gate. On the document-level checks it is required; on {@code requiredWhen} /
      * {@code forbidWhen} it is optional and it is the routing: without one the check holds on every
@@ -205,6 +215,14 @@ public class CheckIntent {
 
     public void setWhen(Object when) {
         this.when = when;
+    }
+
+    public Object getWhenAnyItem() {
+        return whenAnyItem;
+    }
+
+    public void setWhenAnyItem(Object whenAnyItem) {
+        this.whenAnyItem = whenAnyItem;
     }
 
     public String getSeverity() {

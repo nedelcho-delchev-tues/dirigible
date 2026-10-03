@@ -2518,10 +2518,25 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
                 checkMap.put("valueExpression", path.expression());
                 checkMap.put("label", path.label());
                 List<Map<String, Object>> when = CheckSupport.conditionTerms(entity, byName, walker, check.getWhen());
-                if (when == null) {
+                if (when == null && check.getWhenAnyItem() == null) {
                     continue; // the parser already reported it
                 }
-                checkMap.put("when", when);
+                if (when != null) {
+                    checkMap.put("when", when);
+                }
+                if (check.getWhenAnyItem() != null) {
+                    // ...and the condition over the LINES (#7560): the value is required when ANY item
+                    // satisfies it. The items are the document's own, resolved the one way every other
+                    // document check resolves them, and the terms read off the generated loop's local.
+                    EntityIntent items = IntentEntities.documentItemsChild(entity.getName(), entities);
+                    List<Map<String, Object>> itemWhen = CheckSupport.itemConditionTerms(items, byName, check.getWhenAnyItem());
+                    if (items == null || itemWhen == null) {
+                        continue; // the parser already reported it
+                    }
+                    checkMap.put("itemsEntity", items.getName());
+                    checkMap.put("itemsFk", IntentEntities.itemsBackReference(items, entity.getName()));
+                    checkMap.put("whenAnyItem", itemWhen);
+                }
                 List<Map<String, Object>> pathLoads = pathLoadsOf(walker);
                 if (!pathLoads.isEmpty()) {
                     checkMap.put("pathLoads", pathLoads);

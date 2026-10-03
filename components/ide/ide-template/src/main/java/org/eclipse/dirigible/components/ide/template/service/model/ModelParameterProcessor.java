@@ -441,6 +441,15 @@ final class ModelParameterProcessor {
                 check.put("guardJavaExpression", expression);
             }
         }
+        // The condition over the document's LINES (#7560), read off the `item` local of the loop the
+        // repository renders around it.
+        List<Map<String, Object>> whenAnyItem = asMaps(check.get("whenAnyItem"));
+        if (!whenAnyItem.isEmpty()) {
+            String expression = JavaLiterals.conditionExpression(whenAnyItem);
+            if (expression != null) {
+                check.put("anyItemJavaExpression", expression);
+            }
+        }
     }
 
     /**
