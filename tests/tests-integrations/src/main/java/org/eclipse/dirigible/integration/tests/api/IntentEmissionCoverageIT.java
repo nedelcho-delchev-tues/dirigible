@@ -1696,6 +1696,16 @@ class IntentEmissionCoverageIT extends IntegrationTest {
             # at-most-once guard (the Voucher.Slip back-reference the map writes). The status is named,
             # not numbered.
             generates:
+              # A SYSTEM write dated inside a period (#7590): the create-from copies the period's own
+              # start date onto the booking and writes through the repository - never a controller -
+              # so only a repository-side period lock can refuse it.
+              - name: booking-from-period
+                from: AccountingPeriod
+                to: LedgerBooking
+                map:
+                  bookedOn: startDate
+                defaults:
+                  amount: 5.00
               - name: voucher-from-slip
                 from: Slip
                 to: Voucher
@@ -2297,6 +2307,16 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                 "the browse page must gate row Edit/Delete on the baked per-row immutability check");
         // Date-based immutability: the guard queries the register the intent named, and the same
         // pre-check endpoint the status lock exposes now answers for it too.
+        // ...and the REPOSITORY carries the same lock (#7590): a posting, a create-from or a schedule
+        // writes through it and never meets the controller's 409.
+        String ledgerBookingRepository = contentOf("gen/emission/data/ledgerbooking/LedgerBookingRepository.java");
+        assertEquals(3, countOf(ledgerBookingRepository, "requirePeriodOpen(entity.BookedOn);"),
+                "immutableInPeriod must be enforced on save, update and updateWithoutEvent in the repository, got: "
+                        + ledgerBookingRepository);
+        assertTrue(
+                ledgerBookingRepository.contains(
+                        "\"The AccountingPeriod covering this date is closed - book the correction in an open period\""),
+                "the repository refuses with the period sentence, got: " + ledgerBookingRepository);
         String ledgerBookingController = contentOf("gen/emission/api/ledgerbooking/LedgerBookingController.java");
         assertTrue(ledgerBookingController.contains("requirePeriodOpen(") && ledgerBookingController.contains("AccountingPeriodRepository"),
                 "immutableInPeriod must emit the period guard querying the declared register");
@@ -5593,6 +5613,31 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                                                  .put(API + "/ledgerbooking/LedgerBookingController/" + april.get())
                                                  .then()
                                                  .statusCode(409));
+        // ...and a SYSTEM writer meets the same lock (#7590): the create-from books a row dated with the
+        // period's own start, through the repository - it used to land in the closed period with every
+        // step green. Refused for the closed period, accepted for an open one.
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{\"id\":" + fiscalPeriod.get() + "}")
+                                                 .when()
+                                                 .post("/services/java/" + PROJECT + "/gen/events/emission/BookingFromPeriodGenerate/run")
+                                                 .then()
+                                                 .statusCode(400)
+                                                 .body(containsString("The AccountingPeriod covering this date is closed")));
+        AtomicInteger openPeriod = new AtomicInteger();
+        restAssuredExecutor.execute(() -> openPeriod.set(given().contentType("application/json")
+                                                                .body("{\"Name\":\"2026-05\",\"StartDate\":\"2026-05-01\",\"EndDate\":\"2026-05-31\",\"Status\":1}")
+                                                                .when()
+                                                                .post(API + "/accountingperiod/AccountingPeriodController")
+                                                                .then()
+                                                                .statusCode(200)
+                                                                .extract()
+                                                                .path("Id")));
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{\"id\":" + openPeriod.get() + "}")
+                                                 .when()
+                                                 .post("/services/java/" + PROJECT + "/gen/events/emission/BookingFromPeriodGenerate/run")
+                                                 .then()
+                                                 .statusCode(200));
         // ...and the pre-check endpoint reports it, so the form opens read-only rather than 409-ing
         // on Save.
         restAssuredExecutor.execute(() -> given().when()

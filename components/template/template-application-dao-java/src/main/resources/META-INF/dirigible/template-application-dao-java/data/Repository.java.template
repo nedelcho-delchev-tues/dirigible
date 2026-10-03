@@ -300,7 +300,7 @@ import org.eclipse.dirigible.sdk.component.Repository;
 import org.eclipse.dirigible.components.data.store.java.repository.DomainEvent;
 import org.eclipse.dirigible.sdk.utils.Json;
 #end
-#if(($documentChecks && $documentChecks.size() > 0) || ($rollupGuards && $rollupGuards.size() > 0) || ($guardChecks && $guardChecks.size() > 0) || $lifecycleEdges || $haveSubsets || $haveRequired || $hasAgreeGuards)
+#if(($documentChecks && $documentChecks.size() > 0) || ($rollupGuards && $rollupGuards.size() > 0) || ($guardChecks && $guardChecks.size() > 0) || $lifecycleEdges || $haveSubsets || $haveRequired || $periodLock || $hasAgreeGuards)
 import org.eclipse.dirigible.sdk.db.ValidationException;
 #end
 #if($multilingual == "true")
@@ -408,6 +408,9 @@ public class ${name}Repository extends JavaRepository<${name}Entity>#if($hasTarg
 #if($lifecycleInitialStatus)
         enforceLifecycleStart(entity.${lifecycleStatusProperty});
 #end
+#if($periodLock)
+        requirePeriodOpen(entity.${periodLock.dateProperty});
+#end
 #rollupGuardCheck()
 #gatedRollupGuardCheck()
 #aggregateGuardCheck()
@@ -513,6 +516,9 @@ public class ${name}Repository extends JavaRepository<${name}Entity>#if($hasTarg
 #normalizeSubsets()
 #if($lifecycleEdges)
         enforceLifecycle(entity);
+#end
+#if($periodLock)
+        requirePeriodOpen(entity.${periodLock.dateProperty});
 #end
 #if($hasAgreeGuards)
         requireAgreementKept(entity);
@@ -658,6 +664,9 @@ public class ${name}Repository extends JavaRepository<${name}Entity>#if($hasTarg
         // Workflow writes change label inputs too (e.g. the stamped document number) - keep the
         // stored display name current on the system path as well.
         computeName(entity);
+#end
+#if($periodLock)
+        requirePeriodOpen(entity.${periodLock.dateProperty});
 #end
 #if($documentChecks && $documentChecks.size() > 0)
         // The workflow transition (e.g. the setter flipping the status to POSTED) comes through here -
@@ -1832,6 +1841,36 @@ public class ${name}Repository extends JavaRepository<${name}Entity>#if($hasTarg
             }
         }
         return String.valueOf(value);
+    }
+#end
+#if($periodLock)
+
+    // Date-based immutability (intent `immutableInPeriod:`), enforced where EVERY writer passes
+    // (#7590): the REST controllers refuse a user's write dated inside a closed ${periodLock.entity}
+    // with a 409, but a generated posting, a create-from and a schedule write through this
+    // repository and never meet a controller - so a journal entry was booked into a CLOSED period
+    // with every step green. A closed period is closed for the system too; a write dated inside one
+    // is refused here with the same sentence, as a ValidationException (a 400 over REST, and the
+    // failure of the unit of work that carried it elsewhere). An uncovered date stays open, exactly
+    // as on the controllers: periods are declared as they are needed.
+    private void requirePeriodOpen(${periodLock.dateJavaClass} date) {
+        if (date == null) {
+            return;
+        }
+        for (${periodLock.entityClass} period : new ${periodLock.repositoryClass}().findAll(
+                org.eclipse.dirigible.components.data.store.java.repository.Criteria.create()
+                                                                                   .le("${periodLock.startProperty}", date)
+                                                                                   .ge("${periodLock.endProperty}", date))) {
+            if (period.${periodLock.statusProperty} == null) {
+                continue;
+            }
+            for (String closed : "${periodLock.closedValues}".split(",")) {
+                if (closed.equals(String.valueOf(period.${periodLock.statusProperty}))) {
+                    throw new ValidationException(
+                            "The ${periodLock.entity} covering this date is closed - book the correction in an open period");
+                }
+            }
+        }
     }
 #end
 }
