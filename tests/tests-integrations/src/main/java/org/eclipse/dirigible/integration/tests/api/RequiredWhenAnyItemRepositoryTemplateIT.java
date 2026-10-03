@@ -97,7 +97,7 @@ class RequiredWhenAnyItemRepositoryTemplateIT {
         check.put("statusProperty", "Status");
         check.put("valueExpression", "entity.VatGround");
         check.put("label", "VatGround");
-        check.put("messageJavaLiteral", "A zero-rated line needs its legal ground");
+        check.put("messageArgsJava", "\"sales:sales-model.checks.Invoice_requiredWhen_0\", \"A zero-rated line needs its legal ground\"");
         check.put("itemsEntity", "InvoiceLine");
         check.put("itemsFk", "Invoice");
         check.put("anyItemJavaExpression", ANY_ITEM);
