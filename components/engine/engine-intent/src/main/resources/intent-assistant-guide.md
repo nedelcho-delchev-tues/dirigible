@@ -4098,8 +4098,8 @@ settlements:
     invoice: SalesInvoice                   # the open-receivable side
     payment: CustomerPayment                # the pot side (often cross-model)
     amount: amount                          # the junction's allocated-slice field
-    total: total                            # invoice capacity; open = total - paid
-    paid: paid                              # invoice consumed (kept by the paid roll-up)
+    total: total                            # invoice capacity; open = total - its allocation rows
+    paid: paid                              # invoice consumed (kept by the paid roll-up; its where: decides which rows count)
     pot: amount                             # payment pot field (payment.amount)
     order: date                             # allocate oldest first (FIFO); or a list: [date, number]
     match: [Customer, Currency]             # only allocate within the same customer + currency
@@ -4124,10 +4124,14 @@ Generates two client-Java glue classes (bind them with a `rollups` sum entry tha
 relation to both the invoice and the payment; `amount` is a junction field; `total` / `paid` and every
 `order` field are invoice fields; `status` a to-one relation of the invoice; `match` are to-one
 relations of the invoice (and same-named on the payment). Allocation is bounded by the invoice open amount and the
-payment's unallocated balance; entity writes go only through the generated repositories. The order is
-always total: both sides sort by the `order` fields and then by their own primary key, so documents
-sharing a date (every invoice issued that day) settle in creation order, never in database order. Give
-`order` a second field (`[date, number]`) when creation order is not the order you mean.
+payment's unallocated balance; entity writes go only through the generated repositories. The open
+amount is re-summed from the invoice's junction rows - the rows its capacity guard counts, narrowed by
+the paid roll-up's `where:` - and never read off `paid`, which the roll-up maintains asynchronously:
+sized from it, a payment event racing the roll-up asked for more than the guard allows and failed.
+The order is always total: both sides sort by the `order` fields and then by their own primary key,
+so documents sharing a date (every invoice issued that day) settle in creation order, never in
+database order. Give `order` a second field (`[date, number]`) when creation order is not the order
+you mean.
 
 ### resolves - fill a relation from a register valid on a date
 

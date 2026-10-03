@@ -3025,6 +3025,15 @@ class IntentEngineIT extends IntegrationTest {
         assertTrue(onInvoice.replaceAll("\\s+", "")
                             .contains(".orderByAsc(\"Date\").orderByAsc(\"Id\");"),
                 "the customer's payments should be drawn by date, then by key");
+
+        // What an invoice can still take is re-summed from its allocation ROWS - the rows the capacity
+        // guard counts - never read off the paid roll-up column, which lags them (#7559). Sized from the
+        // column, a payment event racing the roll-up asked for more than the guard allows and failed.
+        for (String handler : List.of(onPayment, onPaymentUpdated, onInvoice)) {
+            String code = stripComments(handler);
+            assertTrue(code.contains(".eq(\"Invoice\", invoice.Id)"), "the open amount should be summed from the invoice's rows");
+            assertFalse(code.contains("invoice.Paid"), "the open amount must not be read off the lagging paid column");
+        }
     }
 
     @Test
