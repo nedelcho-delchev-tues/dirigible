@@ -378,7 +378,7 @@ document.addEventListener('alpine:init', () => {
         });
       }
 
-      await this.loadOptions();
+      await this.loadOptions(true);
 
       if (this.isEdit || this.isPreview) {
         this.state = 'loading';
@@ -419,6 +419,10 @@ document.addEventListener('alpine:init', () => {
       // the catch-up leaves no gap between the two for a pick to fall into.
       this.${dollar}watch('form.${property.widgetDependsOnProperty}', (v) => {
         if (v != null && v !== '') this.applyDependsOn${property.name}(v, true);
+#if($property.widgetType == "DROPDOWN")
+        // Trigger cleared: the narrowed list describes nothing - back to the whole of it.
+        else this.loadAllOptions${property.name}();
+#end
       });
       if (this.form.${property.widgetDependsOnProperty} != null && this.form.${property.widgetDependsOnProperty} !== '') {
         const pickedDuringLoad${property.name} = !this.isEdit && !this.isPreview && this.queryParam('${property.widgetDependsOnProperty}') === null;
@@ -428,6 +432,13 @@ document.addEventListener('alpine:init', () => {
         if (pickedDuringLoad${property.name}) await this.applyDependsOn${property.name}(this.form.${property.widgetDependsOnProperty}, true);
 #end
       }
+#if($property.widgetType == "DROPDOWN")
+      else {
+        // No trigger to narrow by: the whole list is the right one, and only now is that
+        // known - loadOptions above deliberately left this picker empty (#7669).
+        await this.loadAllOptions${property.name}();
+      }
+#end
 #end
 #end
       // Create mode: the blank form plus whatever the URL and the depends-on prefills put in it is
@@ -537,9 +548,25 @@ document.addEventListener('alpine:init', () => {
       await this.loadHeader();
     },
 
-    async loadOptions() {
+    async loadOptions(deferDependsOn) {
 #foreach($property in $properties)
 #if(($property.widgetType == "DROPDOWN" || $property.widgetType == "DOCUMENT_STATUS" || $property.widgetType == "MULTISELECT") && $property.aggregate != "true")
+#if($property.widgetDependsOnProperty && $property.widgetDependsOnControllerUrl && $property.widgetType == "DROPDOWN" && $property.aggregate != "true")
+      // A Depends-On picker's list is the cascade's to decide (#7669): loading the whole of it
+      // here put rows in the chooser that the trigger goes on to refuse. At init the trigger is
+      // not in the form yet, so init() passes deferDependsOn and decides after the record load.
+      if (!deferDependsOn) await this.refreshOptions${property.name}();
+#else
+      await this.loadAllOptions${property.name}();
+#end
+#end
+#end
+    },
+#foreach($property in $properties)
+#if(($property.widgetType == "DROPDOWN" || $property.widgetType == "DOCUMENT_STATUS" || $property.widgetType == "MULTISELECT") && $property.aggregate != "true")
+
+    // The whole option list of ${property.name}, unnarrowed.
+    async loadAllOptions${property.name}() {
       try {
 #if($property.widgetOptionsFilterBy)
         // Static option filter (intent `where:`): the chooser lists only matching rows.
@@ -565,17 +592,19 @@ document.addEventListener('alpine:init', () => {
       } catch (e) {
         console.error('[${name}DocumentPage] failed to load options for ${property.name}', e);
       }
-#end
-#end
-#foreach($property in $properties)
-#if($property.widgetDependsOnProperty && $property.widgetDependsOnControllerUrl && $property.widgetType == "DROPDOWN" && $property.aggregate != "true")
-      // Re-apply the Depends-On filter after a full reload (Refresh / Add-new keep the cascade).
-      if (this.form.${property.widgetDependsOnProperty} != null && this.form.${property.widgetDependsOnProperty} !== '') {
-        await this.applyDependsOn${property.name}(this.form.${property.widgetDependsOnProperty}, false);
-      }
-#end
-#end
     },
+#if($property.widgetDependsOnProperty && $property.widgetDependsOnControllerUrl && $property.widgetType == "DROPDOWN" && $property.aggregate != "true")
+
+    // The right list for the trigger as it now stands: narrowed while the trigger has a value,
+    // whole while it has none (a Refresh, a cleared trigger).
+    async refreshOptions${property.name}() {
+      const trigger${property.name} = this.form.${property.widgetDependsOnProperty};
+      if (trigger${property.name} != null && trigger${property.name} !== '') await this.applyDependsOn${property.name}(trigger${property.name}, false);
+      else await this.loadAllOptions${property.name}();
+    },
+#end
+#end
+#end
 
     // "Add new <related>" from a header FK combobox: open the target's own create page in the shared
     // related-create iframe dialog; on save, reload that field's options and select the new record.
@@ -1007,14 +1036,16 @@ document.addEventListener('alpine:init', () => {
       if (!values.length) return;
       const opts = this['options' + prop];
       if (!Array.isArray(opts)) return;
-      for (const value of values) {
-        if (opts.some(o => String(o.value) === String(value))) continue;
-        try {
-          const row = await App.services.api.get(url + '/' + encodeURIComponent(value), { baseUrl: '' });
-          if (row && row[key] != null) opts.unshift({ value: row[key], text: row[text] });
-        } catch (e) {
+      // All of them in flight at once: a MULTISELECT holding a few hundred off-filter keys used
+      // to resolve them one await at a time, and the page's whole init waited out the chain (#7669).
+      const missing = values.filter(v => !opts.some(o => String(o.value) === String(v)));
+      const rows = await Promise.all(missing.map(v => App.services.api.get(url + '/' + encodeURIComponent(v), { baseUrl: '' })
+        .catch(e => {
           console.error('[${name}DocumentPage] failed to resolve the filtered current option for ' + prop, e);
-        }
+          return null;
+        })));
+      for (const row of rows) {
+        if (row && row[key] != null) opts.unshift({ value: row[key], text: row[text] });
       }
     },
 

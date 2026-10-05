@@ -198,7 +198,7 @@ not as an apology.
   renders them, and still counted by every report and roll-up over the child. Declare it on the
   entity's OWNING composition (its first one); a deeper chain cascades level by level, each child
   dealing with its own children as it goes.
-- **`whenTargetDeleted: restrict | nullify | cascade` on a plain (non-composition) `manyToOne`/
+- **`whenTargetDeleted: restrict | nullify | cascade | keep` on a plain (non-composition) `manyToOne`/
   `oneToOne` = what deleting the record it points at does to the records pointing at it** (#7547).
   - `restrict` is the DEFAULT, also when the key is absent: the delete is refused with a 409 naming the
     referencing records and their count ("This Employee is referenced by 2 Expense Claim record(s)
@@ -206,6 +206,10 @@ not as an apology.
   - `nullify` deletes the target and clears this relation. It is refused on a `required` relation.
   - `cascade` deletes this record together with the target, through its own repository, so its
     events, history and own rules apply.
+  - `keep` deletes the target and leaves this relation pointing at it (#7634) - a historical link
+    that outlives its target by design, such as a journal entry's link to the payment it booked,
+    which the entry's red storno (`reverses:` on `onDelete`) still follows. Cross-model (`model:`)
+    relations only: a same-model relation is a database foreign key that refuses the delete itself.
 
   Every restriction is checked before anything is released, so a refused delete changes nothing. It
   works across models too (a `model:` relation): the owning module needs no change, because the
@@ -710,6 +714,12 @@ field may declare:
   `{ kind: compare, field: issueDelayDays, op: le, value: 5, severity: warn, message: "..." }`. Only
   the neutral expressions are evaluated for the checks; a `calculatedAction*` runs on the write
   itself, so a check on an action-calculated field still reads the value it was sent.
+  **A check reads a system-owned field from the stored row (#7633).** On an update, a `readOnly`
+  field, a roll-up target, an aggregate and an audit column are what the stored row says - never the
+  payload's value - for the checks exactly as for the write. So "a receipt whose entries are posted
+  is final" is `{ kind: forbidWhen, when: ["postedEntries != null", "postedEntries != 0"] }` over a
+  `readOnly` counter a roll-up maintains, and a PUT that omits the counter, or sends 0 for it, is
+  refused like one that echoes the stored value.
   **Translating check messages (#7611).** A check message is translated exactly like a label: write
   it ONCE, in the module's default language, and it reaches every reader in their own. The generator
   writes each message into the module's en-US catalog (`i18n/en-US/<model>.model.json`) under
@@ -775,7 +785,14 @@ field may declare:
   references, arithmetic over the SOURCE's fields, or - for a to-one relation cell - a bare SOURCE
   relation name whose FK is copied onto the line; a row `when` is `<SourceField> ==|!= <number>`.
   A missing rule row or null referenced column SKIPS the posting (the unposted worklist = final-status
-  documents with no back-referencing target), never throws. `rule.match` is a single
+  documents with no back-referencing target), never throws - and says so in the log naming the rule
+  entity, the match value and the source, because nothing else in the system marks the gap (#7649).
+  **Where a column is required follows the line that reads it.** A column read by an UNGUARDED line is
+  required of every document of this type and is checked once, up front. A column only a
+  `when:`-guarded line reads is checked INSIDE that line's own guard: a document the guard excludes
+  books nothing on the column, so an optional line added later - a promotion account on the few
+  invoices that carry one - must not stop every document of the type from posting on every tenant
+  whose rule row predates it. `rule.match` is a single
   `column: literal` selector and the literal must be there - an empty one is refused at parse, because
   it is rendered into the handler as the authored literal and would select no rule row at all, leaving
   every source document on the worklist with nothing failing anywhere.
@@ -808,6 +825,12 @@ field may declare:
   seed id or as the seeded status name), someone has acted on it, so the divergence is logged and left
   to a reversing entry. A created document with no `function: EntityStatus` relation is always
   rewritable - and so is one whose `init:` names no seeded status at all, which Generate reports.
+  **An `onCreate` posting follows its source's edits (#7634).** A source with no status lifecycle
+  raises its posting's moment only once, at the insert, so the posting also listens to the source's
+  edit and re-derives the post through the same comparison: an edited payment rewrites its DRAFT
+  entry in place, and once the entry has left its `init:` status the divergence is logged, as for an
+  amended re-issue. The edit never writes a FIRST post - a source the create skipped (no rule row,
+  a false `when`) stays on the unposted worklist. Nothing to declare.
   **Reversal mode (red storno):** a posting with `reverses: <sibling posting name>` undoes the
   sibling's document when the source is voided/cancelled - pair it with a `transitions:` void:
   ```yaml
@@ -824,6 +847,20 @@ field may declare:
   carrying the link are the reversal's own; the sibling's guard symmetrically counts only rows without it). The
   reversal lands as a normal new document (DRAFT status init, numbering, checks), dated by its own
   `map`-inherited header - corrections post into the open period.
+  **A deleted source is reversed too (#7634)** - the correcting entry for a source with no void status,
+  a booked payment. Bind the reversal to the source's delete:
+  ```yaml
+    - name: paymentStorno
+      event: { onDelete: Payment, model: payments }   # the sibling's own source
+      reverses: paymentPosting
+      storno: Storno
+  ```
+  The sibling's `backReference` must declare `whenTargetDeleted: keep` (and so be cross-model): the
+  reversal finds the original through it AFTER the delete, which `restrict` (the default) refuses,
+  `nullify` clears and `cascade` deletes it with - all refused at parse. The deleted row is read off
+  the delete event, and the reversal MIRRORS the original's stored lines, every amount negated,
+  instead of re-deriving them: a payment edited after its entry was posted left a logged divergence,
+  and only negating what was posted nets the original to zero. `onDelete` binds a reversal only.
 - `calculatedOnCreate` / `calculatedOnUpdate` - an expression the generated repository assigns to the
   property on insert / update. Prefer a **neutral arithmetic expression** for numeric totals
   (`"Quantity * Price"`, `"round(Net * 0.2, 2)"`) - the SDK `Calc` evaluator runs it on the server and
@@ -1088,6 +1125,28 @@ entities:
 Generation REFUSES a rule `match:` column and an arrival lookup `by:` field that is translated, naming
 this marker; and it refuses the marker itself where it cannot mean anything (a non-multilingual entity,
 a non-string field).
+
+**Renaming or removing a field of a live application (`renamedFrom:` / `dropped:`).** A publish never
+drops a column on its own: a field deleted from the intent keeps its column and its values in every
+tenant (the column is logged as undeclared and counted), so a mistaken removal costs nothing. Two
+declarations make the change explicit. When you RENAME a field, keep its data with `renamedFrom:
+<old name>` on the field - the publish renames the column in place; without it the old values stay
+behind in the old column and the new field starts empty. When the user really wants a field's data
+gone, list the former name under the entity's `dropped:` - that publish removes the column, values
+included. Both name fields or to-one relations by their authored names, and both are refused when the
+name is still declared on the entity:
+
+```yaml
+entities:
+  - name: Invoice
+    dropped: [legacyCode]                                   # this column and its data are removed
+    fields:
+      - { name: id, type: integer, primaryKey: true, generated: true }
+      - { name: issueDate, type: date, renamedFrom: invoiceDate }   # the values move with the name
+```
+
+Propose `renamedFrom:` whenever you rename a field of an entity that may already hold rows; propose
+`dropped:` only when the user asks for the data to go, never as part of a rename.
 
 **Custom imports (`imports:` on an entity):** a multi-line string of Java `import ...;` lines injected
 verbatim into that entity's generated repository, so a calculated-field action (or any custom class)
@@ -2080,7 +2139,9 @@ generates:
     sourceStatus: 3                # optional completion hook: the SOURCE's EntityStatus seed id
                                    # after the target is created (e.g. proforma -> INVOICED)
     sourceStatusOnRetire: 2        # optional INVERSE of that hook: where the SOURCE returns when the
-                                   # target is retired (cancelled/void) - see "void and reissue"
+                                   # target is retired (cancelled/void) - see "void and reissue".
+                                   # Takes a button create-from too, where the hook is what sticks
+                                   # the source (#7647)
 ```
 
 **Which source rows become lines (`items: where:` / `refuse:`).** The mirror form clones every row
@@ -2374,7 +2435,8 @@ generates:
   slot; but where `sourceStatus:` is declared nothing could refill it. The completion hook moved the
   source OFF the status its own trigger qualifies on - deliberately - and the ordinary lifecycle graph
   declares no edge back, so no qualifying event is ever published again: an event-only create-from had
-  no reissue path at all, and only a shared `button: true` could raise the replacement.
+  no reissue path at all, and only a shared `button: true` could raise the replacement - and a
+  BUTTON-only one is no better off, the implied `fromStatus` deny refusing the second click (#7647).
   `sourceStatusOnRetire:` declares the move back, so the reissue becomes the ORDINARY path:
 
   ```yaml
@@ -2395,9 +2457,12 @@ generates:
   end, which is what makes it idempotent with no marker column: a redelivered retirement arriving after
   the replacement exists finds a live target and does nothing.
 
-  It requires an `event:` to re-fire (a button-only create-from carries no guard, so nothing blocks a
-  replacement - the button already reissues) and `sourceStatus:` to invert, and must name a DIFFERENT
-  status; the target must be local, with a nomenclature that classifies a retiring `stage:` (a
+  It requires `sourceStatus:` to invert and must name a DIFFERENT status. It does NOT require an
+  `event:` (#7647): a BUTTON create-from carries no at-most-once guard, but its completion hook flips
+  the source off the status the button is offered from and the implied `fromStatus` deny then refuses
+  the second click, so the source is just as stuck and the declared inverse is the only move back - the
+  reopen is emitted for that shape too, without the guard's stage-aware step-over, which belongs to a
+  guard it does not have. the target must be local, with a nomenclature that classifies a retiring `stage:` (a
   cross-model target is seeded in its owner model, so nothing here can recognise its retirement - keep
   `button: true` and reissue by hand); `mode: append` is refused (no guard, so no slot to free); and
   when the source declares a `lifecycle:`, the graph must declare the edge from `sourceStatus` back to
@@ -4144,6 +4209,8 @@ Generates two client-Java glue classes (bind them with a `rollups` sum entry tha
   invoice; wire it as a **`delegate:` service task** on the process step where the invoice becomes
   payable (e.g. right after Issue), e.g. `args: { delegate: gen.events.AutoAllocateOnInvoice, next: … }`
   (the bare `gen.events.<ClassName>` shorthand resolves to this module's generated events package).
+  The step is async, so it re-reads the invoice's `status` and settles nothing unless it is still one of
+  the `payableStatuses` - an invoice voided before the step runs keeps its balance.
 
 **Rules:** `junction` / `invoice` / `payment` are declared entities; the junction must have a to-one
 relation to both the invoice and the payment; `amount` is a junction field; `total` / `paid` and every
@@ -4356,7 +4423,7 @@ or a seeded name.
 | process `vars` | `[{ name: <identifier>, clearAfter: <serviceTask/userTask step> }]`; step `produces:`/`uses:` list declared var names |
 | process `abortOn` | `{ status: <id> \| [ids], then: <serviceTask> \| end }` (trigger entity needs a `function: EntityStatus` relation) |
 | relation `whenMasterDeleted` | `cascade` (default - a delete of the master deletes the children it owns), `refuse` (the master's delete is rejected while children exist); composition relations only |
-| relation `whenTargetDeleted` | `restrict` (default - the target's delete is answered 409 while this relation still references it), `nullify` (the target is deleted and this relation cleared; not on a required relation), `cascade` (this record is deleted with the target); plain to-one relations, same-model or cross-model |
+| relation `whenTargetDeleted` | `restrict` (default - the target's delete is answered 409 while this relation still references it), `nullify` (the target is deleted and this relation cleared; not on a required relation), `cascade` (this record is deleted with the target), `keep` (the target is deleted and this relation still names it; cross-model only); plain to-one relations, same-model or cross-model |
 | process `whenDeleted` | `abort` (default - deleting the trigger row cancels the in-flight instance), `refuse` (the REST delete answers 409 while the instance runs); needs an entity trigger |
 | trigger `businessKeyStrategy` | `timestamp` |
 | entity event | `onCreate`, `onUpdate`, `onDelete`, `onTransition` (the STATUS channel - a workflow setter / `transitions:` button / `generates` completion hook publishes it, and `onUpdate` never sees those) |

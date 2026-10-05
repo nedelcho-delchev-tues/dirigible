@@ -68,6 +68,42 @@ public abstract class IntegrationTest {
         Configuration.set("DIRIGIBLE_MAVEN_LOCAL_REPO", "target/dirigible/m2");
     }
 
+    /**
+     * A race on a Flowable async-executor thread must not fail whichever test happens to be inside an
+     * {@code await()} (issue #7581).
+     *
+     * <p>
+     * Awaitility catches uncaught exceptions from EVERY thread while an await runs and rethrows them on
+     * the test thread, so a job the executor could not lock - which Flowable recovers from on the next
+     * acquire cycle - failed an IT whose only connection to it was the clock. An assertion should fail
+     * a test; a background retry should not. The whitelist is narrow on purpose: the one exception
+     * type, raised from the one class that acquires jobs. Everything else still fails the test, from
+     * any thread, and so does anything thrown inside an await's own condition.
+     */
+    @BeforeAll
+    static void toleratePollingJobAcquisitionRaces() {
+        Awaitility.ignoreExceptionsByDefaultMatching(IntegrationTest::isJobAcquisitionRace);
+    }
+
+    private static boolean isJobAcquisitionRace(Throwable throwable) {
+        for (Throwable cause = throwable; cause != null; cause = cause.getCause() == cause ? null : cause.getCause()) {
+            // matched by NAME: the test framework does not depend on Flowable, and this is the only
+            // thing it ever needs to know about it
+            if (!cause.getClass()
+                      .getName()
+                      .endsWith("FlowableOptimisticLockingException")) {
+                continue;
+            }
+            for (StackTraceElement frame : cause.getStackTrace()) {
+                if (frame.getClassName()
+                         .endsWith("ExecuteAsyncRunnable")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     @BeforeAll
     static void cleanBeforeTestClassExecution() {
         DirigibleCleaner.deleteDirigibleFolder();

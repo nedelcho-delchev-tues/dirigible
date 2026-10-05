@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 
 import org.eclipse.dirigible.components.intent.model.EntityIntent;
 import org.eclipse.dirigible.components.intent.model.FieldIntent;
+import org.eclipse.dirigible.components.intent.model.RelationIntent;
 import org.eclipse.dirigible.components.intent.model.IntentModel;
 import org.eclipse.dirigible.components.intent.model.ProcessIntent;
 import org.eclipse.dirigible.components.intent.model.StepIntent;
@@ -70,7 +71,7 @@ public final class ProcessFieldLoadSupport {
             if (owner == null) {
                 continue; // no trigger entity -> no own-field context to load
             }
-            Set<String> ownFieldNames = ownFieldNames(owner);
+            Set<String> ownFieldNames = ownNames(owner);
             for (StepIntent step : process.getSteps()) {
                 if (!"decision".equals(step.getKind()) || step.getName() == null) {
                     continue;
@@ -112,12 +113,35 @@ public final class ProcessFieldLoadSupport {
         return new ArrayList<>(fields);
     }
 
-    private static Set<String> ownFieldNames(EntityIntent owner) {
+    /**
+     * The identifiers of the trigger entity a decision may branch on: its own fields, and - since issue
+     * #7648 - its TO-ONE relations, whose foreign key the row carries exactly as it carries a field.
+     *
+     * <p>
+     * A relation was not loadable before, so {@code if: "SentMethod == 1"} got no loader at all: the
+     * identifier resolved only if a task form happened to post it as a variable, and a completion
+     * through the Inbox API carries none - Flowable then failed the expression on the unknown property.
+     * The FK is a number on the entity like any other column, so loading it needs nothing the field
+     * path does not already do; what it needed was to be looked for.
+     *
+     * @param owner the trigger entity
+     * @return the authored names a decision may name, fields and to-one relations alike
+     */
+    private static Set<String> ownNames(EntityIntent owner) {
         Set<String> names = new LinkedHashSet<>();
         for (FieldIntent field : owner.getFields()) {
             if (field.getName() != null && !field.getName()
                                                  .isBlank()) {
                 names.add(field.getName());
+            }
+        }
+        if (owner.getRelations() != null) {
+            for (RelationIntent relation : owner.getRelations()) {
+                boolean toOne = "manyToOne".equals(relation.getKind()) || "oneToOne".equals(relation.getKind());
+                if (toOne && relation.getName() != null && !relation.getName()
+                                                                    .isBlank()) {
+                    names.add(relation.getName());
+                }
             }
         }
         return names;
