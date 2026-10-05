@@ -9311,16 +9311,14 @@ public final class IntentParser {
                     + " another " + g.getTo() + "; drop the reopen, or use mode: once");
             return;
         }
-        if (!g.isEventDriven()) {
-            // A create-from with no event carries no guard at all, so nothing ever blocks a second
-            // creation: the button IS the reissue. There is no slot to free and no trigger to re-fire,
-            // which is why the glue emits no reopen listener for this shape - and an authored key that
-            // generates nothing is the silence this whole construct exists to refuse.
-            issues.add(subject + " declares sourceStatusOnRetire but has no event: - a create-from triggered only by a button carries"
-                    + " no at-most-once guard, so nothing blocks a replacement and the button already reissues. The reopen exists to"
-                    + " re-fire an EVENT trigger; declare event: or drop the key");
-            return;
-        }
+        // A BUTTON create-from used to be refused here, on the reasoning that nothing blocks a second
+        // click so the button already reissues. That holds only without a completion hook: a declared
+        // `sourceStatus` flips the source off the status the button is offered from, and the implied
+        // `fromStatus` deny of exactly that status (#7068) then refuses the second click with a 409 -
+        // so the source is stuck, `immutableWhen` locks it, and nothing can move it back (#7647). The
+        // hook blocks the button exactly as the guard blocks the trigger, and the declared inverse is
+        // the move back in both shapes. What stays refused is a button create-from with no hook at all,
+        // which the sourceStatus check above has already returned on.
         if (crossModel) {
             issues.add(subject + " cannot reopen for a cross-model target (uses [" + g.getUses() + "]) - what RETIRES a [" + g.getTo()
                     + "] is the `stage:` classification of its status nomenclature, seeded in the owner model and not resolvable here;"
