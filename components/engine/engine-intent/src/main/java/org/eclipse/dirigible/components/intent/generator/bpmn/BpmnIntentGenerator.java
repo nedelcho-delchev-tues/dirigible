@@ -427,6 +427,16 @@ public class BpmnIntentGenerator implements IntentTargetGenerator {
                     rewrites.put(field.getName(), IntentNaming.pascalCase(field.getName()));
                 }
             }
+            // ...and its to-one relations (#7648): the loader publishes their foreign key under the same
+            // PascalCase name a field gets, so the gateway's condition has to be rewritten to match.
+            if (entity.getRelations() != null) {
+                for (RelationIntent relation : entity.getRelations()) {
+                    boolean toOne = "manyToOne".equals(relation.getKind()) || "oneToOne".equals(relation.getKind());
+                    if (toOne && relation.getName() != null) {
+                        rewrites.put(relation.getName(), IntentNaming.pascalCase(relation.getName()));
+                    }
+                }
+            }
         }
         return rewrites;
     }

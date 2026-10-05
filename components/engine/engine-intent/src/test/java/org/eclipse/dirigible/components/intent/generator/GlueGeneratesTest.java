@@ -241,6 +241,15 @@ class GlueGeneratesTest {
                                                                        sourceStatusOnRetire: 2
                                                                    """);
 
+    /**
+     * The same reopen on a BUTTON create-from (#7647): no {@code event:}, so no at-most-once guard to
+     * make stage-aware - but the completion hook still flips the fine off the status the button is
+     * offered from, so the reopen is the only thing that can bring it back.
+     */
+    private static final String BUTTON_REOPEN_YAML = REOPEN_YAML.replace("""
+                event: { onTransition: Fine, when: "Status == POSTED" }
+            """, "");
+
     @SuppressWarnings("unchecked")
     @Test
     void rendersHeaderAssignmentsItemsAndKeys() {
@@ -1226,6 +1235,23 @@ class GlueGeneratesTest {
      * create-from written before the key existed regenerates byte-identical output and contributes no
      * listener.
      */
+    /**
+     * A button create-from emits the reopen but not the stage-aware step-over (#7647): the guard the
+     * step-over belongs to is the event trigger's, and this shape has none. The source is stuck all the
+     * same - the hook flips it off the status the button is offered from, and the implied fromStatus
+     * deny refuses the second click - so the inverse is exactly what is missing.
+     */
+    @Test
+    void aButtonCreateFromEmitsTheReopenWithoutTheStageAwareGuard() {
+        Map<String, Object> g = GlueIntentGenerator.buildGeneratesForTest(IntentParser.parse(BUTTON_REOPEN_YAML))
+                                                   .get(0);
+
+        assertEquals(true, g.get("hasReopen"));
+        assertEquals("2", g.get("reopenStatusValue"));
+        assertEquals("target.State == 3 || target.State == 4", g.get("reopenRetiredCondition"));
+        assertEquals(false, g.get("hasRetiredStatus"), "there is no at-most-once guard here to step a retired target over");
+    }
+
     @Test
     void withoutTheKeyNoReopenIsEmitted() {
         Map<String, Object> g = GlueIntentGenerator.buildGeneratesForTest(IntentParser.parse(RETIRING_YAML))

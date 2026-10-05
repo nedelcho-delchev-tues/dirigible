@@ -4239,6 +4239,7 @@ public final class IntentParser {
             if (!entityNames.add(name)) {
                 issues.add("duplicate entity [" + name + "]");
             }
+            validateSchemaEvolution(entity, issues);
             Set<String> fieldNames = new HashSet<>();
             int idCount = 0;
             for (FieldIntent field : entity.getFields()) {
@@ -5307,7 +5308,7 @@ public final class IntentParser {
     }
 
     /** The values {@code whenTargetDeleted} accepts. */
-    private static final Set<String> TARGET_DELETE_RULES = Set.of("restrict", "nullify", "cascade");
+    private static final Set<String> TARGET_DELETE_RULES = Set.of("restrict", "nullify", "cascade", "keep");
 
     /**
      * {@code whenTargetDeleted} on a to-one association = what a DELETE of the TARGET does to the
@@ -5318,7 +5319,10 @@ public final class IntentParser {
      * already answers "what happens to my children when I, the master, am deleted" through
      * {@link #validateWhenMasterDeleted}, and this key is the opposite direction: what happens to ME
      * when the entity I POINT AT is deleted. {@code nullify} needs a column that may be empty, so it is
-     * refused on a required relation.
+     * refused on a required relation. {@code keep} (#7634) leaves the reference in place - a historical
+     * link that outlives its target by design, such as a journal entry's link to the payment it booked,
+     * which the entry's red storno still follows after the payment is deleted. It is refused on a
+     * same-model relation, whose column is a database foreign key that refuses the delete itself.
      *
      * @param entity the entity declaring the relation
      * @param relation the relation
@@ -5334,7 +5338,7 @@ public final class IntentParser {
         if (!TARGET_DELETE_RULES.contains(value)) {
             issues.add(subject + " whenTargetDeleted [" + whenTargetDeleted
                     + "] must be `restrict` (refuse the target's delete while this relation references it, the default), `nullify`"
-                    + " (clear this relation) or `cascade` (delete this record with it)");
+                    + " (clear this relation), `cascade` (delete this record with it) or `keep` (leave it pointing at the deleted record)");
             return;
         }
         if (!"manyToOne".equals(relation.getKind()) && !"oneToOne".equals(relation.getKind())) {
@@ -5349,6 +5353,10 @@ public final class IntentParser {
         }
         if ("nullify".equals(value) && relation.isRequired()) {
             issues.add(subject + " is required, so whenTargetDeleted: nullify cannot clear it - use `restrict` or `cascade`");
+        }
+        if ("keep".equals(value) && !relation.isCrossModel()) {
+            issues.add(subject + " declares whenTargetDeleted: keep, but a same-model relation is a database foreign key that refuses the"
+                    + " target's delete itself - keep is for a cross-model (`model:`) reference");
         }
     }
 
@@ -7032,6 +7040,71 @@ public final class IntentParser {
      * @param field the field carrying the marker
      * @param issues the collected issues, appended to
      */
+    /**
+     * The expand/contract declarations of an entity's table (#7635): {@code dropped:} names the former
+     * fields and relations whose columns a publish removes, a field's {@code renamedFrom:} the former
+     * name whose column it takes over. Both are compared by the COLUMN the name maps to, because that
+     * is what would collide in the table: a dropped name or a rename source that is still a field or a
+     * relation would drop or move a column the entity still declares, and two fields renamed from one
+     * name would both claim its data.
+     *
+     * @param entity the entity
+     * @param issues the issue list to append to
+     */
+    private static void validateSchemaEvolution(EntityIntent entity, List<String> issues) {
+        String subject = "entity [" + entity.getName() + "]";
+        Map<String, String> declared = new HashMap<>();
+        for (FieldIntent field : entity.getFields()) {
+            if (!isBlank(field.getName())) {
+                declared.put(IntentNaming.upperSnake(field.getName()), field.getName());
+            }
+        }
+        for (RelationIntent relation : entity.getRelations()) {
+            if (!isBlank(relation.getName())) {
+                declared.put(IntentNaming.upperSnake(relation.getName()), relation.getName());
+            }
+        }
+        Set<String> dropped = new HashSet<>();
+        for (String name : entity.getDropped()) {
+            if (isBlank(name)) {
+                issues.add(subject + " lists an empty name under `dropped`");
+                continue;
+            }
+            String column = IntentNaming.upperSnake(name.trim());
+            if (declared.containsKey(column)) {
+                issues.add(subject + " lists [" + name + "] under `dropped` but still declares [" + declared.get(column)
+                        + "] - a dropped column is one the entity no longer has");
+            } else if (!dropped.add(column)) {
+                issues.add(subject + " lists [" + name + "] under `dropped` twice");
+            }
+        }
+        Map<String, String> renameSources = new HashMap<>();
+        for (FieldIntent field : entity.getFields()) {
+            String renamedFrom = field.getRenamedFrom();
+            if (renamedFrom == null || isBlank(field.getName())) {
+                continue;
+            }
+            String fieldSubject = subject + " field [" + field.getName() + "]";
+            if (isBlank(renamedFrom)) {
+                issues.add(fieldSubject + " declares an empty `renamedFrom`");
+                continue;
+            }
+            String column = IntentNaming.upperSnake(renamedFrom.trim());
+            if (column.equals(IntentNaming.upperSnake(field.getName()))) {
+                issues.add(fieldSubject + " is `renamedFrom` its own name");
+            } else if (declared.containsKey(column)) {
+                issues.add(fieldSubject + " is `renamedFrom` [" + renamedFrom + "], which the entity still declares as ["
+                        + declared.get(column) + "] - a rename takes over a column no field owns any more");
+            } else if (dropped.contains(column)) {
+                issues.add(fieldSubject + " is `renamedFrom` [" + renamedFrom + "], which is also listed under `dropped`"
+                        + " - the rename would keep the data the drop removes");
+            } else if (renameSources.putIfAbsent(column, field.getName()) != null) {
+                issues.add(fieldSubject + " is `renamedFrom` [" + renamedFrom + "], as is field [" + renameSources.get(column)
+                        + "] - only one field can take over its column");
+            }
+        }
+    }
+
     private static void validateTranslatable(EntityIntent entity, String subject, FieldIntent field, List<String> issues) {
         if (field.isTranslatable()) {
             return;
@@ -8652,6 +8725,48 @@ public final class IntentParser {
      * selector; item rows assign fields/relations of the items entity from {@code rule(<column>)}
      * references or source expressions, with an optional {@code when} row guard.
      */
+    /**
+     * A reversal bound to {@code onDelete} (#7634) red-stornos the entry its sibling posted for a
+     * source that is then DELETED. Two things must hold for it to ever run. It must watch the sibling's
+     * own source - a delete of anything else has no original to find. And the back-reference the
+     * original carries must survive that delete: the reversal finds the original through it, AFTER the
+     * delete committed, so a {@code restrict} (the default) refuses the delete outright, a
+     * {@code nullify} clears the link before the reversal can follow it and a {@code cascade} deletes
+     * the original with it. Only {@code whenTargetDeleted: keep} leaves it in place, and only on a
+     * cross-model relation, whose column is not a database foreign key.
+     *
+     * @param posting the reversal
+     * @param sibling the posting it reverses
+     * @param byName the model's entities by name
+     * @param subject the message prefix naming the reversal
+     * @param issues the issue list to add to
+     */
+    private static void validateDeleteReversal(PostingIntent posting, PostingIntent sibling, java.util.Map<String, EntityIntent> byName,
+            String subject, List<String> issues) {
+        Object deleted = posting.getEvent()
+                                .get("onDelete");
+        Object siblingSource = sibling.getEvent() == null ? null : EventBinding.entity(sibling.getEvent());
+        Object alias = posting.getEvent()
+                              .get("model");
+        Object siblingAlias = sibling.getEvent() == null ? null
+                : sibling.getEvent()
+                         .get("model");
+        if (siblingSource != null && (!String.valueOf(siblingSource)
+                                             .equals(String.valueOf(deleted))
+                || !java.util.Objects.equals(alias, siblingAlias))) {
+            issues.add(subject + " onDelete [" + deleted + "] must name the source of [" + sibling.getName() + "] (" + siblingSource
+                    + ") - only its delete leaves an entry of that posting to reverse");
+        }
+        EntityIntent reversed = sibling.getCreates() == null ? null : byName.get(sibling.getCreates());
+        RelationIntent backReference =
+                reversed == null || sibling.getBackReference() == null ? null : toOneRelationByName(reversed, sibling.getBackReference());
+        if (backReference != null && (!backReference.isCrossModel() || !"keep".equals(backReference.getTargetDeleteRule()))) {
+            issues.add(subject + " reverses a deleted source, so [" + reversed.getName() + "." + backReference.getName()
+                    + "] must be a cross-model relation declaring `whenTargetDeleted: keep` - the reversal finds the original through it"
+                    + " after the delete, which `restrict` (the default) refuses, `nullify` clears and `cascade` deletes it with");
+        }
+    }
+
     private static void validatePostings(IntentModel model, Set<String> usesAliases, List<String> issues) {
         java.util.Map<String, EntityIntent> byName = new java.util.HashMap<>();
         for (EntityIntent entity : model.getEntities()) {
@@ -8682,14 +8797,27 @@ public final class IntentParser {
             Object onPhase = posting.getEvent() == null ? null
                     : posting.getEvent()
                              .get(EventBinding.ON_PHASE);
-            int triggers = (onTransition == null ? 0 : 1) + (onCreate == null ? 0 : 1) + (onPhase == null ? 0 : 1);
+            // ...or `onDelete` (#7634), on a reversal only: a deleted source has nothing left to post,
+            // only the entry posted for it to red-storno.
+            Object onDelete = posting.getEvent() == null ? null
+                    : posting.getEvent()
+                             .get("onDelete");
+            int triggers =
+                    (onTransition == null ? 0 : 1) + (onCreate == null ? 0 : 1) + (onPhase == null ? 0 : 1) + (onDelete == null ? 0 : 1);
             if (triggers == 0) {
                 issues.add(subject + " requires `event: { onTransition: <SourceEntity>, ... }`,"
                         + " `event: { onCreate: <SourceEntity>, ... }` or `event: { onPhase: <SourceEntity>, phase: <name> }`");
             } else if (triggers > 1) {
-                issues.add(subject + " event declares more than one of onTransition/onCreate/onPhase - exactly one trigger is allowed");
+                issues.add(subject
+                        + " event declares more than one of onTransition/onCreate/onPhase/onDelete - exactly one trigger is allowed");
             } else {
-                String source = String.valueOf(onTransition != null ? onTransition : onCreate != null ? onCreate : onPhase);
+                String source = String.valueOf(
+                        onTransition != null ? onTransition : onCreate != null ? onCreate : onPhase != null ? onPhase : onDelete);
+                if (onDelete != null && (posting.getReverses() == null || posting.getReverses()
+                                                                                 .isBlank())) {
+                    issues.add(subject + " binds onDelete, which only a reversal (`reverses:`) may - a deleted source has nothing to post,"
+                            + " only the entry posted for it to red-storno");
+                }
                 Object alias = posting.getEvent()
                                       .get("model");
                 if (alias != null && !usesAliases.contains(String.valueOf(alias))) {
@@ -8730,6 +8858,9 @@ public final class IntentParser {
                     issues.add(subject + " reverses unknown posting [" + posting.getReverses() + "] - it must name a sibling"
                             + " posting in this block");
                     continue;
+                }
+                if (onDelete != null) {
+                    validateDeleteReversal(posting, sibling, byName, subject, issues);
                 }
                 if (posting.getCreates() != null || posting.getBackReference() != null || posting.getRule() != null
                         || posting.getMap() != null || (posting.getItems() != null && !posting.getItems()
@@ -9345,16 +9476,14 @@ public final class IntentParser {
                     + " another " + g.getTo() + "; drop the reopen, or use mode: once");
             return;
         }
-        if (!g.isEventDriven()) {
-            // A create-from with no event carries no guard at all, so nothing ever blocks a second
-            // creation: the button IS the reissue. There is no slot to free and no trigger to re-fire,
-            // which is why the glue emits no reopen listener for this shape - and an authored key that
-            // generates nothing is the silence this whole construct exists to refuse.
-            issues.add(subject + " declares sourceStatusOnRetire but has no event: - a create-from triggered only by a button carries"
-                    + " no at-most-once guard, so nothing blocks a replacement and the button already reissues. The reopen exists to"
-                    + " re-fire an EVENT trigger; declare event: or drop the key");
-            return;
-        }
+        // A BUTTON create-from used to be refused here, on the reasoning that nothing blocks a second
+        // click so the button already reissues. That holds only without a completion hook: a declared
+        // `sourceStatus` flips the source off the status the button is offered from, and the implied
+        // `fromStatus` deny of exactly that status (#7068) then refuses the second click with a 409 -
+        // so the source is stuck, `immutableWhen` locks it, and nothing can move it back (#7647). The
+        // hook blocks the button exactly as the guard blocks the trigger, and the declared inverse is
+        // the move back in both shapes. What stays refused is a button create-from with no hook at all,
+        // which the sourceStatus check above has already returned on.
         if (crossModel) {
             issues.add(subject + " cannot reopen for a cross-model target (uses [" + g.getUses() + "]) - what RETIRES a [" + g.getTo()
                     + "] is the `stage:` classification of its status nomenclature, seeded in the owner model and not resolvable here;"

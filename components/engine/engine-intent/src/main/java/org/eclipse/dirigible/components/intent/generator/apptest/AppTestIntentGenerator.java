@@ -19,6 +19,8 @@ import org.eclipse.dirigible.components.intent.LoggedValue;
 import org.eclipse.dirigible.components.intent.generator.IntentGenerationContext;
 import org.eclipse.dirigible.components.intent.generator.IntentNaming;
 import org.eclipse.dirigible.components.intent.generator.IntentTargetGenerator;
+import org.eclipse.dirigible.components.intent.generator.CheckSupport;
+import org.eclipse.dirigible.components.intent.generator.PickableSupport;
 import org.eclipse.dirigible.components.intent.generator.edm.CrossModelSupport;
 import org.eclipse.dirigible.components.intent.model.CheckIntent;
 import org.eclipse.dirigible.components.intent.model.EntityIntent;
@@ -170,6 +172,13 @@ public class AppTestIntentGenerator implements IntentTargetGenerator {
         // runner would open onto "Page not found" (dirigible #7545).
         if (!"DEPENDENT".equals(string(edm.get("type")))) {
             out.put("route", "#/" + name);
+        }
+        // list: (#7614) - the entity's list shows exactly these columns, in order, whatever each
+        // field's own `major` says. Without it in the manifest the generic list flow asserts a header
+        // per non-`major: false` field and fails on the first instance that holds a row (#7664).
+        List<String> listColumns = csv(string(edm.get("listOrder")));
+        if (!listColumns.isEmpty()) {
+            out.put("list", listColumns);
         }
         out.put("navGroup", string(edm.get("perspectiveNavId")));
         out.put("api", "/" + sanitizeJavaIdentifier(string(edm.get("perspectiveName"))) + "/" + name + "Controller");
@@ -383,6 +392,66 @@ public class AppTestIntentGenerator implements IntentTargetGenerator {
      * inputs by the form templates, and its value comes from the {@code init:} DB default, so the
      * runner must neither pick nor post it.
      */
+    /**
+     * The terms of this entity's {@code forbidWhen} checks that reach through the given relation (issue
+     * #7667). A term reads {@code <Relation>.<Property> ==|!= <literal>} and refuses the write while it
+     * holds, so a runner building the target must land OUTSIDE every one of them.
+     *
+     * @param entity the record the checks are declared on
+     * @param relation the to-one being described
+     * @return the forbidding conditions, in authored order, each with the check's own message
+     */
+    private static List<Map<String, Object>> forbiddenTarget(EntityIntent entity, RelationIntent relation) {
+        List<Map<String, Object>> forbidden = new ArrayList<>();
+        for (CheckIntent check : entity.getChecks() == null ? List.<CheckIntent>of() : entity.getChecks()) {
+            if (!"forbidWhen".equals(check.getKind())) {
+                continue;
+            }
+            for (String authored : CheckSupport.terms(check.getWhen())) {
+                CheckSupport.Comparison comparison = CheckSupport.parse(authored);
+                int dot = comparison == null ? -1
+                        : comparison.property()
+                                    .indexOf('.');
+                if (dot <= 0 || !comparison.property()
+                                           .substring(0, dot)
+                                           .equalsIgnoreCase(relation.getName())) {
+                    continue; // a term about this record's own fields, or about another relation
+                }
+                Map<String, Object> condition = new LinkedHashMap<>();
+                condition.put("by", IntentNaming.pascalCase(comparison.property()
+                                                                      .substring(dot + 1)));
+                condition.put("op", comparison.equal() ? "eq" : "ne");
+                condition.put("value", literal(CheckSupport.unquote(comparison.literal())));
+                if (check.getMessage() != null && !check.getMessage()
+                                                        .isBlank()) {
+                    condition.put("message", check.getMessage());
+                }
+                forbidden.add(condition);
+            }
+        }
+        return forbidden;
+    }
+
+    /** A manifest literal: a number stays a number, so the runner compares it with the stored id. */
+    private static Object literal(String authored) {
+        try {
+            return Long.valueOf(authored.trim());
+        } catch (NumberFormatException notANumber) {
+            return authored;
+        }
+    }
+
+    /** The comma-separated attribute as a list, empty when the attribute is absent. */
+    private static List<String> csv(String value) {
+        List<String> parts = new ArrayList<>();
+        for (String part : value == null ? new String[0] : value.split(",")) {
+            if (!part.isBlank()) {
+                parts.add(part.trim());
+            }
+        }
+        return parts;
+    }
+
     private static List<Map<String, Object>> relations(EntityIntent entity, IntentModel model, IntentGenerationContext context,
             Map<String, Map<String, Object>> edmEntities) {
         Map<String, UsesIntent> usesByAlias = new LinkedHashMap<>();
@@ -441,6 +510,42 @@ public class AppTestIntentGenerator implements IntentTargetGenerator {
                 where.put("by", IntentNaming.pascalCase(condition.getKey()));
                 where.put("value", condition.getValue());
                 out.put("where", where);
+            }
+            // pickable: (#7496) - a picker rule over the TARGET's rows. Without it the runner samples
+            // the first target row, the picker never offers it, and the record never saves (#7663).
+            // The terms carry the manifest's own vocabulary (`by`, as `where` does), plus whether a
+            // failing row is hidden outright or listed disabled.
+            if (relation.getPickable() != null) {
+                Map<String, Object> pickable = new LinkedHashMap<>();
+                List<Map<String, Object>> terms = new ArrayList<>();
+                for (String authored : CheckSupport.terms(relation.getPickable()
+                                                                  .getWhen())) {
+                    PickableSupport.Term term = PickableSupport.parse(authored);
+                    if (term == null) {
+                        continue; // the parser refused it; nothing to describe
+                    }
+                    Map<String, Object> condition = new LinkedHashMap<>();
+                    condition.put("by", IntentNaming.pascalCase(term.property()));
+                    condition.put("op", term.op());
+                    if (!term.presence()) {
+                        condition.put("value", literal(CheckSupport.unquote(term.literal())));
+                    }
+                    terms.add(condition);
+                }
+                if (!terms.isEmpty()) {
+                    pickable.put("when", terms);
+                    pickable.put("hide", PickableSupport.hides(relation.getPickable()));
+                    out.put("pickable", pickable);
+                }
+            }
+            // A state the TARGET must not be in for this record to be accepted at all (#7667): the
+            // child's own `forbidWhen` reaching one hop through this relation - "a credit note may
+            // only correct an issued invoice". The picker rule above is the UI half of the same thing
+            // and is often absent; this one is what the REST flow needs, since the create is refused
+            // with 400 whatever the form offered.
+            List<Map<String, Object>> forbidden = forbiddenTarget(entity, relation);
+            if (!forbidden.isEmpty()) {
+                out.put("forbiddenTarget", forbidden);
             }
             if (relation.isCrossModel()) {
                 UsesIntent uses = usesByAlias.get(relation.getModel());

@@ -1230,19 +1230,36 @@ class GeneratesIntentTest {
     }
 
     /**
-     * A button-only create-from carries no guard at all, so nothing blocks a replacement - the button
-     * IS the reissue, and there is no trigger for a reopen to re-fire. The glue emits no listener for
-     * that shape, so accepting the key would authorise something that generates nothing.
+     * A BUTTON create-from takes the reopen too (#7647). It carries no at-most-once guard, which is why
+     * this was once refused as a key that generates nothing - but the completion hook makes the source
+     * just as stuck: {@code sourceStatus} flips it off the status the button is offered from, the
+     * implied {@code fromStatus} deny (#7068) refuses the second click, and nothing else can move it
+     * back. The hook blocks the button exactly as the guard blocks the trigger.
      */
     @Test
-    void rejectsAReopenWithoutAnEventTrigger() {
-        IntentValidationException ex = assertThrows(IntentValidationException.class, () -> IntentParser.parse(GENERATES_REOPEN_HEAD + """
+    void acceptsAReopenOnAButtonCreateFromWithACompletionHook() {
+        IntentModel model = IntentParser.parse(GENERATES_REOPEN_HEAD + """
                     sourceStatus: DECLARED
+                    sourceStatusOnRetire: IDENTIFIED
+                """);
+
+        GeneratesIntent generates = model.getGenerates()
+                                         .get(0);
+        // The seeded names are resolved to their ids before the typed model is built.
+        assertEquals(3, generates.getSourceStatus());
+        assertEquals(2, generates.getSourceStatusOnRetire());
+        assertFalse(generates.isEventDriven(), "the shape under test is the button one");
+    }
+
+    /** With no completion hook there is nothing to invert, button or not. */
+    @Test
+    void rejectsAReopenOnAButtonCreateFromWithoutACompletionHook() {
+        IntentValidationException ex = assertThrows(IntentValidationException.class, () -> IntentParser.parse(GENERATES_REOPEN_HEAD + """
                     sourceStatusOnRetire: IDENTIFIED
                 """));
         assertTrue(ex.getIssues()
                      .stream()
-                     .anyMatch(i -> i.contains("no event:") && i.contains("the button already reissues")),
+                     .anyMatch(i -> i.contains("declares sourceStatusOnRetire but no sourceStatus")),
                 "got: " + ex.getIssues());
     }
 

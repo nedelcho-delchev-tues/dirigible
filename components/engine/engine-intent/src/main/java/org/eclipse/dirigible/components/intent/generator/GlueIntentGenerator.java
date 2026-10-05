@@ -1482,8 +1482,17 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
         // retired target to release - and warning about an unclassified nomenclature there would be
         // noise about a guard that does not exist. A reopen is refused on that shape by the parser, so
         // there is nothing to emit for it here either.
-        if (!g.isEventDriven() || g.isAppendMode()) {
+        if (g.isAppendMode()) {
             return;
+        }
+        // The at-most-once guard and its stage-aware step-over belong to the EVENT trigger. A button
+        // create-from has neither - but it may still declare the reopen (#7647): its completion hook
+        // flips the source off the status the button is offered from, and the implied fromStatus deny
+        // (#7068) then refuses the second click, so the source is as stuck as a guarded one and the
+        // declared inverse is the same move back. Only the reopen half is emitted for that shape.
+        boolean guarded = g.isEventDriven();
+        if (!guarded && !g.hasReopen()) {
+            return; // a plain button create-from: no guard to make stage-aware, no reopen to emit
         }
         RelationIntent status = LifecycleStages.statusRelation(target);
         if (status == null || status.getTo() == null) {
@@ -1493,10 +1502,14 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
         List<Integer> retired = new ArrayList<>(stages.getOrDefault(LifecycleStages.CANCELLED, List.of()));
         retired.addAll(stages.getOrDefault(LifecycleStages.VOID, List.of()));
         if (retired.isEmpty()) {
-            String warning = "generates [" + g.getName() + "] is event-driven and its target [" + g.getTo()
-                    + "] carries a lifecycle status [" + status.getName() + "], but no seed row of [" + status.getTo()
-                    + "] is classified with `stage:` - the at-most-once guard can only ask whether a [" + g.getTo()
-                    + "] exists, so a cancelled or voided one blocks its replacement forever. Classify the seed rows of [" + status.getTo()
+            String warning = "generates [" + g.getName() + "] " + (guarded ? "is event-driven" : "declares sourceStatusOnRetire")
+                    + " and its target [" + g.getTo() + "] carries a lifecycle status [" + status.getName() + "], but no seed row of ["
+                    + status.getTo() + "] is classified with `stage:` - "
+                    + (guarded
+                            ? "the at-most-once guard can only ask whether a [" + g.getTo()
+                                    + "] exists, so a cancelled or voided one blocks its replacement forever."
+                            : "nothing here can tell a retired [" + g.getTo() + "] from a live one, so the source is never returned.")
+                    + " Classify the seed rows of [" + status.getTo()
                     + "] with `stage:` (draft/live/cancelled/void) so a retired target can be superseded.";
             LOGGER.warn(LoggedValue.of(warning));
             if (context != null) {
@@ -1505,7 +1518,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             return;
         }
         String property = IntentNaming.pascalCase(status.getName());
-        e.put("hasRetiredStatus", true);
+        e.put("hasRetiredStatus", guarded);
         e.put("retiredStatusProperty", property);
         // Rendered against the template's loop variable: a retired candidate is stepped over, the first
         // one that is not is this source's document.
@@ -2480,9 +2493,15 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             // (#6929) - the moment the row is COMPLETE, which is the only one a posting reading an
             // enriched amount may observe. The guard stays optional on both of the latter two: each
             // names one moment already, where a transition is any status write.
+            // `onDelete` binds the source's -deleted topic, and only a reversal may (#7634): a deleted
+            // source has nothing left to post, only the entry posted for it to red-storno.
             String eventKind = EventBinding.kind(posting.getEvent());
             boolean isCreate = "onCreate".equals(eventKind);
             boolean isPhase = EventBinding.ON_PHASE.equals(eventKind);
+            boolean isDelete = "onDelete".equals(eventKind);
+            if (isDelete && !isReverse) {
+                continue; // parser already reported it
+            }
             String sourceEntity = String.valueOf(EventBinding.entity(posting.getEvent()));
             Object alias = posting.getEvent()
                                   .get("model");
@@ -2524,7 +2543,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
                 }
                 guardProperty = IntentNaming.pascalCase(when.group(1));
                 guardValue = when.group(2);
-            } else if (!isCreate && !isPhase) {
+            } else if (!isCreate && !isPhase && !isDelete) {
                 continue; // parser already reported it (onTransition requires the status guard)
             }
             Map<String, Object> e = new LinkedHashMap<>();
@@ -2536,7 +2555,10 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             // shape-only).
             e.put("topicSuffix", EventBinding.topicSuffix(posting.getEvent()));
             e.put("moment", isPhase ? "reaches the " + EventBinding.phase(posting.getEvent()) + " phase"
-                    : isCreate ? "is created" : "transitions into status " + guardValue);
+                    : isCreate ? "is created" : isDelete ? "is deleted" : "transitions into status " + guardValue);
+            // A deleted source can no longer be re-loaded: the handler reads it off the -deleted
+            // payload, which carries the whole row as it was deleted (#7634).
+            e.put("fromPayload", isDelete);
             e.put("crossModel", alias != null);
             e.put("sourceProject", sourceProject);
             e.put("sourceGenFolder", sourceGenFolder);
@@ -2619,10 +2641,20 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             // Item rows: rule(...) refs read the rule row; expressions run through Calc on the source. Each
             // cell and each row guard is a READING (issue #7425) the template layer renders.
             List<Map<String, Object>> itemRows = new ArrayList<>();
+            // The reversal of a DELETED source mirrors what the original entry STORES rather than
+            // re-deriving it (#7634): the source may have been edited after the original was posted -
+            // a divergence the handler logs and does not rewrite - and a storno that negates anything
+            // but the original's own lines leaves the ledger off by the difference. Every assigned
+            // cell is copied off the stored line, each amount (a cell the reversal negates) negated.
+            Map<String, Map<String, Object>> mirrorAssigns = new LinkedHashMap<>();
             for (Map<String, String> row : effective.getItems() == null ? List.<Map<String, String>>of() : effective.getItems()) {
                 Map<String, Object> rendered = new LinkedHashMap<>();
                 List<Map<String, Object>> assigns = new ArrayList<>();
                 Map<String, Object> rowGuard = Map.of();
+                // The rule columns THIS row reads. Where they are required is decided once the row's
+                // own `when:` is known (#7649): a column only a guarded row reads must not gate a
+                // document the guard excludes.
+                java.util.Set<String> rowRuleColumns = new java.util.LinkedHashSet<>();
                 for (Map.Entry<String, String> cell : row.entrySet()) {
                     String value = cell.getValue() == null ? ""
                             : cell.getValue()
@@ -2648,7 +2680,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
                         assign.put("reading", conditionalRuleReading(ruleSelector.get()));
                     } else if (ruleRef.matches()) {
                         String column = IntentNaming.pascalCase(ruleRef.group(1));
-                        usedRuleColumns.add(column);
+                        rowRuleColumns.add(column);
                         assign.put("reading", Readings.read("ruleRow", column));
                     } else if (toOneRelation(itemsEntity, cell.getKey()) != null) {
                         // Source-FK copy (issue #6533): the item cell's key is a to-one relation of the
@@ -2667,12 +2699,41 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
                         assign.put("reading", Readings.calc(expr, "source", scale, null));
                     }
                     assigns.add(assign);
+                    String property = String.valueOf(assign.get("targetProp"));
+                    if (!mirrorAssigns.containsKey(property)) {
+                        Map<String, Object> mirrored = new LinkedHashMap<>();
+                        mirrored.put("targetProp", property);
+                        boolean amount = ruleSelector.isEmpty() && !ruleRef.matches() && toOneRelation(itemsEntity, cell.getKey()) == null;
+                        mirrored.put("reading",
+                                amount ? Readings.negate("originalItem", property) : Readings.read("originalItem", property));
+                        mirrorAssigns.put(property, mirrored);
+                    }
                 }
                 rendered.put("guardReading", rowGuard);
+                // WHERE this row's rule columns are required (#7649). An UNGUARDED row books on every
+                // document of this type, so a null column of its own genuinely stops the posting and
+                // joins the up-front gate. A GUARDED row books only on the documents its `when:`
+                // selects, so its columns are required INSIDE that guard - otherwise adding an optional
+                // line (a promotion account on the few invoices that carry one) stopped every document
+                // of the type from posting on every tenant whose rule row predates the new column, the
+                // ones the line does not apply to included, silently.
+                if (rowGuard.isEmpty()) {
+                    usedRuleColumns.addAll(rowRuleColumns);
+                } else if (!rowRuleColumns.isEmpty()) {
+                    rendered.put("ruleColumns", new ArrayList<>(rowRuleColumns));
+                }
                 rendered.put("assigns", assigns);
                 itemRows.add(rendered);
             }
             e.put("itemRows", itemRows);
+            boolean mirrorsOriginal = isReverse && isDelete;
+            e.put("mirrorsOriginal", mirrorsOriginal);
+            if (mirrorsOriginal) {
+                Map<String, Object> mirrorRow = new LinkedHashMap<>();
+                mirrorRow.put("guardReading", Map.of());
+                mirrorRow.put("assigns", new ArrayList<>(mirrorAssigns.values()));
+                e.put("mirrorRows", List.of(mirrorRow));
+            }
             // The union of every property the rows assign - what a stored row is compared on to tell
             // a plain redelivery (nothing changed) from an amendment. A property no row assigns is
             // null on the derived side and says nothing about it, EXCEPT that saving the derived row
@@ -2722,8 +2783,38 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             e.put("comparesUnlessDerivedIsEmpty", comparesUnlessDerivedIsEmpty);
             e.put("usedRuleColumns", new ArrayList<>(usedRuleColumns));
             out.add(e);
+            if (isCreate && !isReverse) {
+                out.add(follower(e));
+            }
         }
         return out;
+    }
+
+    /**
+     * The handler that keeps an {@code onCreate} posting in step with its source (#7634). A source with
+     * no status lifecycle raises its posting's moment once, at the insert, so the amendment rewrite
+     * (#7071) - which only a second delivery of that moment reaches - never ran for it: an edit left
+     * the DRAFT entry with the figures of the insert, and the accountant posted the stale amount. The
+     * follower is the same handler bound to the source's {@code -updated} topic, so an edit re-derives
+     * the post through the very path an amended re-issue takes - rewritten while the entry still holds
+     * its {@code init:} status, the divergence logged once someone has acted on it.
+     *
+     * <p>
+     * It only ever FOLLOWS: with no post for the source it writes nothing. The first post is the create
+     * handler's; a create and an edit committed together (a create-from, a script) deliver both topics
+     * at once, and two handlers each seeing "nothing posted yet" would post twice.
+     *
+     * @param posting the create handler's descriptor
+     * @return the follower's descriptor
+     */
+    private static Map<String, Object> follower(Map<String, Object> posting) {
+        Map<String, Object> follower = new LinkedHashMap<>(posting);
+        follower.put("className", posting.get("className") + "OnUpdate");
+        follower.put("isCreate", false);
+        follower.put("topicSuffix", EventBinding.topicSuffix("onUpdate"));
+        follower.put("moment", "is edited");
+        follower.put("followsSource", true);
+        return follower;
     }
 
     /**
