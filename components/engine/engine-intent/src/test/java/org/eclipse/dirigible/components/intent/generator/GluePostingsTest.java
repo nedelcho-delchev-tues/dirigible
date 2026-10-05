@@ -114,7 +114,15 @@ class GluePostingsTest {
                 "a to-one relation item cell must pre-render as a source-FK copy");
         // the third row carries a null-safe Calc guard
         assertEquals("Calc.eval(\"Vat\", source, 6).compareTo(new java.math.BigDecimal(\"0\")) != 0", GlueRendering.guard(rows.get(2)));
-        assertEquals(List.of("ReceivableAccount", "RevenueAccount", "VatAccount"), p.get("usedRuleColumns"));
+        // Only the columns the UNGUARDED rows read are required of every document of this type
+        // (#7649): the VAT account is read by the `when: "Vat != 0"` row alone, so it is required where
+        // that row books and nowhere else - a rule row without one still posts a zero-rated invoice.
+        assertEquals(List.of("ReceivableAccount", "RevenueAccount"), p.get("usedRuleColumns"));
+        assertEquals(null, rows.get(0)
+                               .get("ruleColumns"),
+                "an unguarded row's columns are gated up front, not on the row");
+        assertEquals(List.of("VatAccount"), rows.get(2)
+                                                .get("ruleColumns"));
     }
 
     /**

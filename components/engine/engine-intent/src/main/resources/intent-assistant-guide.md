@@ -768,7 +768,14 @@ field may declare:
   references, arithmetic over the SOURCE's fields, or - for a to-one relation cell - a bare SOURCE
   relation name whose FK is copied onto the line; a row `when` is `<SourceField> ==|!= <number>`.
   A missing rule row or null referenced column SKIPS the posting (the unposted worklist = final-status
-  documents with no back-referencing target), never throws. `rule.match` is a single
+  documents with no back-referencing target), never throws - and says so in the log naming the rule
+  entity, the match value and the source, because nothing else in the system marks the gap (#7649).
+  **Where a column is required follows the line that reads it.** A column read by an UNGUARDED line is
+  required of every document of this type and is checked once, up front. A column only a
+  `when:`-guarded line reads is checked INSIDE that line's own guard: a document the guard excludes
+  books nothing on the column, so an optional line added later - a promotion account on the few
+  invoices that carry one - must not stop every document of the type from posting on every tenant
+  whose rule row predates it. `rule.match` is a single
   `column: literal` selector and the literal must be there - an empty one is refused at parse, because
   it is rendered into the handler as the authored literal and would select no rule row at all, leaving
   every source document on the worklist with nothing failing anywhere.

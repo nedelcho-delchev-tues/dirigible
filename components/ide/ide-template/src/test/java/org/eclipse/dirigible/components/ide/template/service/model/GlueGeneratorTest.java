@@ -384,6 +384,29 @@ class GlueGeneratorTest {
     }
 
     /**
+     * ...and a GUARDED row's ternaries are not among them (#7649): a classifier the row needs only
+     * where it books must not stop a document the row's own {@code when:} excludes. They ride on the
+     * row instead, for a null check inside that guard.
+     */
+    @Test
+    void aGuardedRowsRuleCaseCellsGuardThatRowAlone() {
+        Map<String, Object> ruleCase = new LinkedHashMap<>();
+        ruleCase.put("targetProp", "Account");
+        ruleCase.put("reading", Map.of("kind", "ruleCase", "by", "Method", "owner", "source", "cases",
+                List.of(Map.of("value", "1", "column", "CashAccount")), "otherwise", "BankAccount"));
+        Map<String, Object> guarded = new LinkedHashMap<>();
+        guarded.put("guardReading", Map.of("kind", "calcCompare", "owner", "source", "property", "Vat", "equal", false, "text", "0"));
+        guarded.put("assigns", List.of(ruleCase));
+
+        List<Map<String, Object>> rows = GlueGenerator.rows(List.of(guarded));
+
+        assertThat(GlueGenerator.conditionalRuleGuards(rows)).isEmpty();
+        assertThat(rows.get(0)
+                       .get("ruleCaseGuards")).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
+                                              .hasSize(1);
+    }
+
+    /**
      * An event binding's guard is rendered from its neutral terms - {@code true} for none - and a
      * descriptor written before the split keeps the rendered expression it carries.
      */
