@@ -1482,8 +1482,17 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
         // retired target to release - and warning about an unclassified nomenclature there would be
         // noise about a guard that does not exist. A reopen is refused on that shape by the parser, so
         // there is nothing to emit for it here either.
-        if (!g.isEventDriven() || g.isAppendMode()) {
+        if (g.isAppendMode()) {
             return;
+        }
+        // The at-most-once guard and its stage-aware step-over belong to the EVENT trigger. A button
+        // create-from has neither - but it may still declare the reopen (#7647): its completion hook
+        // flips the source off the status the button is offered from, and the implied fromStatus deny
+        // (#7068) then refuses the second click, so the source is as stuck as a guarded one and the
+        // declared inverse is the same move back. Only the reopen half is emitted for that shape.
+        boolean guarded = g.isEventDriven();
+        if (!guarded && !g.hasReopen()) {
+            return; // a plain button create-from: no guard to make stage-aware, no reopen to emit
         }
         RelationIntent status = LifecycleStages.statusRelation(target);
         if (status == null || status.getTo() == null) {
@@ -1493,10 +1502,14 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
         List<Integer> retired = new ArrayList<>(stages.getOrDefault(LifecycleStages.CANCELLED, List.of()));
         retired.addAll(stages.getOrDefault(LifecycleStages.VOID, List.of()));
         if (retired.isEmpty()) {
-            String warning = "generates [" + g.getName() + "] is event-driven and its target [" + g.getTo()
-                    + "] carries a lifecycle status [" + status.getName() + "], but no seed row of [" + status.getTo()
-                    + "] is classified with `stage:` - the at-most-once guard can only ask whether a [" + g.getTo()
-                    + "] exists, so a cancelled or voided one blocks its replacement forever. Classify the seed rows of [" + status.getTo()
+            String warning = "generates [" + g.getName() + "] " + (guarded ? "is event-driven" : "declares sourceStatusOnRetire")
+                    + " and its target [" + g.getTo() + "] carries a lifecycle status [" + status.getName() + "], but no seed row of ["
+                    + status.getTo() + "] is classified with `stage:` - "
+                    + (guarded
+                            ? "the at-most-once guard can only ask whether a [" + g.getTo()
+                                    + "] exists, so a cancelled or voided one blocks its replacement forever."
+                            : "nothing here can tell a retired [" + g.getTo() + "] from a live one, so the source is never returned.")
+                    + " Classify the seed rows of [" + status.getTo()
                     + "] with `stage:` (draft/live/cancelled/void) so a retired target can be superseded.";
             LOGGER.warn(LoggedValue.of(warning));
             if (context != null) {
@@ -1505,7 +1518,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
             return;
         }
         String property = IntentNaming.pascalCase(status.getName());
-        e.put("hasRetiredStatus", true);
+        e.put("hasRetiredStatus", guarded);
         e.put("retiredStatusProperty", property);
         // Rendered against the template's loop variable: a retired candidate is stepped over, the first
         // one that is not is this source's document.

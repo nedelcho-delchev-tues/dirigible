@@ -2132,7 +2132,9 @@ generates:
     sourceStatus: 3                # optional completion hook: the SOURCE's EntityStatus seed id
                                    # after the target is created (e.g. proforma -> INVOICED)
     sourceStatusOnRetire: 2        # optional INVERSE of that hook: where the SOURCE returns when the
-                                   # target is retired (cancelled/void) - see "void and reissue"
+                                   # target is retired (cancelled/void) - see "void and reissue".
+                                   # Takes a button create-from too, where the hook is what sticks
+                                   # the source (#7647)
 ```
 
 **Which source rows become lines (`items: where:` / `refuse:`).** The mirror form clones every row
@@ -2426,7 +2428,8 @@ generates:
   slot; but where `sourceStatus:` is declared nothing could refill it. The completion hook moved the
   source OFF the status its own trigger qualifies on - deliberately - and the ordinary lifecycle graph
   declares no edge back, so no qualifying event is ever published again: an event-only create-from had
-  no reissue path at all, and only a shared `button: true` could raise the replacement.
+  no reissue path at all, and only a shared `button: true` could raise the replacement - and a
+  BUTTON-only one is no better off, the implied `fromStatus` deny refusing the second click (#7647).
   `sourceStatusOnRetire:` declares the move back, so the reissue becomes the ORDINARY path:
 
   ```yaml
@@ -2447,9 +2450,12 @@ generates:
   end, which is what makes it idempotent with no marker column: a redelivered retirement arriving after
   the replacement exists finds a live target and does nothing.
 
-  It requires an `event:` to re-fire (a button-only create-from carries no guard, so nothing blocks a
-  replacement - the button already reissues) and `sourceStatus:` to invert, and must name a DIFFERENT
-  status; the target must be local, with a nomenclature that classifies a retiring `stage:` (a
+  It requires `sourceStatus:` to invert and must name a DIFFERENT status. It does NOT require an
+  `event:` (#7647): a BUTTON create-from carries no at-most-once guard, but its completion hook flips
+  the source off the status the button is offered from and the implied `fromStatus` deny then refuses
+  the second click, so the source is just as stuck and the declared inverse is the only move back - the
+  reopen is emitted for that shape too, without the guard's stage-aware step-over, which belongs to a
+  guard it does not have. the target must be local, with a nomenclature that classifies a retiring `stage:` (a
   cross-model target is seeded in its owner model, so nothing here can recognise its retirement - keep
   `button: true` and reissue by hand); `mode: append` is refused (no guard, so no slot to free); and
   when the source declares a `lifecycle:`, the graph must declare the edge from `sourceStatus` back to
