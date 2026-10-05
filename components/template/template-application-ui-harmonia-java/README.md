@@ -26,7 +26,11 @@ the same for document headers plus a **metadata-driven** cascade in the line-ite
 dialog (`detail-register.js.template` emits `editColumns[].dependsOn`; filtered options
 live in a separate `draftOptions` store so the items table's label resolution keeps the
 full option set). The trigger's controller URL is precomputed as
-`widgetDependsOnControllerUrl` by `service-generate`'s `ModelParameterProcessor`.
+`widgetDependsOnControllerUrl` by `service-generate`'s `ModelParameterProcessor`. A
+dependent dropdown is never filled from the unnarrowed table: each picker's own
+`loadAllOptions<Name>()` holds the full fetch, `refreshOptions<Name>()` picks narrowed or
+whole by the trigger's current value, and `init()` defers that choice until the record (or
+URL prefill) has put the trigger in the form (#7669).
 **Multi-language data** is wired through a single per-user flag: the Settings page's
 **Region & Language** picker (rendered from the generated `config.js` `languages`, hidden
 for a single language) writes the shared `locale` Alpine store
