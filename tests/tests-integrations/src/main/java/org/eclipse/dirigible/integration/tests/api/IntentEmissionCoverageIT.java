@@ -19,6 +19,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -40,6 +42,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+
+import io.restassured.path.json.JsonPath;
 
 
 import org.eclipse.dirigible.components.api.messaging.MessagingFacade;
@@ -1228,6 +1232,43 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                   - { name: Status, kind: manyToOne, to: PledgePaymentStatus, function: EntityStatus, init: ACTIVE }
             """;
 
+    // Still the entities list, in a constant of its own for the same 65535-byte reason as the glue
+    // below. The two FILE families (#7623): #7568 put a drop of every system-owned column at the top
+    // of the generated save(), which is the create path of the attachment upload and the snapshot
+    // mint - both assign exactly those columns - and this IT stayed green through it, having
+    // declared neither. Its own readOnly columns are written through updateProperties by jobs,
+    // notifications and task write-backs, which never reach save().
+    private static final String INTENT_YAML_FILES = """
+              - name: Archive
+                function: Document
+                fields:
+                  - { name: id,    type: integer, primaryKey: true, generated: true }
+                  - { name: title, type: string, length: 60, required: true, function: DocumentTitle }
+              - name: ArchiveLine
+                function: DocumentItem
+                fields:
+                  - { name: id,   type: integer, primaryKey: true, generated: true }
+                  - { name: note, type: string, length: 60 }
+                relations:
+                  - { name: Archive, kind: manyToOne, to: Archive, composition: true, required: true }
+              # function: Attachment - the upload stores the file and a row describing it. Caption is
+              # the one ordinary column, so a forged create can show an authored value kept while the
+              # five system-owned ones are dropped.
+              - name: ArchiveFile
+                function: Attachment
+                fields:
+                  - { name: caption, type: string, length: 60 }
+                relations:
+                  - { name: Archive, kind: manyToOne, to: Archive, composition: true, required: true }
+              # function: Snapshot - the immutable, versioned copy minted from the document's own
+              # print feeder. Nobody uploads one: the delegate assigns the same five columns plus
+              # Version and saves it.
+              - name: ArchiveCopy
+                function: Snapshot
+                relations:
+                  - { name: Archive, kind: manyToOne, to: Archive, composition: true, required: true }
+            """;
+
     // The rest of the same fixture. It is a SECOND constant only because a Java string constant
     // caps at 65535 UTF-8 bytes and the entities above reach it; `concat` keeps the joined value out
     // of the constant pool, which a `+` would not (the compiler folds it back into one over-long
@@ -1389,6 +1430,16 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                   body: "Still open: {recordUrl}"
 
             processes:
+              # Two mints in ONE run (#7623): the copy's Version increments while the document it
+              # copies keeps its identity, and both mints go through the repository's save() with the
+              # five file columns and Version assigned by the delegate.
+              - name: ArchiveMint
+                trigger: { onCreate: Archive }
+                steps:
+                  - { name: mintFirst,  kind: serviceTask, args: { delegate: gen.events.ArchiveSnapshotGenerator, next: mintSecond } }
+                  - { name: mintSecond, kind: serviceTask, args: { delegate: gen.events.ArchiveSnapshotGenerator, next: minted } }
+                  - { name: minted, kind: end }
+
               # assignee: personal - the confirm task lands in exactly the owner's Inbox (the IT
               # runs as admin, mapped by the Person seed below).
               - name: ClaimConfirm
@@ -2006,7 +2057,8 @@ class IntentEmissionCoverageIT extends IntegrationTest {
             """;
 
     /** The whole fixture, as the two halves above spell it. */
-    private static final String INTENT_YAML = INTENT_YAML_ENTITIES.concat(INTENT_YAML_GLUE);
+    private static final String INTENT_YAML = INTENT_YAML_ENTITIES.concat(INTENT_YAML_FILES)
+                                                                  .concat(INTENT_YAML_GLUE);
 
     @Autowired
     private IRepository repository;
@@ -6612,6 +6664,7 @@ class IntentEmissionCoverageIT extends IntegrationTest {
         assertGeneratesStepAxisRuntime();
         assertGeneratesItemsRuleRuntime();
         assertStalenessSweepRuntime();
+        assertFileFamiliesRuntime();
     }
 
     /**
@@ -7717,6 +7770,120 @@ class IntentEmissionCoverageIT extends IntegrationTest {
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to clear the inbound drop folder " + dropFolder.toAbsolutePath(), ex);
         }
+    }
+
+
+    /**
+     * The two writer families whose create path is the repository's {@code save()} and which no other
+     * assertion here reaches (#7623): the {@code function: Attachment} upload and the
+     * {@code function: Snapshot} mint. Both assign the five system-owned file columns themselves - the
+     * upload from the stored file, the mint from the rendered copy - so a drop of those columns on the
+     * create path stores a row pointing at nothing, and the download that follows fails on the null
+     * path. Asserted over HTTP against the generated controllers, because reading the rendered template
+     * proved nothing about the row the last time (#7568 shipped green).
+     */
+    private void assertFileFamiliesRuntime() {
+        AtomicInteger archive = new AtomicInteger();
+        restAssuredExecutor.execute(() -> archive.set(given().contentType("application/json")
+                                                             .body("{\"Title\":\"Minutes\"}")
+                                                             .when()
+                                                             .post(API + "/archive/ArchiveController")
+                                                             .then()
+                                                             .statusCode(200)
+                                                             .extract()
+                                                             .path("Id")),
+                60);
+
+        byte[] bytes = "every byte of this must come back".getBytes(StandardCharsets.UTF_8);
+        // (1) The upload answers with the metadata of the file it just wrote...
+        restAssuredExecutor.execute(() -> given().multiPart("file", "minutes.txt", bytes, "text/plain")
+                                                 .when()
+                                                 .post(API + "/archive/ArchiveFileController/upload?Archive=" + archive.get())
+                                                 .then()
+                                                 .statusCode(200)
+                                                 .body("", hasSize(1))
+                                                 .body("[0].FileName", equalTo("minutes.txt"))
+                                                 .body("[0].ContentType", equalTo("text/plain"))
+                                                 .body("[0].FileSize", equalTo(bytes.length))
+                                                 .body("[0].StoragePath", startsWith("/Attachments/ArchiveFile/"))
+                                                 .body("[0].Uuid", notNullValue()),
+                60);
+
+        // ...and the STORED row carries it, read back through the master-scoped list the panel uses.
+        AtomicInteger file = new AtomicInteger();
+        restAssuredExecutor.execute(() -> file.set(given().when()
+                                                          .get(API + "/archive/ArchiveFileController?Archive=" + archive.get())
+                                                          .then()
+                                                          .statusCode(200)
+                                                          .body("", hasSize(1))
+                                                          .extract()
+                                                          .path("[0].Id")));
+        restAssuredExecutor.execute(() -> {
+            JsonPath stored = given().when()
+                                     .get(API + "/archive/ArchiveFileController/" + file.get())
+                                     .then()
+                                     .statusCode(200)
+                                     .body("FileName", equalTo("minutes.txt"))
+                                     .body("FileSize", equalTo(bytes.length))
+                                     .extract()
+                                     .jsonPath();
+            // the two columns must name ONE object, not merely both be present
+            assertTrue(stored.getString("StoragePath")
+                             .endsWith("/" + stored.getString("Uuid") + "/minutes.txt"),
+                    "the stored Uuid must be the folder of the stored file, got: " + stored.getString("StoragePath"));
+        });
+
+        // (2) ...and the file downloads through the generated endpoint, byte for byte.
+        restAssuredExecutor.execute(() -> {
+            byte[] served = given().when()
+                                   .get(API + "/archive/ArchiveFileController/" + file.get() + "/download")
+                                   .then()
+                                   .statusCode(200)
+                                   .extract()
+                                   .asByteArray();
+            assertArrayEquals(bytes, served, "the download must stream the uploaded bytes verbatim");
+        });
+
+        // (3) A plain create still cannot forge the five columns, while the authored one is kept.
+        AtomicInteger forged = new AtomicInteger();
+        restAssuredExecutor.execute(() -> forged.set(given().contentType("application/json")
+                                                            .body("{\"Archive\":" + archive.get()
+                                                                    + ",\"Caption\":\"forged\",\"FileName\":\"forged.txt\","
+                                                                    + "\"ContentType\":\"text/plain\",\"FileSize\":1,"
+                                                                    + "\"StoragePath\":\"/Attachments/ArchiveFile/forged.txt\","
+                                                                    + "\"Uuid\":\"forged\"}")
+                                                            .when()
+                                                            .post(API + "/archive/ArchiveFileController")
+                                                            .then()
+                                                            .statusCode(200)
+                                                            .extract()
+                                                            .path("Id")));
+        restAssuredExecutor.execute(() -> given().when()
+                                                 .get(API + "/archive/ArchiveFileController/" + forged.get())
+                                                 .then()
+                                                 .statusCode(200)
+                                                 .body("Caption", equalTo("forged"))
+                                                 .body("FileName", nullValue())
+                                                 .body("ContentType", nullValue())
+                                                 .body("FileSize", nullValue())
+                                                 .body("StoragePath", nullValue())
+                                                 .body("Uuid", nullValue()));
+
+        // (4) The MINT: the archive's own process ran the generated delegate twice, so the document
+        // carries two copies - Version 1 then 2 - each describing the PDF it stored.
+        restAssuredExecutor.execute(() -> given().when()
+                                                 .get(API + "/archive/ArchiveCopyController?Archive=" + archive.get())
+                                                 .then()
+                                                 .statusCode(200)
+                                                 .body("", hasSize(2))
+                                                 .body("Version", hasItem(1))
+                                                 .body("Version", hasItem(2))
+                                                 .body("FileName", everyItem(notNullValue()))
+                                                 .body("ContentType", everyItem(equalTo("application/pdf")))
+                                                 .body("FileSize", everyItem(greaterThanOrEqualTo(1)))
+                                                 .body("StoragePath", everyItem(startsWith("/Attachments/ArchiveCopy/")))
+                                                 .body("Uuid", everyItem(notNullValue())),
+                120);
     }
 
 }
