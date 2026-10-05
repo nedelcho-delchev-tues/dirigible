@@ -500,6 +500,102 @@ class AppTestIntentGeneratorTest {
                                             .get("readOnly"));
     }
 
+    /**
+     * The three things a curated, guarded module needs the runner to know (#7663, #7664, #7667): which
+     * target rows the picker actually offers, which columns the list actually renders, and which parent
+     * state the child refuses outright.
+     */
+    @SuppressWarnings("unchecked")
+    @Test
+    void carriesThePickerRuleTheListColumnsAndTheParentStateAChildRefuses() {
+        String intent = """
+                name: billing
+                entities:
+                  - name: InvoiceStatus
+                    kind: setting
+                    fields:
+                      - { name: id,   type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string }
+                  - name: Invoice
+                    fields:
+                      - { name: id,     type: integer, primaryKey: true, generated: true }
+                      - { name: number, type: string, length: 100 }
+                    relations:
+                      - { name: Status, kind: manyToOne, to: InvoiceStatus, function: EntityStatus, init: 1 }
+                  - name: CreditNote
+                    list: [number, date, Invoice]
+                    checks:
+                      - { kind: forbidWhen, when: "Invoice.Status == DRAFT", message: "A credit note can only correct an issued invoice" }
+                    fields:
+                      - { name: id,           type: integer, primaryKey: true, generated: true }
+                      - { name: number,       type: string, length: 100 }
+                      - { name: date,         type: date }
+                      - { name: taxEventDate, type: date }
+                    relations:
+                      - name: Invoice
+                        kind: manyToOne
+                        to: Invoice
+                        required: true
+                        pickable: { when: [Status != 1], message: "Only an issued invoice can be corrected" }
+                seeds:
+                  - name: invoice-statuses
+                    entity: InvoiceStatus
+                    rows:
+                      - { id: 1, name: DRAFT }
+                      - { id: 2, name: ISSUED }
+                """;
+        Map<String, Map<String, Object>> edmEntities = new LinkedHashMap<>();
+        edmEntities.put("InvoiceStatus", edmEntity("InvoiceStatus", "Invoice Status", "Invoice Statuses", "MANAGE_LIST", "Settings",
+                "billing", "KF_MOD_BILLING_INVOICESTATUS", false));
+        edmEntities.put("Invoice",
+                edmEntity("Invoice", "Invoice", "Invoices", "MANAGE_LIST", "Billing", "billing", "KF_MOD_BILLING_INVOICE", false));
+        Map<String, Object> creditNote = edmEntity("CreditNote", "Credit Note", "Credit Notes", "MANAGE_LIST", "Billing", "billing",
+                "KF_MOD_BILLING_CREDITNOTE", false);
+        // what applyListColumns writes onto the .model entity for a declared `list:`
+        creditNote.put("listOrder", "Number,Date,Invoice");
+        edmEntities.put("CreditNote", creditNote);
+
+        Map<String, Object> manifest = AppTestIntentGenerator.buildManifest("billing", "billing", IntentParser.parse(intent), edmEntities);
+        Map<String, Object> note = entity(manifest, "CreditNote");
+
+        // #7664: the curated columns, in order - the list renders these and no other, whatever each
+        // field's own `major` says, so TaxEventDate must not be expected as a header.
+        assertEquals(List.of("Number", "Date", "Invoice"), note.get("list"));
+
+        Map<String, Object> invoice = ((List<Map<String, Object>>) note.get("relations")).get(0);
+
+        // #7663: the picker offers only the rows the rule admits, so the runner must sample one of
+        // those - the seeded name is already an id by the time the manifest is written.
+        Map<String, Object> pickable = (Map<String, Object>) invoice.get("pickable");
+        assertEquals(List.of(Map.of("by", "Status", "op", "ne", "value", 1L)), pickable.get("when"));
+        assertEquals(Boolean.FALSE, pickable.get("hide"));
+
+        // #7667: and the REST flow, which never sees a picker, is told the same thing by the check
+        // that would refuse its create with 400.
+        List<Map<String, Object>> forbidden = (List<Map<String, Object>>) invoice.get("forbiddenTarget");
+        assertEquals(1, forbidden.size());
+        assertEquals("Status", forbidden.get(0)
+                                        .get("by"));
+        assertEquals("eq", forbidden.get(0)
+                                    .get("op"));
+        assertEquals(1L, forbidden.get(0)
+                                  .get("value"));
+        assertEquals("A credit note can only correct an issued invoice", forbidden.get(0)
+                                                                                  .get("message"));
+    }
+
+    /** An uncurated, unguarded relation carries none of the three - the manifest stays as it was. */
+    @SuppressWarnings("unchecked")
+    @Test
+    void anUncuratedEntityCarriesNeitherListNorPickerRule() {
+        Map<String, Object> city = entity(AppTestIntentGenerator.buildManifest("countries", "countries", model, edm()), "City");
+
+        assertNull(city.get("list"));
+        Map<String, Object> country = ((List<Map<String, Object>>) city.get("relations")).get(0);
+        assertNull(country.get("pickable"));
+        assertNull(country.get("forbiddenTarget"));
+    }
+
     // ---- helpers: a minimal .model-shaped metadata map -------------------------------------------
 
     private static Map<String, Map<String, Object>> edm() {
