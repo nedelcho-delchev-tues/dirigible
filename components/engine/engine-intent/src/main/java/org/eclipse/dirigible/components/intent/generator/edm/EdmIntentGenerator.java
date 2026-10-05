@@ -1331,10 +1331,34 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
      * @param field the authored field
      * @return the variants by country code, empty when none are declared
      */
+    /**
+     * The authored caption of the control a RELATION renders (#7650) - the picker, its list column and
+     * its details row - plus its country variants, written exactly as a field's are (#6424) so every
+     * generated surface and the en-US catalog read one attribute whatever the property came from.
+     * Absent, the pipeline derives the humanized relation name as before.
+     *
+     * @param property the property map being built
+     * @param relation the relation it was built from
+     */
+    private static void putRelationLabel(Map<String, Object> property, RelationIntent relation) {
+        if (notBlank(relation.getLabel())) {
+            property.put("widgetLabel", relation.getLabel()
+                                                .trim());
+        }
+        Map<String, String> variants = countryLabels(relation.getCountryLabels());
+        if (!variants.isEmpty()) {
+            property.put("widgetCountryLabels", variants);
+        }
+    }
+
     private static Map<String, String> countryLabels(FieldIntent field) {
+        return countryLabels(field.getCountryLabels());
+    }
+
+    /** The canonical country-variant map - keys upper-cased, blank variants dropped. */
+    private static Map<String, String> countryLabels(Map<String, String> authored) {
         Map<String, String> canonical = new LinkedHashMap<>();
-        for (Map.Entry<String, String> variant : field.getCountryLabels()
-                                                      .entrySet()) {
+        for (Map.Entry<String, String> variant : (authored == null ? Map.<String, String>of() : authored).entrySet()) {
             if (variant.getKey() == null || !notBlank(variant.getValue())) {
                 continue;
             }
@@ -1667,6 +1691,7 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
         boolean oneToOne = "oneToOne".equals(relation.getKind());
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("name", IntentNaming.pascalCase(relation.getName()));
+        putRelationLabel(p, relation);
         p.put("description", relation.getDescription() == null ? "" : relation.getDescription());
         p.put("tooltip", "");
         p.put("dataName", column);
@@ -1749,6 +1774,7 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
             String targetPerspective) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("name", IntentNaming.pascalCase(relation.getName()));
+        putRelationLabel(p, relation);
         p.put("description", relation.getDescription() == null ? "" : relation.getDescription());
         p.put("tooltip", "");
         p.put("dataName", IntentNaming.upperSnake(ownerEntity) + "_" + IntentNaming.upperSnake(relation.getName()));
@@ -1791,6 +1817,7 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
         boolean oneToOne = "oneToOne".equals(relation.getKind());
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("name", IntentNaming.pascalCase(relation.getName()));
+        putRelationLabel(p, relation);
         p.put("description", relation.getDescription() == null ? "" : relation.getDescription());
         p.put("tooltip", "");
         p.put("dataName", column);

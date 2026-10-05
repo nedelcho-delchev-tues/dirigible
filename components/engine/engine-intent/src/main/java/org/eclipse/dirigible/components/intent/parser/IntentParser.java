@@ -4336,6 +4336,11 @@ public final class IntentParser {
                 // checks below (composition, cross-model, dependsOn, leafOnly, personal/partner).
                 if ("subset".equals(relation.getKind())) {
                     validateSubset(entity, relation, entityNames, byName, issues);
+                    if (relation.getLabel() != null || !relation.getCountryLabels()
+                                                                .isEmpty()) {
+                        validateLabels("entity [" + entity.getName() + "] relation [" + relation.getName() + "]", relation.getLabel(),
+                                relation.getCountryLabels(), issues);
+                    }
                     continue;
                 }
                 // ManyToManyExpander consumed every n:m before this ran, so a surviving manyToMany is one
@@ -4400,6 +4405,19 @@ public final class IntentParser {
                         issues.add(subject + " is an EntityStatus (a read-only badge) so it cannot declare dependsOn");
                     } else {
                         validateDependsOn(entity, subject, relation.getDependsOn(), relation, byName, issues);
+                    }
+                }
+                // The picker's caption (#7650) - a to-one FK property or a subset's multiselect column.
+                // A collection relation emits no property at all (the FK lives on the child), so a label
+                // authored there would be carried nowhere: refused rather than silently dropped.
+                if (relation.getLabel() != null || !relation.getCountryLabels()
+                                                            .isEmpty()) {
+                    String labelSubject = "entity [" + entity.getName() + "] relation [" + relation.getName() + "]";
+                    if ("oneToMany".equals(relation.getKind())) {
+                        issues.add(labelSubject + " declares a `label`, but a collection relation renders no control of its own -"
+                                + " label the field or relation the generated page actually shows");
+                    } else {
+                        validateLabels(labelSubject, relation.getLabel(), relation.getCountryLabels(), issues);
                     }
                 }
                 if (relation.getWhere() != null) {
@@ -6879,12 +6897,21 @@ public final class IntentParser {
      * match any tenant, so it is refused here rather than silently rendering the base label forever.
      */
     private static void validateLabels(String subject, FieldIntent field, List<String> issues) {
-        if (field.getLabel() != null && field.getLabel()
-                                             .isBlank()) {
-            issues.add(subject + " declares a blank `label` - remove it to keep the humanized field name");
+        validateLabels(subject, field.getLabel(), field.getCountryLabels(), issues);
+    }
+
+    /**
+     * The same rule for a RELATION's picker caption (#7650): a relation renders a control of its own -
+     * the picker, its list column and its details row - and the humanized relation name is as wrong
+     * there as a humanized field name is, for the same reason (the identifier was chosen for the model,
+     * and a picklist that cannot be named after what it picks reads as the identifier).
+     */
+    private static void validateLabels(String subject, String label, java.util.Map<String, String> countryLabels, List<String> issues) {
+        if (label != null && label.isBlank()) {
+            issues.add(subject + " declares a blank `label` - remove it to keep the humanized name");
         }
-        for (java.util.Map.Entry<String, String> variant : field.getCountryLabels()
-                                                                .entrySet()) {
+        for (java.util.Map.Entry<String, String> variant : (countryLabels == null ? java.util.Map.<String, String>of()
+                : countryLabels).entrySet()) {
             String country = variant.getKey() == null ? ""
                     : variant.getKey()
                              .trim()
