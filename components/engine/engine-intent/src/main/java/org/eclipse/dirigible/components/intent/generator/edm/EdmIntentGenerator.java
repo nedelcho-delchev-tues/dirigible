@@ -2570,8 +2570,12 @@ public class EdmIntentGenerator implements IntentTargetGenerator {
                     continue; // the parser already reported it
                 }
                 ResolvePathSupport.Walker walker = ResolvePathSupport.walker(entity, byName, compositionParents, crossModel);
-                ResolvePathSupport.Path left = walker.resolve(relations.get(0) + "." + check.getOnProperty());
-                ResolvePathSupport.Path right = walker.resolve(relations.get(1) + "." + check.getOnProperty());
+                // ...and a side may be the record's OWN to-one carrying the shared target directly
+                // (#7631), which the same walker resolves from the bare relation name.
+                ResolvePathSupport.Path[] sides =
+                        CheckSupport.agreeSides(walker, entity, relations.get(0), relations.get(1), check.getOnProperty());
+                ResolvePathSupport.Path left = sides[0];
+                ResolvePathSupport.Path right = sides[1];
                 if (!left.resolved() || !right.resolved()) {
                     continue; // the parser already reported it
                 }
