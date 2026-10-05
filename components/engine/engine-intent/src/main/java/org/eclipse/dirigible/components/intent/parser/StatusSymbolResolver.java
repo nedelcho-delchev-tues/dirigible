@@ -291,6 +291,15 @@ final class StatusSymbolResolver {
                     String eventEntity = waitEventEntityOf(args);
                     rewriteWhen(args, statusRelationName(eventEntity), statusOf(eventEntity), stepSubject + " when");
                 }
+                // A decision branching on a to-one relation of the trigger entity (#7648): the FK is
+                // loaded before the gateway, so the condition compares an id - and a seeded NAME is how
+                // an author writes it, exactly as at every other status site. The nomenclature is the
+                // one the NAMED relation points at, not the record's own status: a decision may branch
+                // on any to-one (a send method, a channel), and resolving against the entity's status
+                // would take an id out of the wrong nomenclature.
+                if ("decision".equals(lower(text(step, "kind"))) && args.get("if") instanceof String condition) {
+                    put(args, "if", rewriteRelationComparisons(condition, triggerEntity, stepSubject + " if"));
+                }
                 // `setRelationField: <Relation>` + `value:` writes an id of THAT relation's target - the
                 // status in the canonical case, but the same shape serves any nomenclature FK.
                 String relationName = text(args, "setRelationField");
@@ -648,6 +657,50 @@ final class StatusSymbolResolver {
             }
         }
         return null;
+    }
+
+    /**
+     * Resolve every {@code <Relation> ==|!= <NAME>} comparison of a decision condition against the
+     * nomenclature THAT relation points at (issue #7648).
+     *
+     * <p>
+     * A term naming anything but a to-one relation of the entity is left exactly as written - a
+     * decision compares its own fields, a form-set {@code action} and literals too, and none of those
+     * is a status site. An ordering comparison against a name is refused for the reason it is
+     * everywhere: names have no order.
+     *
+     * @param condition the authored condition
+     * @param entityName the process's trigger entity
+     * @param subject what to name in an issue
+     * @return the condition with each resolvable name replaced by its seed id
+     */
+    private String rewriteRelationComparisons(String condition, String entityName, String subject) {
+        if (condition == null || entityName == null) {
+            return condition;
+        }
+        Matcher matcher = COMPARISON.matcher(condition);
+        StringBuilder rewritten = new StringBuilder();
+        while (matcher.find()) {
+            String replacement = matcher.group();
+            Map<?, ?> relation = toOneRelation(entityName, matcher.group(1));
+            boolean numeric = INTEGER.matcher(matcher.group(3))
+                                     .matches();
+            boolean nullTest = "null".equals(matcher.group(3));
+            if (relation != null && !numeric && !nullTest) {
+                if (!EQUALITY.contains(matcher.group(2))) {
+                    issues.add(subject + " compares [" + matcher.group(1) + "] to the name [" + matcher.group(3) + "] with ["
+                            + matcher.group(2) + "] - a seeded name has no ordering; use ==/!=");
+                } else {
+                    Integer id = resolveSymbol(matcher.group(3), new Target(text(relation, "to"), text(relation, "model")), subject);
+                    if (id != null) {
+                        replacement = matcher.group(1) + " " + matcher.group(2) + " " + id;
+                    }
+                }
+            }
+            matcher.appendReplacement(rewritten, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(rewritten);
+        return rewritten.toString();
     }
 
     private Map<?, ?> toOneRelation(String entityName, String relationName) {
