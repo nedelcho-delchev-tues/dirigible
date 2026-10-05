@@ -1657,6 +1657,9 @@ class GlueGenerator {
             String guard = declared.containsKey("guardReading") ? JavaExpressions.expression(declared.get("guardReading")) : null;
             row.put("guard", guard != null ? guard : strOr(declared, "guard", ""));
             row.put("assigns", assignments(declared.get("assigns")));
+            // The classifier ternaries this row's own cells carry, for the null-check that belongs
+            // inside its guard (#7649). Empty for an unguarded row - those are gated up front.
+            row.put("ruleCaseGuards", str(row, "guard").isEmpty() ? List.of() : ruleCaseExpressions(row));
             rows.add(row);
         }
         return rows;
@@ -1673,13 +1676,26 @@ class GlueGenerator {
     static List<String> conditionalRuleGuards(List<Map<String, Object>> rows) {
         List<String> guards = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            for (Map<String, Object> assignment : asMaps(row.get("assigns"))) {
-                if (assignment.get("reading") instanceof Map<?, ?> reading && "ruleCase".equals(reading.get("kind"))) {
-                    guards.add(str(assignment, "expr"));
-                }
+            // A GUARDED row's classifier ternaries are required only where that row books (#7649), so
+            // they are carried on the row and null-checked inside its own guard; only an unguarded
+            // row's reach the up-front gate, which every document of this type passes through.
+            if (!str(row, "guard").isEmpty()) {
+                continue;
             }
+            guards.addAll(ruleCaseExpressions(row));
         }
         return guards;
+    }
+
+    /** The classifier ternaries one row's cells carry, already rendered. */
+    static List<String> ruleCaseExpressions(Map<String, Object> row) {
+        List<String> expressions = new ArrayList<>();
+        for (Map<String, Object> assignment : asMaps(row.get("assigns"))) {
+            if (assignment.get("reading") instanceof Map<?, ?> reading && "ruleCase".equals(reading.get("kind"))) {
+                expressions.add(str(assignment, "expr"));
+            }
+        }
+        return expressions;
     }
 
     /**

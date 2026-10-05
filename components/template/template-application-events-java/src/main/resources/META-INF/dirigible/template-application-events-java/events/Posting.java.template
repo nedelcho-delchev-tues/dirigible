@@ -104,16 +104,27 @@ public class ${className}Posting implements MessageHandler {
                 new gen.${javaGenFolderName}.data.${ruleJavaPerspective}.${ruleEntity}Repository().findAll(
                         Criteria.create().eq("${ruleMatchProperty}", ${ruleMatchValueJava}));
         if (ruleRows.isEmpty()) {
+            // Said out loud (#7649): the unposted worklist is otherwise invisible - the handler only
+            // fires on the event, so a silent skip leaves nothing anywhere to explain the gap.
+            LOG.warn("Posting ${name}: no ${ruleEntity} matches [{}] - ${sourceEntity} [{}] stays unposted",
+                    ${ruleMatchValueJava}, source.${sourceKeyField});
             return; // no determination rule -> the document stays on the unposted worklist
         }
         gen.${javaGenFolderName}.data.${ruleJavaPerspective}.${ruleEntity}Entity ruleRow = ruleRows.get(0);
+## The columns every line of this posting reads - the UNGUARDED rows'. A null here stops a document
+## that would genuinely have booked on the column, so it is checked once, up front. A column only a
+## `when:`-guarded line reads is checked inside that line's own guard below (#7649).
 #foreach($column in $usedRuleColumns)
         if (ruleRow.${column} == null) {
+            LOG.warn("Posting ${name}: ${ruleEntity} matching [{}] has no ${column} - ${sourceEntity} [{}] stays unposted",
+                    ${ruleMatchValueJava}, source.${sourceKeyField});
             return; // incomplete determination -> unposted worklist
         }
 #end
 #foreach($guard in $conditionalRuleGuards)
         if (${guard} == null) {
+            LOG.warn("Posting ${name}: the ${ruleEntity} matching [{}] determines no account for ${sourceEntity} [{}]"
+                    + " - it stays unposted", ${ruleMatchValueJava}, source.${sourceKeyField});
             return; // conditional rule(by: ...) selected no account (unmatched or null) -> unposted worklist
         }
 #end
@@ -138,6 +149,23 @@ public class ${className}Posting implements MessageHandler {
 #foreach($row in $itemRows)
 #if($row.guard != "")
         if (${row.guard}) {
+## The rule columns only THIS line reads (#7649). Required where the line books, not before: a
+## document whose `when:` excludes the line books nothing on the column, so a rule row that predates
+## it - every tenant's, the day an optional line is added - must not stop that document from posting.
+#foreach($column in $row.ruleColumns)
+            if (ruleRow.${column} == null) {
+                LOG.warn("Posting ${name}: ${ruleEntity} matching [{}] has no ${column}, which this ${sourceEntity} [{}] books on"
+                        + " - it stays unposted", ${ruleMatchValueJava}, source.${sourceKeyField});
+                return;
+            }
+#end
+#foreach($guard in $row.ruleCaseGuards)
+            if (${guard} == null) {
+                LOG.warn("Posting ${name}: the ${ruleEntity} matching [{}] determines no account for the line this ${sourceEntity}"
+                        + " [{}] books - it stays unposted", ${ruleMatchValueJava}, source.${sourceKeyField});
+                return;
+            }
+#end
 #end
         {
             gen.${javaGenFolderName}.data.${itemsJavaPerspective}.${itemsEntity}Entity item =

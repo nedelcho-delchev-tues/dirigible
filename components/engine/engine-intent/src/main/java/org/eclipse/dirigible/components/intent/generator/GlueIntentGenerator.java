@@ -2638,6 +2638,10 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
                 Map<String, Object> rendered = new LinkedHashMap<>();
                 List<Map<String, Object>> assigns = new ArrayList<>();
                 Map<String, Object> rowGuard = Map.of();
+                // The rule columns THIS row reads. Where they are required is decided once the row's
+                // own `when:` is known (#7649): a column only a guarded row reads must not gate a
+                // document the guard excludes.
+                java.util.Set<String> rowRuleColumns = new java.util.LinkedHashSet<>();
                 for (Map.Entry<String, String> cell : row.entrySet()) {
                     String value = cell.getValue() == null ? ""
                             : cell.getValue()
@@ -2663,7 +2667,7 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
                         assign.put("reading", conditionalRuleReading(ruleSelector.get()));
                     } else if (ruleRef.matches()) {
                         String column = IntentNaming.pascalCase(ruleRef.group(1));
-                        usedRuleColumns.add(column);
+                        rowRuleColumns.add(column);
                         assign.put("reading", Readings.read("ruleRow", column));
                     } else if (toOneRelation(itemsEntity, cell.getKey()) != null) {
                         // Source-FK copy (issue #6533): the item cell's key is a to-one relation of the
@@ -2693,6 +2697,18 @@ public class GlueIntentGenerator implements IntentTargetGenerator {
                     }
                 }
                 rendered.put("guardReading", rowGuard);
+                // WHERE this row's rule columns are required (#7649). An UNGUARDED row books on every
+                // document of this type, so a null column of its own genuinely stops the posting and
+                // joins the up-front gate. A GUARDED row books only on the documents its `when:`
+                // selects, so its columns are required INSIDE that guard - otherwise adding an optional
+                // line (a promotion account on the few invoices that carry one) stopped every document
+                // of the type from posting on every tenant whose rule row predates the new column, the
+                // ones the line does not apply to included, silently.
+                if (rowGuard.isEmpty()) {
+                    usedRuleColumns.addAll(rowRuleColumns);
+                } else if (!rowRuleColumns.isEmpty()) {
+                    rendered.put("ruleColumns", new ArrayList<>(rowRuleColumns));
+                }
                 rendered.put("assigns", assigns);
                 itemRows.add(rendered);
             }
