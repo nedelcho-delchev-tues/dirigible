@@ -49,8 +49,12 @@ import org.eclipse.dirigible.components.intent.generator.StepEventSupport;
 final class StatusSymbolResolver {
 
     /** A comparison inside a guard / filter expression: term, operator, symbolic right-hand side. */
+    // Both identifier runs are POSSESSIVE (`*+`): a shorter one would end inside an identifier, where
+    // the trailing \b cannot hold, so backtracking into them can never produce a match - it only costs
+    // a scan per start position, which is quadratic on a long run of identifier characters and is what
+    // CodeQL flags as a polynomial ReDoS now that an authored decision condition reaches here (#7648).
     private static final Pattern COMPARISON =
-            Pattern.compile("(\\b[A-Za-z_][A-Za-z0-9_]*\\b)\\s*(==|!=|<>|<=|>=|=|<|>)\\s*([A-Za-z_][A-Za-z0-9_]*)\\b");
+            Pattern.compile("(\\b[A-Za-z_][A-Za-z0-9_]*+\\b)\\s*(==|!=|<>|<=|>=|=|<|>)\\s*([A-Za-z_][A-Za-z0-9_]*+)\\b");
 
     /**
      * A {@code forbidWhen} / {@code requiredWhen} one-hop comparison
