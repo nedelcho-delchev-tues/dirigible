@@ -98,6 +98,7 @@ final class ModelParameterProcessor {
             resolveRelatedRegisters(entities, parameters);
             resolveRollupGuards(entities);
             resolveAgreeGuards(entities, parameters);
+            resolveTargetAgreementRules(entities);
         }
         resolveDependentWidgets(entities);
         collectPerspectives(entities, parameters);
@@ -276,7 +277,7 @@ final class ModelParameterProcessor {
      * validation, a guard to the repository's create/update precondition, and everything else to the
      * repository's document-level block. A {@code forbidWhen} additionally lands in the delete list,
      * whatever its gate - the one check kind that is about the write happening at all rather than about
-     * the values it carries (#7372).
+     * the values it carries (#7372) - unless its {@code verbs} scope leaves the delete out (#7710).
      *
      * @param entity the entity
      */
@@ -318,17 +319,28 @@ final class ModelParameterProcessor {
             } else if ("guard".equals(kind)) {
                 guardChecks.add(check);
             } else if ("requiredWhen".equals(kind) || "forbidWhen".equals(kind)) {
+                // A forbidWhen may scope itself to the verbs it is about (#7710) - absent, all three. A
+                // scope naming no create/update leaves the writes alone and reaches only the delete.
+                List<Object> verbs = check.get("verbs") instanceof List<?> scoped ? new ArrayList<>(scoped) : null;
                 // A conditionally required or forbidden value is row-level unless it names the status it
                 // is enforced at: without a gate it must hold on every user write, with one it is the
                 // repository's business, like every other gated check.
-                (str(check, "status") == null || str(check, "status").isEmpty() ? rowChecks : documentChecks).add(check);
+                if (verbs == null || verbs.contains("create") || verbs.contains("update")) {
+                    (str(check, "status") == null || str(check, "status").isEmpty() ? rowChecks : documentChecks).add(check);
+                }
                 if ("forbidWhen".equals(kind)) {
                     // The UI half (#7275): a forbidWhen that reads the composition master carries a
                     // descriptor the detail-register template emits, so the master-detail panel hides
-                    // the child's Add/edit/delete affordance while the condition holds.
+                    // the child's Add/edit/delete affordance while the condition holds - only the ones
+                    // its verbs cover, when it is scoped (#7710).
                     List<Map<String, Object>> masterGuard = asMaps(check.get("masterGuard"));
                     if (!masterGuard.isEmpty()) {
-                        forbidWhenGuards.add(masterGuard);
+                        Map<String, Object> guard = new LinkedHashMap<>();
+                        guard.put("terms", masterGuard);
+                        if (verbs != null) {
+                            guard.put("verbs", verbs);
+                        }
+                        forbidWhenGuards.add(guard);
                     }
                     // ...and the third affordance that panel hides is the row's DELETE, which the server
                     // half did not cover (#7372): a rule reading "no line may change while the quotation
@@ -342,8 +354,11 @@ final class ModelParameterProcessor {
                     // Keeping it out of the repository is also what leaves the composition cascade alone:
                     // a master sweeping its own children away goes through their repositories, and
                     // whether THAT delete is allowed is `whenMasterDeleted:`'s question, not a child
-                    // check's.
-                    deleteChecks.add(check);
+                    // check's. A rule scoped away from the delete (#7710) - "no new allocation onto a PAID
+                    // invoice", which must still let a wrong allocation be removed - stays out of it.
+                    if (verbs == null || verbs.contains("delete")) {
+                        deleteChecks.add(check);
+                    }
                 }
             } else {
                 documentChecks.add(check);
@@ -1343,6 +1358,52 @@ final class ModelParameterProcessor {
         String statusProperty = str(entity, "immutableStatusProperty");
         return truthy(entity, "immutableAlways") || (statusProperty != null && !statusProperty.isEmpty())
                 || entity.get("periodLock") != null;
+    }
+
+    /**
+     * Resolves the cross-model parents of each junction's refusing {@code checks: agree} (#7701) into
+     * the {@code targetAgreementRules} its generated repository contributes as a
+     * {@code TargetAgreementRule}: keyed by the parent's generated entity class - what the parent's
+     * repository names itself by when it asks - next to the junction's foreign key, the parent's
+     * relied-on property and the check's message as a Java literal. The entity class is the twin of the
+     * repository the dropdown resolution already placed on the foreign key, so a parent owned by
+     * another model resolves into that model's package. A foreign key that resolved no repository is
+     * dropped rather than emitted as a broken reference.
+     *
+     * @param entities every entity in the model
+     */
+    private static void resolveTargetAgreementRules(List<Map<String, Object>> entities) {
+        for (Map<String, Object> entity : entities) {
+            List<Map<String, Object>> rules = new ArrayList<>();
+            for (Map<String, Object> check : asMaps(entity.get("checks"))) {
+                if (!"agree".equals(str(check, "kind")) || "warn".equals(str(check, "severity"))) {
+                    continue;
+                }
+                for (Map<String, Object> parent : asMaps(check.get("crossModelParents"))) {
+                    String repositoryClass = null;
+                    for (Map<String, Object> property : asMaps(entity.get("properties"))) {
+                        if (str(parent, "fkProperty") != null && str(parent, "fkProperty").equals(str(property, "name"))) {
+                            repositoryClass = str(property, "targetRepositoryClass");
+                        }
+                    }
+                    if (repositoryClass == null || !repositoryClass.endsWith("Repository")) {
+                        continue;
+                    }
+                    Map<String, Object> rule = new LinkedHashMap<>();
+                    rule.put("targetEntityClass",
+                            repositoryClass.substring(0, repositoryClass.length() - "Repository".length()) + "Entity");
+                    rule.put("fkProperty", str(parent, "fkProperty"));
+                    rule.put("property", str(parent, "property"));
+                    rule.put("message", str(check, "message"));
+                    resolveMessageLiteral(rule);
+                    rules.add(rule);
+                }
+            }
+            if (!rules.isEmpty()) {
+                entity.put("targetAgreementRules", rules);
+                entity.put("hasTargetAgreementRules", Boolean.TRUE);
+            }
+        }
     }
 
     /**

@@ -1034,6 +1034,58 @@ class IntentParserTest {
     }
 
     /**
+     * A side of an {@code agree} may be the record's OWN to-one (#7631): the fiscal year of an opening
+     * balance belongs to a company, and so does the balance itself, so what has to agree is
+     * {@code Year.Company == Company} - one hop on the left, none on the right. The widening makes one
+     * new mistake reachable, comparing two foreign keys of different nomenclatures, which is refused
+     * for the reason #7095 refuses it a construct over: the comparison is simply always false.
+     */
+    @Test
+    void anAgreeSideMayBeTheRecordsOwnToOne() {
+        String yaml = """
+                name: ledger
+                entities:
+                  - name: Company
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                  - name: Customer
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                  - name: Year
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: company, kind: manyToOne, to: Company }
+                  - name: OpeningBalance
+                    checks:
+                      - { kind: agree, relations: [year, company], onProperty: company,
+                          message: "This balance opens the books of another company than its fiscal year" }
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: year,     kind: manyToOne, to: Year }
+                      - { name: company,  kind: manyToOne, to: Company }
+                      - { name: customer, kind: manyToOne, to: Customer }
+                """;
+        CheckIntent check = IntentParser.parse(yaml)
+                                        .getEntities()
+                                        .get(3)
+                                        .getChecks()
+                                        .get(0);
+
+        assertEquals(List.of("year", "company"), check.getRelations());
+        assertEquals("company", check.getOnProperty());
+
+        // The two keys must be drawn from the same nomenclature - a Company id and a Customer id are
+        // never equal, so comparing them is a rule that can only ever refuse.
+        assertCompareIssue(yaml.replace("relations: [year, company]", "relations: [year, customer]"),
+                "both sides must point at the same entity");
+        // And a property neither side can reach still says exactly that, rather than being read as a
+        // comparison of the two bare foreign keys.
+        assertCompareIssue(yaml.replace("onProperty: company,", "onProperty: supplier,"), "has no field or to-one relation [supplier]");
+    }
+
+    /**
      * The soft tier (#7466): the three cases the billing review asked for - a second customer with the
      * same name, a second product with the same name, a document line at price zero - are warnings the
      * person saving confirms, never refusals. A warning lives where a person writes, so only the
@@ -1372,6 +1424,29 @@ class IntentParserTest {
         String requiredDotted = yaml.replace("kind: forbidWhen, when: \"SalesInvoice.Status == PAID\",",
                 "kind: requiredWhen, field: amount, when: \"SalesInvoice.Amount == 5\",");
         assertForbidIssue(requiredDotted, "[SalesInvoice] has no field or to-one relation [Amount]");
+
+        // A verb scope (#7710): "no new allocation onto a PAID invoice" leaves the delete alone.
+        String scoped =
+                yaml.replace("when: \"SalesInvoice.Status == PAID\",", "when: \"SalesInvoice.Status == PAID\", verbs: [create, update],");
+        assertEquals(List.of("create", "update"), IntentParser.parse(scoped)
+                                                              .getEntities()
+                                                              .get(2)
+                                                              .getChecks()
+                                                              .get(0)
+                                                              .getVerbs());
+        IntentParser.parse(scoped.replace("verbs: [create, update]", "verbs: [delete]"));
+        // Refused, each because it would not mean what it says: a rule covering nothing, a verb that does
+        // not exist, half of the create/update pair the generated checks read as one, a scope on a kind
+        // that never reaches the delete, and the YAML-unsafe `on` spelling the issue first proposed.
+        assertForbidIssue(scoped.replace("verbs: [create, update]", "verbs: []"), "has an empty `verbs`");
+        assertForbidIssue(scoped.replace("verbs: [create, update]", "verbs: [create, remove]"), "unknown verb [remove]");
+        assertForbidIssue(scoped.replace("verbs: [create, update]", "verbs: [create, delete]"), "names only one of create and update");
+        assertForbidIssue(scoped.replace("verbs: [create, update]", "verbs: [create, update], severity: warn"),
+                "carries both `severity: warn` and `verbs`");
+        assertForbidIssue(requiredDotted.replace("when: \"SalesInvoice.Amount == 5\",", "when: \"amount == 5\", verbs: [delete],"),
+                "carries `verbs` - only a forbidWhen is scoped by verb");
+        assertForbidIssue(scoped.replace("verbs: [create, update]", "on: [create, update]"),
+                "a forbidWhen's verb scope is spelled `verbs`");
     }
 
     @Test

@@ -455,6 +455,13 @@ field may declare:
   still resolve. Not allowed on a composition parent (preset, never picked) or an `EntityStatus`.
   Canonical shape - a stock line's Product picker excluding services:
     `- { name: Product, kind: manyToOne, to: Product, where: { Type: 1 } }`
+- `label: <text>` / `countryLabels: { <ISO 3166-1 alpha-2>: <text> }` (on a to-one relation or a
+  `subset`, #7650) - **the picker's caption**, exactly as the field keys above: the relation is named
+  for the model, so the chooser, its list column and its details row all read as that identifier
+  until it is labelled. It rides on the relation's own FK property, so it is translated and
+  country-resolved like any field label. A collection relation (`oneToMany`) renders no control of
+  its own and is refused - label the field or relation the generated page actually shows.
+    `- { name: issuer, kind: manyToOne, to: Company, label: Issuing company }`
 - `pickable: { when: [<target property> != null, ...], else: mark|hide, message: <text> }` on a
   manyToOne/oneToOne (#7496) - **a picker rule over the TARGET's rows**: this is how "a customer
   with incomplete registration data cannot be picked onto an invoice" is declared, so the clerk
@@ -627,6 +634,13 @@ field may declare:
     mandatory); `whenNull: refuse` rejects the write instead. Reach for this instead of writing the
     rule as a `calculatedActionOnCreate`/`OnUpdate` guard class - it is the shape every
     allocation, transfer, timesheet and assignment entity carries.
+    A side may also be the record's OWN to-one carrying that third thing directly (#7631): an
+    opening balance has a fiscal `year` (which belongs to a company) and a `company` of its own, and
+    the rule that matters is `Year.Company == Company` - one hop on the left, none on the right.
+    Author it the same way, naming the own relation as a side:
+    `{ kind: agree, relations: [year, company], onProperty: company }`. Both sides must still end on
+    the same entity: comparing a Company key with a Customer key is refused, the two nomenclatures
+    making the comparison always false.
   - `{ kind: requiredWhen, field: vatGround, whenAnyItem: "vatRate == 0", status: ISSUED, message: "..." }`
     (#7560): a header value required when **ANY LINE** satisfies the condition - the legal ground a
     zero-rated line calls for (ЗДДС чл. 114). `whenAnyItem` uses the `when` grammar over the ITEMS
@@ -656,6 +670,12 @@ field may declare:
     edit, row delete). That half is on the controllers whatever the gate says, because a delete is
     nobody's transition; the master's own cascade is untouched, since whether THAT delete is allowed is
     what `whenMasterDeleted:` declares.
+    **A rule about ADDING only says so with `verbs:`** (#7710): `verbs: [create, update]` refuses the
+    allocation onto a PAID invoice but leaves a wrong one removable (its delete runs the roll-up's
+    relinquish and the invoice reopens); `verbs: [delete]` is the other half - written freely, never
+    removed while the condition holds. Omitted = all three. `create` and `update` go together (name both
+    or neither); an empty scope, an unknown verb, `verbs` on a warning or on any other kind, and the
+    YAML-unsafe spelling `on:` are refused.
   - Both take the same OPTIONAL `status:` gate as `compare`, and the gate is what decides WHERE the rule
     runs: **without one** it holds on every user write (the controllers, 400); **with one** the
     repository enforces it when the record is persisted carrying that status - which is the only form
@@ -4456,6 +4476,7 @@ or a seeded name.
 - "who/which was assigned / in force / valid on that date (from a register with from-to dates)" -> **resolves**
 - "X must be filled in before/when it reaches STATUS (but may be empty while it is a draft)" -> **checks** `requiredWhen` WITH the `status:` gate - a workflow's own status set is a repository write and never reaches a controller
 - "this must not be changed/added once the parent is PAID/CLOSED" -> **checks** `forbidWhen`
+- "nothing new may be added once the parent is PAID (but a wrong one must still be removable)" -> **checks** `forbidWhen` with `verbs: [create, update]`
 - "warn me / ask before saving when ... (but let me save anyway)" -> **checks** with `severity: warn`; "a record with the same name already exists" -> `duplicate`; "a line has price 0 / a zero-value line" -> `itemsCompare` on the document
 - "auto-expire the offer/request when its validity date passes" -> **processes** (userTask `expire:`)
 - "cancel the in-flight approval when the document is voided/cancelled (no orphaned Inbox task)" -> **processes** (`abortOn:`)

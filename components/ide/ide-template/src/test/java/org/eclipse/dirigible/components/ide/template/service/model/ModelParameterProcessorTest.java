@@ -681,14 +681,54 @@ class ModelParameterProcessorTest {
         // template emits so the master-detail panel hides the child's Add/edit/delete affordance.
         List<Object> guards = ModelValues.asList(entity.get("forbidWhenGuards"));
         assertEquals(1, guards.size());
-        assertEquals("Status", ModelValues.asMaps(guards.get(0))
+        assertEquals("Status", ModelValues.asMaps(ModelValues.asMap(guards.get(0))
+                                                             .get("terms"))
                                           .get(0)
                                           .get("property"));
+        assertNull(ModelValues.asMap(guards.get(0))
+                              .get("verbs"),
+                "an unscoped forbidWhen hides all three affordances");
         // ...and BOTH reach the delete list, whatever the gate says about the write half (#7372): a
         // delete is nobody's transition, so there is no repository-side write for a gated check to sit
         // on, and the removal of a guarded row is the largest of the three changes the panel hides.
         assertEquals(2, ModelValues.asList(entity.get("deleteChecks"))
                                    .size());
+    }
+
+    /**
+     * A forbidWhen scoped by {@code verbs:} reaches only the verbs it names (#7710): "no new allocation
+     * onto a PAID invoice" ({@code [create, update]}) stays off the delete verb and its UI guard says
+     * so, and a {@code [delete]}-only rule stays out of validate() and the repository.
+     */
+    @Test
+    void aForbidWhenScopedByVerbsReachesOnlyThoseVerbs() {
+        Map<String, Object> term = new LinkedHashMap<>();
+        term.put("property", "Status");
+        term.put("equal", Boolean.TRUE);
+        term.put("value", "7");
+        Map<String, Object> writesOnly = new LinkedHashMap<>();
+        writesOnly.put("kind", "forbidWhen");
+        writesOnly.put("verbs", List.of("create", "update"));
+        writesOnly.put("masterGuard", List.of(term));
+        Map<String, Object> gatedWritesOnly = new LinkedHashMap<>();
+        gatedWritesOnly.put("kind", "forbidWhen");
+        gatedWritesOnly.put("status", "7");
+        gatedWritesOnly.put("verbs", List.of("create", "update"));
+        Map<String, Object> deleteOnly = new LinkedHashMap<>();
+        deleteOnly.put("kind", "forbidWhen");
+        deleteOnly.put("verbs", List.of("delete"));
+        Map<String, Object> entity = entity("SalesInvoiceCustomerPayment", "Payments", property("Amount", "DECIMAL"));
+        entity.put("checks", List.of(writesOnly, gatedWritesOnly, deleteOnly));
+
+        ModelParameterProcessor.process(model(entity), parameters());
+
+        assertEquals(List.of(writesOnly), ModelValues.asList(entity.get("rowChecks")));
+        assertEquals(List.of(gatedWritesOnly), ModelValues.asList(entity.get("documentChecks")));
+        assertEquals(List.of(deleteOnly), ModelValues.asList(entity.get("deleteChecks")));
+        List<Object> guards = ModelValues.asList(entity.get("forbidWhenGuards"));
+        assertEquals(1, guards.size());
+        assertEquals(List.of("create", "update"), ModelValues.asMap(guards.get(0))
+                                                             .get("verbs"));
     }
 
     /**
@@ -827,6 +867,48 @@ class ModelParameterProcessorTest {
         assertEquals("gen.sales_order.data.claims.ExpenseCategoryEntity", category.get("targetEntityClass"));
         assertEquals(Boolean.TRUE, claim.get("hasTargetDeleteRules"));
         assertNull(approver.get("targetEntityClass"));
+    }
+
+    /**
+     * The cross-model parent of a junction's {@code checks: agree} (#7701): the check names the
+     * junction's foreign key and the parent's relied-on property, and this pass resolves the parent's
+     * generated entity class in its OWNER model's package - what the parent's repository names itself
+     * by when it asks every {@code TargetAgreementRule} - plus the message's Java-literal twin. A
+     * warning contributes nothing, and a foreign key that resolved no repository is dropped.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void aCrossModelAgreeParentResolvesToATargetAgreementRule() {
+        Map<String, Object> payment = property("CustomerPayment", "INTEGER");
+        payment.put("relationshipEntityName", "CustomerPayment");
+        payment.put("relationshipEntityPerspectiveName", "CustomerPayment");
+        payment.put("widgetType", "DROPDOWN");
+        Map<String, Object> refusing = new LinkedHashMap<>();
+        refusing.put("kind", "agree");
+        refusing.put("message", "The \"customer\" must match the invoice's");
+        refusing.put("crossModelParents", new java.util.ArrayList<>(List.of(Map.of("fkProperty", "CustomerPayment", "property", "Customer"),
+                Map.of("fkProperty", "Ghost", "property", "Customer"))));
+        Map<String, Object> warning = new LinkedHashMap<>(refusing);
+        warning.put("severity", "warn");
+        Map<String, Object> allocation = entity("InvoicePayment", "allocations", property("Id", "INTEGER"), payment);
+        allocation.put("checks", new java.util.ArrayList<>(List.of(refusing, warning)));
+        Map<String, Object> projection = entity("CustomerPayment", "CustomerPayment", property("Amount", "DECIMAL"));
+        projection.put("type", "PROJECTION");
+        projection.put("projectionReferencedModel", "/customer-payments/payments.model");
+
+        ModelParameterProcessor.process(model(allocation, projection), javaParameters());
+
+        List<Map<String, Object>> rules = (List<Map<String, Object>>) allocation.get("targetAgreementRules");
+        assertEquals(1, rules.size(), "the warning and the unresolved foreign key must contribute nothing: " + rules);
+        assertEquals("gen.payments.data.customerpayment.CustomerPaymentEntity", rules.get(0)
+                                                                                     .get("targetEntityClass"));
+        assertEquals("CustomerPayment", rules.get(0)
+                                             .get("fkProperty"));
+        assertEquals("Customer", rules.get(0)
+                                      .get("property"));
+        assertEquals("The \\\"customer\\\" must match the invoice's", rules.get(0)
+                                                                           .get("messageJavaLiteral"));
+        assertEquals(Boolean.TRUE, allocation.get("hasTargetAgreementRules"));
     }
 
     @Test

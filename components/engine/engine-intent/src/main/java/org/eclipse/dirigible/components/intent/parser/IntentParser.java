@@ -4337,6 +4337,11 @@ public final class IntentParser {
                 // checks below (composition, cross-model, dependsOn, leafOnly, personal/partner).
                 if ("subset".equals(relation.getKind())) {
                     validateSubset(entity, relation, entityNames, byName, issues);
+                    if (relation.getLabel() != null || !relation.getCountryLabels()
+                                                                .isEmpty()) {
+                        validateLabels("entity [" + entity.getName() + "] relation [" + relation.getName() + "]", relation.getLabel(),
+                                relation.getCountryLabels(), issues);
+                    }
                     continue;
                 }
                 // ManyToManyExpander consumed every n:m before this ran, so a surviving manyToMany is one
@@ -4401,6 +4406,19 @@ public final class IntentParser {
                         issues.add(subject + " is an EntityStatus (a read-only badge) so it cannot declare dependsOn");
                     } else {
                         validateDependsOn(entity, subject, relation.getDependsOn(), relation, byName, issues);
+                    }
+                }
+                // The picker's caption (#7650) - a to-one FK property or a subset's multiselect column.
+                // A collection relation emits no property at all (the FK lives on the child), so a label
+                // authored there would be carried nowhere: refused rather than silently dropped.
+                if (relation.getLabel() != null || !relation.getCountryLabels()
+                                                            .isEmpty()) {
+                    String labelSubject = "entity [" + entity.getName() + "] relation [" + relation.getName() + "]";
+                    if ("oneToMany".equals(relation.getKind())) {
+                        issues.add(labelSubject + " declares a `label`, but a collection relation renders no control of its own -"
+                                + " label the field or relation the generated page actually shows");
+                    } else {
+                        validateLabels(labelSubject, relation.getLabel(), relation.getCountryLabels(), issues);
                     }
                 }
                 if (relation.getWhere() != null) {
@@ -5845,6 +5863,7 @@ public final class IntentParser {
         String subject = "entity [" + entity.getName() + "] check [" + (check.getKind() == null ? "?" : check.getKind()) + "]";
         String kind = check.getKind();
         validateSeverity(check, subject, issues);
+        validateVerbs(check, subject, issues);
         if ("duplicate".equals(kind)) {
             validateDuplicateCheck(entity, check, subject, issues);
             return;
@@ -5963,6 +5982,48 @@ public final class IntentParser {
                 + " duplicate or itemsCompare");
     }
 
+    /** The verbs a {@code forbidWhen} scope may name (#7710). */
+    private static final Set<String> FORBID_WHEN_VERBS = Set.of("create", "update", "delete");
+
+    /**
+     * {@code verbs:} (#7710) scopes a {@code forbidWhen} to the writes it is about - omitted, it covers
+     * create, update and delete (#7372). Refused, each because the declaration would not mean what it
+     * says: a scope on any other kind (only forbidWhen reaches the delete verb at all), an empty scope
+     * (a rule that refuses nothing), an unknown verb, a scope on a warning (a warning never reaches the
+     * delete verb, so it has nothing to narrow), and {@code create} without {@code update} or the other
+     * way round - the generated controllers, the process write-back and the repository read one check
+     * on both, so the pair is one scope.
+     */
+    private static void validateVerbs(CheckIntent check, String subject, List<String> issues) {
+        List<String> verbs = check.getVerbs();
+        if (verbs == null) {
+            return;
+        }
+        if (!"forbidWhen".equals(check.getKind())) {
+            issues.add(subject + " carries `verbs` - only a forbidWhen is scoped by verb; every other check is about the values a"
+                    + " create or update carries");
+            return;
+        }
+        if (verbs.isEmpty()) {
+            issues.add(subject + " has an empty `verbs` - a forbidWhen that covers no verb refuses nothing; drop the rule, or"
+                    + " name create, update and/or delete");
+            return;
+        }
+        for (String verb : verbs) {
+            if (!FORBID_WHEN_VERBS.contains(verb)) {
+                issues.add(subject + " has unknown verb [" + verb + "] in `verbs` - expected create, update or delete");
+            }
+        }
+        if (verbs.contains("create") != verbs.contains("update")) {
+            issues.add(subject + " names only one of create and update in `verbs` - the generated checks read the same rule on"
+                    + " both, so name both (`verbs: [create, update]`) or neither (`verbs: [delete]`)");
+        }
+        if (check.isWarning()) {
+            issues.add(subject + " carries both `severity: warn` and `verbs` - a warning is asked on a create or update only and"
+                    + " never reaches the delete verb, so there is nothing to scope");
+        }
+    }
+
     /** The row-level kinds a {@code severity: warn} may soften - the ones the controllers enforce. */
     private static final Set<String> WARNABLE_KINDS = Set.of("compare", "requiredWhen", "forbidWhen", "exactlyOne", "agree");
 
@@ -6076,6 +6137,26 @@ public final class IntentParser {
      * differs between the two sides is refused rather than compared across types, where the boxed
      * comparison is silently always-false.
      */
+    /**
+     * The entity one side of an {@code agree} ultimately points at, when both hops are local: the
+     * target of {@code <relation>.<onProperty>}, or - for a side reading the record's own to-one - that
+     * relation's own target. {@code null} when the side ends on a scalar or leaves this model, where
+     * nothing here can say.
+     */
+    private static String agreedTarget(EntityIntent entity, java.util.Map<String, EntityIntent> byName, String relation,
+            String onProperty) {
+        RelationIntent own = CheckSupport.toOne(entity, relation);
+        if (own == null) {
+            return null;
+        }
+        EntityIntent target = byName.get(own.getTo());
+        RelationIntent shared = target == null ? null : CheckSupport.toOne(target, onProperty);
+        if (shared != null) {
+            return shared.getTo(); // the hop's own to-one - the usual junction shape
+        }
+        return target == null || CheckSupport.field(target, onProperty) != null ? null : own.getTo();
+    }
+
     private static void validateAgreeCheck(EntityIntent entity, CheckIntent check, java.util.Map<String, EntityIntent> byName,
             String subject, List<String> issues) {
         List<String> relations = check.getRelations();
@@ -6105,18 +6186,32 @@ public final class IntentParser {
         // reported by the walker in the vocabulary every other path failure uses.
         ResolvePathSupport.Walker walker = ResolvePathSupport.walker(entity, byName, java.util.Map.of(), null);
         String[] terminals = new String[2];
+        String[] agreedOn = new String[2];
         for (int i = 0; i < 2; i++) {
-            String relation = relations.get(i);
-            if (relation == null || relation.isBlank()) {
+            if (relations.get(i) == null || relations.get(i)
+                                                     .isBlank()) {
                 issues.add(subject + " relations[" + i + "] is blank");
                 return;
             }
-            ResolvePathSupport.Path path = walker.resolve(relation + "." + on);
-            if (!path.resolved()) {
-                issues.add(subject + " " + path.failure());
+        }
+        ResolvePathSupport.Path[] sides = CheckSupport.agreeSides(walker, entity, relations.get(0), relations.get(1), on);
+        for (int i = 0; i < 2; i++) {
+            if (!sides[i].resolved()) {
+                issues.add(subject + " " + sides[i].failure());
                 return;
             }
-            terminals[i] = path.terminalType();
+            terminals[i] = sides[i].terminalType();
+            agreedOn[i] = agreedTarget(entity, byName, relations.get(i), on);
+        }
+        // Both sides must name the same third thing. A side reading the record's OWN to-one (#7631)
+        // compares a foreign key, and a key of the wrong nomenclature is the one mistake this widening
+        // makes reachable - comparing a Company id with a Customer id is the "two foreign keys mean
+        // nothing" refusal #7095 draws, one construct over.
+        if (agreedOn[0] != null && agreedOn[1] != null && !agreedOn[0].equals(agreedOn[1])) {
+            issues.add(subject + " compares a [" + agreedOn[0] + "] with a [" + agreedOn[1]
+                    + "] - both sides must point at the same entity, or the keys are from different nomenclatures and the"
+                    + " comparison is always false");
+            return;
         }
         for (int i = 0; i < 2; i++) {
             if (terminals[i] == null || ResolvePathSupport.RELATION_TERMINAL.equals(terminals[i])) {
@@ -6649,7 +6744,8 @@ public final class IntentParser {
                 if (checkNode instanceof Map<?, ?> check && (check.containsKey("on") || check.containsKey(Boolean.TRUE))) {
                     issues.add("entity [" + entity.get("name") + "] check [" + check.get("kind")
                             + "] declares `on` - YAML reads a bare `on` as the boolean true, so the key never arrives;"
-                            + " spell it `onProperty`");
+                            + ("forbidWhen".equals(check.get("kind")) ? " a forbidWhen's verb scope is spelled `verbs`"
+                                    : " spell it `onProperty`"));
                 }
             }
         }
@@ -6887,12 +6983,21 @@ public final class IntentParser {
      * match any tenant, so it is refused here rather than silently rendering the base label forever.
      */
     private static void validateLabels(String subject, FieldIntent field, List<String> issues) {
-        if (field.getLabel() != null && field.getLabel()
-                                             .isBlank()) {
-            issues.add(subject + " declares a blank `label` - remove it to keep the humanized field name");
+        validateLabels(subject, field.getLabel(), field.getCountryLabels(), issues);
+    }
+
+    /**
+     * The same rule for a RELATION's picker caption (#7650): a relation renders a control of its own -
+     * the picker, its list column and its details row - and the humanized relation name is as wrong
+     * there as a humanized field name is, for the same reason (the identifier was chosen for the model,
+     * and a picklist that cannot be named after what it picks reads as the identifier).
+     */
+    private static void validateLabels(String subject, String label, java.util.Map<String, String> countryLabels, List<String> issues) {
+        if (label != null && label.isBlank()) {
+            issues.add(subject + " declares a blank `label` - remove it to keep the humanized name");
         }
-        for (java.util.Map.Entry<String, String> variant : field.getCountryLabels()
-                                                                .entrySet()) {
+        for (java.util.Map.Entry<String, String> variant : (countryLabels == null ? java.util.Map.<String, String>of()
+                : countryLabels).entrySet()) {
             String country = variant.getKey() == null ? ""
                     : variant.getKey()
                              .trim()
