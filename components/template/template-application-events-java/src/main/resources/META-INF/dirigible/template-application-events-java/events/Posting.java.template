@@ -422,7 +422,6 @@ public class ${className}Posting implements MessageHandler {
         }
         return java.util.Objects.equals(stored, derived);
     }
-
 #if($periodRegisterEntity != "")
 
     /**
