@@ -5877,6 +5877,22 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                                                  .then()
                                                  .statusCode(200)
                                                  .body("Status", equalTo(3)));
+        // A record that does not exist is 404, never a 500 (#6540): the endpoint re-loads by id and
+        // the absent case is its own answer, the way the guard violations below are theirs. A missing
+        // id in the body stays 400 - that is a malformed request, not a missing record.
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{\"id\": 999999}")
+                                                 .when()
+                                                 .post(transitionRun)
+                                                 .then()
+                                                 .statusCode(404)
+                                                 .body("error", containsString("not found")));
+        restAssuredExecutor.execute(() -> given().contentType("application/json")
+                                                 .body("{}")
+                                                 .when()
+                                                 .post(transitionRun)
+                                                 .then()
+                                                 .statusCode(400));
         // ...a second cancel is rejected from the wrong status (409, record untouched)...
         restAssuredExecutor.execute(() -> given().contentType("application/json")
                                                  .body("{\"id\":" + cancellable.get() + "}")
