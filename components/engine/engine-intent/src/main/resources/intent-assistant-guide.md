@@ -455,6 +455,13 @@ field may declare:
   still resolve. Not allowed on a composition parent (preset, never picked) or an `EntityStatus`.
   Canonical shape - a stock line's Product picker excluding services:
     `- { name: Product, kind: manyToOne, to: Product, where: { Type: 1 } }`
+- `label: <text>` / `countryLabels: { <ISO 3166-1 alpha-2>: <text> }` (on a to-one relation or a
+  `subset`, #7650) - **the picker's caption**, exactly as the field keys above: the relation is named
+  for the model, so the chooser, its list column and its details row all read as that identifier
+  until it is labelled. It rides on the relation's own FK property, so it is translated and
+  country-resolved like any field label. A collection relation (`oneToMany`) renders no control of
+  its own and is refused - label the field or relation the generated page actually shows.
+    `- { name: issuer, kind: manyToOne, to: Company, label: Issuing company }`
 - `pickable: { when: [<target property> != null, ...], else: mark|hide, message: <text> }` on a
   manyToOne/oneToOne (#7496) - **a picker rule over the TARGET's rows**: this is how "a customer
   with incomplete registration data cannot be picked onto an invoice" is declared, so the clerk
