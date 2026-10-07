@@ -6119,6 +6119,26 @@ public final class IntentParser {
      * differs between the two sides is refused rather than compared across types, where the boxed
      * comparison is silently always-false.
      */
+    /**
+     * The entity one side of an {@code agree} ultimately points at, when both hops are local: the
+     * target of {@code <relation>.<onProperty>}, or - for a side reading the record's own to-one - that
+     * relation's own target. {@code null} when the side ends on a scalar or leaves this model, where
+     * nothing here can say.
+     */
+    private static String agreedTarget(EntityIntent entity, java.util.Map<String, EntityIntent> byName, String relation,
+            String onProperty) {
+        RelationIntent own = CheckSupport.toOne(entity, relation);
+        if (own == null) {
+            return null;
+        }
+        EntityIntent target = byName.get(own.getTo());
+        RelationIntent shared = target == null ? null : CheckSupport.toOne(target, onProperty);
+        if (shared != null) {
+            return shared.getTo(); // the hop's own to-one - the usual junction shape
+        }
+        return target == null || CheckSupport.field(target, onProperty) != null ? null : own.getTo();
+    }
+
     private static void validateAgreeCheck(EntityIntent entity, CheckIntent check, java.util.Map<String, EntityIntent> byName,
             String subject, List<String> issues) {
         List<String> relations = check.getRelations();
@@ -6148,18 +6168,32 @@ public final class IntentParser {
         // reported by the walker in the vocabulary every other path failure uses.
         ResolvePathSupport.Walker walker = ResolvePathSupport.walker(entity, byName, java.util.Map.of(), null);
         String[] terminals = new String[2];
+        String[] agreedOn = new String[2];
         for (int i = 0; i < 2; i++) {
-            String relation = relations.get(i);
-            if (relation == null || relation.isBlank()) {
+            if (relations.get(i) == null || relations.get(i)
+                                                     .isBlank()) {
                 issues.add(subject + " relations[" + i + "] is blank");
                 return;
             }
-            ResolvePathSupport.Path path = walker.resolve(relation + "." + on);
-            if (!path.resolved()) {
-                issues.add(subject + " " + path.failure());
+        }
+        ResolvePathSupport.Path[] sides = CheckSupport.agreeSides(walker, entity, relations.get(0), relations.get(1), on);
+        for (int i = 0; i < 2; i++) {
+            if (!sides[i].resolved()) {
+                issues.add(subject + " " + sides[i].failure());
                 return;
             }
-            terminals[i] = path.terminalType();
+            terminals[i] = sides[i].terminalType();
+            agreedOn[i] = agreedTarget(entity, byName, relations.get(i), on);
+        }
+        // Both sides must name the same third thing. A side reading the record's OWN to-one (#7631)
+        // compares a foreign key, and a key of the wrong nomenclature is the one mistake this widening
+        // makes reachable - comparing a Company id with a Customer id is the "two foreign keys mean
+        // nothing" refusal #7095 draws, one construct over.
+        if (agreedOn[0] != null && agreedOn[1] != null && !agreedOn[0].equals(agreedOn[1])) {
+            issues.add(subject + " compares a [" + agreedOn[0] + "] with a [" + agreedOn[1]
+                    + "] - both sides must point at the same entity, or the keys are from different nomenclatures and the"
+                    + " comparison is always false");
+            return;
         }
         for (int i = 0; i < 2; i++) {
             if (terminals[i] == null || ResolvePathSupport.RELATION_TERMINAL.equals(terminals[i])) {

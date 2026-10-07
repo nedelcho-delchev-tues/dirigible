@@ -624,6 +624,13 @@ field may declare:
     mandatory); `whenNull: refuse` rejects the write instead. Reach for this instead of writing the
     rule as a `calculatedActionOnCreate`/`OnUpdate` guard class - it is the shape every
     allocation, transfer, timesheet and assignment entity carries.
+    A side may also be the record's OWN to-one carrying that third thing directly (#7631): an
+    opening balance has a fiscal `year` (which belongs to a company) and a `company` of its own, and
+    the rule that matters is `Year.Company == Company` - one hop on the left, none on the right.
+    Author it the same way, naming the own relation as a side:
+    `{ kind: agree, relations: [year, company], onProperty: company }`. Both sides must still end on
+    the same entity: comparing a Company key with a Customer key is refused, the two nomenclatures
+    making the comparison always false.
   - `{ kind: requiredWhen, field: vatGround, whenAnyItem: "vatRate == 0", status: ISSUED, message: "..." }`
     (#7560): a header value required when **ANY LINE** satisfies the condition - the legal ground a
     zero-rated line calls for (ЗДДС чл. 114). `whenAnyItem` uses the `when` grammar over the ITEMS

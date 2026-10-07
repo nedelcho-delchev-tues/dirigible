@@ -1735,6 +1735,50 @@ class EdmIntentGeneratorTest {
     }
 
     /**
+     * One side of an {@code agree} may be the record's OWN to-one (#7631): a budget line holds the year
+     * and the company it books on, and the year belongs to a company too - the rule that matters is
+     * "the year's company is this company", which has one hop on the left and none on the right.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void anAgreeSideMayBeTheRecordsOwnToOne() {
+        String yaml = """
+                name: budgeting
+                entities:
+                  - name: Company
+                    fields:
+                      - { name: id,   type: integer, primaryKey: true, generated: true }
+                      - { name: name, type: string }
+                  - name: Year
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: company, kind: manyToOne, to: Company }
+                  - name: Budget
+                    checks:
+                      - { kind: agree, relations: [year, company], onProperty: company }
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: year,    kind: manyToOne, to: Year }
+                      - { name: company, kind: manyToOne, to: Company }
+                """;
+        Map<String, Object> model = EdmIntentGenerator.buildModelJsonForTest(IntentParser.parse(yaml), "budgeting");
+        Map<String, Object> agree = ((List<Map<String, Object>>) entityByName(entities(model), "Budget").get("checks")).get(0);
+
+        assertEquals("(hop0 == null ? null : hop0.Company)", agree.get("leftExpression"));
+        assertEquals("entity.Company", agree.get("rightExpression"), "the own side is read off the record, with no hop at all");
+        assertEquals("Year.Company", agree.get("leftLabel"));
+        assertEquals("Company", agree.get("rightLabel"));
+        List<Map<String, Object>> loads = (List<Map<String, Object>>) agree.get("pathLoads");
+        assertEquals(1, loads.size(), "only the hopped side is loaded: " + loads);
+        assertEquals("entity.Year", loads.get(0)
+                                         .get("sourceExpression"));
+        assertEquals("The Year and the Company must have the same Company", agree.get("message"),
+                "the unauthored message names both sides and the property, as it does for two hops");
+    }
+
+    /**
      * The parent side of an {@code agree} check (#7589): each record the junction links carries an
      * {@code agreeGuards} entry naming the junction, its foreign key and the agreed property, so the
      * parent's repository can refuse re-pointing that property while a junction row references it -

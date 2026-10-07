@@ -1034,6 +1034,58 @@ class IntentParserTest {
     }
 
     /**
+     * A side of an {@code agree} may be the record's OWN to-one (#7631): the fiscal year of an opening
+     * balance belongs to a company, and so does the balance itself, so what has to agree is
+     * {@code Year.Company == Company} - one hop on the left, none on the right. The widening makes one
+     * new mistake reachable, comparing two foreign keys of different nomenclatures, which is refused
+     * for the reason #7095 refuses it a construct over: the comparison is simply always false.
+     */
+    @Test
+    void anAgreeSideMayBeTheRecordsOwnToOne() {
+        String yaml = """
+                name: ledger
+                entities:
+                  - name: Company
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                  - name: Customer
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                  - name: Year
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: company, kind: manyToOne, to: Company }
+                  - name: OpeningBalance
+                    checks:
+                      - { kind: agree, relations: [year, company], onProperty: company,
+                          message: "This balance opens the books of another company than its fiscal year" }
+                    fields:
+                      - { name: id, type: integer, primaryKey: true, generated: true }
+                    relations:
+                      - { name: year,     kind: manyToOne, to: Year }
+                      - { name: company,  kind: manyToOne, to: Company }
+                      - { name: customer, kind: manyToOne, to: Customer }
+                """;
+        CheckIntent check = IntentParser.parse(yaml)
+                                        .getEntities()
+                                        .get(3)
+                                        .getChecks()
+                                        .get(0);
+
+        assertEquals(List.of("year", "company"), check.getRelations());
+        assertEquals("company", check.getOnProperty());
+
+        // The two keys must be drawn from the same nomenclature - a Company id and a Customer id are
+        // never equal, so comparing them is a rule that can only ever refuse.
+        assertCompareIssue(yaml.replace("relations: [year, company]", "relations: [year, customer]"),
+                "both sides must point at the same entity");
+        // And a property neither side can reach still says exactly that, rather than being read as a
+        // comparison of the two bare foreign keys.
+        assertCompareIssue(yaml.replace("onProperty: company,", "onProperty: supplier,"), "has no field or to-one relation [supplier]");
+    }
+
+    /**
      * The soft tier (#7466): the three cases the billing review asked for - a second customer with the
      * same name, a second product with the same name, a document line at price zero - are warnings the
      * person saving confirms, never refusals. A warning lives where a person writes, so only the
