@@ -88,23 +88,3 @@ table[data-list-columns] [data-col-grip][data-dragging="true"] {
   background: var(--border, currentColor);
   outline: none;
 }
-
-/*
- * The negative badge indicator carries WHITE text, so its background has to clear WCAG AA
- * (4.5:1) for small bold text - and the design system's light-mode `--negative`,
- * oklch(62.68% .2133 19.36), measures 3.94:1 against #ffffff. The notification bell's count is
- * the one place that pairing is rendered on every page of every generated application, so an
- * instance with a single pending Inbox task failed the contrast rule on each of them (#7704).
- *
- * The value is the design system's OWN dark-mode `--negative`: same hue and family, already
- * shipped against the same foreground, and 6.4:1 on white - rather than a hex invented here.
- * It is set for both themes on purpose: the indicator is a solid chip whose contrast is against
- * its own fill, not against the page, so one accessible red is correct in either.
- *
- * Scoped to this one indicator deliberately. `--negative` is the design system's token and
- * every other use of it - a destructive button, an error border - is that system's call, not
- * this shell's to override.
- */
-[data-slot="badge-indicator"][data-variant="negative"] {
-  background-color: oklch(48.17% .1805 24.53);
-}

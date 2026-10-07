@@ -2,6 +2,36 @@
 
 The runtime UI stack for generated applications: they render as a self-contained **Alpine.js + Harmonia SPA** (client-routed by Pinecone in hash mode, no iframes/`postMessage` hubs), served at `/services/web/<project>/gen/<model>/index.html`, talking to the **reused** generated Java REST controllers over a `fetch` client. The AngularJS IDE is untouched; the application layer ships this stack only. `template-application-ui-harmonia-java` (registered on `platform-templates` as "Application - UI (Harmonia) - Java") emits the view types (list, manage, setting, master-detail, document, calendar, slots, reports) + built-in **Process Inbox** (`/inbox`) and **Documents** (`/documents`) shell sections + inline process-task surfacing; `template-form-builder-harmonia` ("Harmonia Generator from Form Model", extension `form`) is the runtime form generator. The stack is embedded as **webjars** via `components/resources/application-core` (`harmonia.version`, `alpinejs.version`, `lucide.version`, `pinecone-router.version`, `i18next.version` in the root `pom.xml`), served version-less through webjars-locator at `/webjars/<name>/dist/...`; a version bump is a pom-only change. Report charts use Harmonia's native `x-h-chart-*` SVG charts.
 
+### Colours come from the THEME - never from a CSS override (normative)
+
+**Never override a Harmonia colour in a stylesheet of this repo.** Colours in Harmonia are owned by
+the **theme**: `--primary`, `--negative`, `--positive`, the surface and border tokens and every
+variant built on them. If a colour has to change, **the theme changes** - upstream in the design
+system, where every component that reads that token changes with it. A rule in
+`application-core/shell/css/app.css` (or any module stylesheet) that sets a `color`,
+`background-color`, `border-color` or `fill` to a literal, or that re-points a Harmonia token, is
+refused in review however narrowly it is scoped.
+
+The reasoning, because the tempting case always looks local: an override is scoped to the one
+selector whose look the author happened to be looking at, so the SAME semantic colour then renders
+two different ways in one application - the overridden badge beside a destructive button, an error
+border, a chart series, a toast - and nothing anywhere records that they were meant to be one
+colour. It also silently stops tracking the design system: the next version ships a corrected
+`--negative` and every component picks it up except the one pinned here. A theme change has neither
+property.
+
+This holds even when a measurement is on the author's side. **A contrast figure is a guideline, not
+a verdict**: WCAG's 4.5:1 is what we steer by, not a rule that must be satisfied 100% of the time,
+and "below 4.5:1" does not by itself mean a colour is unreadable or that it must change. So a
+contrast finding is an argument to put to the design system, not a licence to patch a colour here -
+and whether it is acted on at all is the theme's call. (#7704 was exactly this shape and was
+withdrawn: a scoped `[data-slot="badge-indicator"][data-variant="negative"]` override of
+`--negative`'s rendered value, for a 3.94:1 reading on the notification badge.)
+
+What a module stylesheet legitimately owns is layout and non-colour affordance - spacing, sizing,
+the drag-grip and overflow rules already in `app.css` - and even there a colour value is written as
+`var(--token)`, never as a literal.
+
 ### The Harmonia rules live upstream - the skill is the rule set
 
 **Do not write Harmonia markup from memory or from the examples already in this repo.** The single source of truth for every `x-h-*` directive, attribute, modifier, variant and utility class is the Harmonia skill, version-matched to `harmonia.version`:
@@ -50,4 +80,3 @@ The runtime UI stack for generated applications: they render as a self-contained
 
 - **A `dependsOn` watcher is registered BEFORE the catch-up, never after the awaited loads (#7604).** The generated document and form pages used to register `$watch('form.<trigger>')` only after `await loadOptions()` / `loadHeader()`, so a trigger picked during the page's first load - seconds wide on a tenant whose shell issues one GET per open Inbox task - was never seen by any watcher, and the init-time catch-up ran with `adjust=false` (filter the options, write nothing): the customer was picked, the invoice's Language stayed empty and the PDF printed in the wrong language. The order is now watcher first, then one catch-up for a trigger already in the form, with `adjust` decided by WHO put it there: a value the page itself hydrated (the stored record on edit/preview, a URL prefill) only filters the options - a stored value is never touched - while a value that arrived any other way during the loads is the user's pick and applies its prefill. Registering the watcher before the catch-up leaves no gap between the two. Both templates that carry the shape (`document-page.js.template`, `form-page.js.template`) follow it; a new page with a trigger watcher must too.
 - **A `dependsOn` picker never shows the unnarrowed list, not even while the page loads (#7669).** `loadOptions()` used to fetch the whole target table for every dropdown, the cascade narrowing it only after the record load finished - so the picker spent the whole init offering rows the trigger goes on to refuse, and a user who picked one got a server rejection. The per-property fetch now lives in its own `loadAllOptions<Name>()`; `loadOptions(deferDependsOn)` calls `refreshOptions<Name>()` (narrowed while the trigger holds a value, whole while it does not) for a depends-on dropdown, and `init()` passes `deferDependsOn` so the list is decided once - after the record/URL prefill has put the trigger in the form - by the same catch-up that registers the watcher. No trigger at all means the whole list, and clearing the trigger returns to it. The same init also stopped resolving off-filter stored keys one `await` at a time: `ensureFilteredCurrent` now issues them together through `Promise.all`, so a MULTISELECT holding a few hundred keys costs one burst instead of a few hundred serial round trips the page waited out.
-- **The negative badge indicator carries its own accessible red (#7704).** The design system's light-mode `--negative` measures 3.94:1 against the white text it is paired with, and the notification bell's count is that pairing rendered on every page of every generated application - so an instance with one pending Inbox task failed the `color-contrast` rule on each of them, which is what the axe flow's strict mode reports. The shared shell stylesheet (`application-core/shell/css/app.css`) overrides exactly that one indicator, keyed on Harmonia's stable `data-slot`/`data-variant` pair, with the design system's OWN dark-mode `--negative` - the same family, already shipped against the same foreground, 6.4:1 on white - for both themes, since the chip's contrast is against its own fill rather than the page. The token itself is deliberately NOT overridden: every other use of `--negative` is the design system's call.
