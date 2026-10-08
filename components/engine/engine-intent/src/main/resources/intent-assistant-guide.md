@@ -509,7 +509,10 @@ field may declare:
   that would MOVE a record into one - once March is closed, nothing dated in March may appear,
   change or vanish. The lock is enforced in the generated REPOSITORY as well (#7590), so a posting,
   a create-from or a schedule booking into a closed period is refused with the same sentence (a 400,
-  or the failure of the handler that carried it) - a closed period is closed for the system too. A date
+  or the failure of the handler that carried it) - a closed period is closed for the system too. A
+  POSTING additionally asks the register BEFORE it writes (#7703): it logs which document it left
+  unposted and on which period, and re-runs itself for those documents the moment that period
+  reopens, so a closed month no longer costs an issued document its ledger entry for good. A date
   covered by no period is open (periods are opened as they are needed) and an unset date falls in
   none. The lock reaches composition CHILDREN exactly as the status one does. Boundary: the register
   must be an entity of the SAME model - the guard is generated into this model's controllers, which

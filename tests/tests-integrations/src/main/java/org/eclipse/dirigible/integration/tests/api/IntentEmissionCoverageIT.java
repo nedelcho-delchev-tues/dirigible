@@ -1729,6 +1729,15 @@ class IntentEmissionCoverageIT extends IntegrationTest {
             # credit); a VOIDED Doc posts the reversal - the SAME lines negated on the SAME sides,
             # linked to the original through Entry.Storno, fail-soft when nothing was posted.
             postings:
+              # #7703: the target carries immutableInPeriod, so this posting asks the register before
+              # it writes and says which document it left unposted - and its reopen sweeps re-run it.
+              - name: freightPosting
+                event: { onCreate: Consignment }
+                creates: FreightEntry
+                backReference: Consignment
+                map: { entryDate: shippedOn }
+                items:
+                  - { amount: "Value" }
               - name: docPosting
                 event: { onTransition: Doc, when: "Status == 2" }
                 creates: Entry
@@ -2061,7 +2070,34 @@ class IntentEmissionCoverageIT extends IntegrationTest {
             """;
 
     /** The whole fixture, as the two halves above spell it. */
+    // Still the entities list, for the same 65535-byte reason. A posting whose TARGET is locked by a
+    // fiscal period (#7703): the lock is enforced in the target's repository (#7590), but the posting
+    // runs on a listener after its source committed - so a closed period dropped the post where
+    // nobody was listening, and reopening the period published nothing the posting binds.
+    private static final String INTENT_YAML_PERIOD_POSTING = """
+              - name: Consignment
+                fields:
+                  - { name: id,       type: integer, primaryKey: true, generated: true }
+                  - { name: shippedOn, type: date, required: true }
+                  - { name: value,    type: decimal }
+              # The posting's target, locked by the very register LedgerBooking is locked by.
+              - name: FreightEntry
+                immutableInPeriod: { period: AccountingPeriod, date: entryDate }
+                fields:
+                  - { name: id,        type: integer, primaryKey: true, generated: true }
+                  - { name: entryDate, type: date, required: true }
+                relations:
+                  - { name: Consignment, kind: manyToOne, to: Consignment }
+              - name: FreightEntryLine
+                fields:
+                  - { name: id,     type: integer, primaryKey: true, generated: true }
+                  - { name: amount, type: decimal, precision: 18, scale: 2 }
+                relations:
+                  - { name: FreightEntry, kind: manyToOne, to: FreightEntry, composition: true, required: true }
+            """;
+
     private static final String INTENT_YAML = INTENT_YAML_ENTITIES.concat(INTENT_YAML_FILES)
+                                                                  .concat(INTENT_YAML_PERIOD_POSTING)
                                                                   .concat(INTENT_YAML_GLUE);
 
     @Autowired
@@ -3027,6 +3063,24 @@ class IntentEmissionCoverageIT extends IntegrationTest {
         // resolved primary key in the call also proves the descriptor's targetPk reached the template: an
         // unforwarded parameter renders literally and compiles into nothing usable (the #6306 countProperty
         // class of bug).
+        // #7703: a posting whose target carries immutableInPeriod asks the register BEFORE it writes,
+        // and renders one reopen sweep per channel a register's status moves on.
+        String freightPosting = contentOf("gen/events/emission/FreightPostingPosting.java");
+        assertTrue(freightPosting.contains("if (!periodOpen("), "the pre-check: " + freightPosting);
+        assertTrue(freightPosting.contains("stays unposted"), "and it says which document it left unposted: " + freightPosting);
+        assertTrue(freightPosting.contains("public void post(gen.emission.data.consignment.ConsignmentEntity source)"),
+                "the body the sweep re-runs: " + freightPosting);
+        String freightReopen = contentOf("gen/events/emission/FreightPostingPostingReopen.java");
+        assertTrue(freightReopen.contains("\"emission-test-AccountingPeriod-AccountingPeriod-transitioned\""), freightReopen);
+        assertTrue(
+                freightReopen.contains(".ge(\"ShippedOn\", period.StartDate)")
+                        && freightReopen.contains(".le(\"ShippedOn\", period.EndDate)"),
+                "the sweep asks for the documents this reopening is about: " + freightReopen);
+        assertTrue(
+                contentOf("gen/events/emission/FreightPostingPostingReopenOnUpdate.java").contains(
+                        "\"emission-test-AccountingPeriod-AccountingPeriod-updated\""),
+                "a period is reopened by a transition OR by a plain update, and the two channels are disjoint");
+
         String ledgerAggregate = contentOf("gen/events/emission/LedgerTotalAggregateOnCreate.java");
         assertTrue(ledgerAggregate.contains("targets.updateDerived(target.Id, derived)"),
                 "a keyed aggregate must persist through the targeted derived write with a RESOLVED target pk");
@@ -7984,5 +8038,7 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                                                  .body("Uuid", everyItem(notNullValue())),
                 120);
     }
+
+
 
 }
