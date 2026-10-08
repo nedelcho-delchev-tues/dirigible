@@ -336,7 +336,8 @@
       "confirm": "Запази въпреки това"
     },
     "defaults": {
-      "cancel": "Отказ"
+      "cancel": "Отказ",
+      "draftNumber": "(чернова)"
     }
   }
 }

@@ -336,7 +336,8 @@
       "confirm": "Save anyway"
     },
     "defaults": {
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "draftNumber": "(draft)"
     }
   }
 }
