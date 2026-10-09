@@ -153,7 +153,6 @@ The canonical package is `@aerokit/sdk` — submodules are imported as `@aerokit
 
 - `@aerokit/sdk/http` — HTTP client + JAX-RS-style server helpers (`client`, `client-async`, `request`, `response`, `session`, `upload`, `rs`, `decorators`).
 - `@aerokit/sdk/messaging` — Generic message bus.
-- `@aerokit/sdk/kafka` — Kafka producer / consumer.
 - `@aerokit/sdk/rabbitmq` — RabbitMQ.
 - `@aerokit/sdk/mail` — SMTP send.
 - `@aerokit/sdk/net` — Low-level networking.
@@ -202,7 +201,6 @@ The published portal organises the API into ~100 reference pages. Each row below
 | `indexing` | `searcher`, `writer` |
 | `io` | `bytes`, `files`, `ftp`, `image`, `streams`, `zip` |
 | `job` | `scheduler` |
-| `kafka` | `consumer`, `producer` |
 | `log` | `logging` |
 | `mail` | `client` |
 | `messaging` | `consumer`, `producer` |
@@ -330,7 +328,6 @@ Each facade is a Spring component or a static utility that exposes platform capa
 | `IndexingFacade` | api-indexing | `@aerokit/sdk/indexing/{searcher,writer}` — Lucene index ops. |
 | `BytesFacade`, `FilesFacade`, `FTPFacade`, `ImageFacade`, `StreamsFacade`, `ZipFacade` | api-io | `@aerokit/sdk/io/{bytes,files,ftp,image,streams,zip}`. |
 | `JobFacade` | api-job | `@aerokit/sdk/job/scheduler` — Quartz job control. |
-| `KafkaFacade` | api-kafka | Kafka producer / consumer. |
 | `LogFacade` | api-log | `@aerokit/sdk/log/logging` — SLF4J bridge. |
 | `MailFacade` | api-mail | `@aerokit/sdk/mail/client`. |
 | `MessagingFacade` | api-messaging | `@aerokit/sdk/messaging/{consumer,producer}`. |
