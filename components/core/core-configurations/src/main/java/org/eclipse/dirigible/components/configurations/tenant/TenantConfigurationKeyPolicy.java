@@ -13,8 +13,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.dirigible.commons.config.ConfigDescriptors;
 import org.eclipse.dirigible.commons.config.DirigibleConfig;
 import org.springframework.stereotype.Component;
+
+import jakarta.annotation.PostConstruct;
 
 /**
  * Decides which configuration keys a tenant is allowed to override through its per-tenant
@@ -35,6 +38,15 @@ class TenantConfigurationKeyPolicy {
      * Region & Language settings, the documents switches and the application base URL.
      */
     private static final List<String> ALLOWED_KEYS = DirigibleConfig.tenantOverridableKeys();
+
+    /**
+     * Tells the configuration descriptors which keys a tenant may override, so the platform view can
+     * flag them.
+     */
+    @PostConstruct
+    void registerWithDescriptors() {
+        ConfigDescriptors.setTenantOverridablePolicy(this::isInjectable);
+    }
 
     /**
      * The full list of configuration keys a tenant may override, in display order.
