@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.io.IOUtils;
+import org.eclipse.dirigible.commons.api.helpers.LogSanitizer;
 import org.eclipse.dirigible.components.engine.bpm.flowable.config.BpmProviderFlowable;
 import org.eclipse.dirigible.components.engine.bpm.flowable.dto.ActivityStatusData;
 import org.eclipse.dirigible.components.engine.bpm.flowable.dto.ProcessDefinitionData;
@@ -46,6 +47,8 @@ import org.flowable.validation.ProcessValidatorFactory;
 import org.flowable.validation.ValidationError;
 import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.flowable.variable.api.persistence.entity.VariableInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -66,6 +69,14 @@ public class BpmService {
 
     /** The Constant DIRIGIBLE_BPM_INTERNAL_SKIP_STEP. */
     public static final String DIRIGIBLE_BPM_INTERNAL_SKIP_STEP = "DIRIGIBLE_BPM_INTERNAL_SKIP_STEP";
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BpmService.class);
+
+    /** The variable a completion names its action by, which every task may write. */
+    private static final String ACTION_VARIABLE = "action";
+
+    /** The prefix of the platform's own process variables, which no completion may write. */
+    private static final String SYSTEM_VARIABLE_PREFIX = "__";
 
     /** The workspace service. */
     private final WorkspaceService workspaceService;
@@ -526,9 +537,43 @@ public class BpmService {
         return bpmProviderFlowable.getTaskActions(taskId);
     }
 
+    /**
+     * Completes the task with the variables its completion may write. A {@code __}-prefixed variable is
+     * the platform's own (the locators the Inbox presents the task's record by) and is never taken. A
+     * task that declares what it writes ({@link BpmProviderFlowable#getTaskWrites}) takes only those
+     * and its {@code action}: an intent-generated task, whose delegates find the record by its key
+     * variable, so a completion carrying another record's key wrote the process's changes to that
+     * record, and a field its form does not offer was planted for a later step (issue #8094).
+     *
+     * @param taskId the task id
+     * @param variables the completion's variables, as the caller sent them
+     */
     public void completeTask(String taskId, Map<String, Object> variables) {
         bpmProviderFlowable.getTaskService()
-                           .completeTask(taskId, variables);
+                           .completeTask(taskId, writableVariables(taskId, variables));
+    }
+
+    private Map<String, Object> writableVariables(String taskId, Map<String, Object> variables) {
+        if (variables == null) {
+            return null;
+        }
+        Optional<List<String>> writes = bpmProviderFlowable.getTaskWrites(taskId);
+        Map<String, Object> writable = new HashMap<>();
+        variables.forEach((name, value) -> {
+            boolean declared = writes.map(names -> ACTION_VARIABLE.equals(name) || names.contains(name))
+                                     .orElse(true);
+            if (declared && !name.startsWith(SYSTEM_VARIABLE_PREFIX)) {
+                writable.put(name, value);
+            }
+        });
+        List<String> ignored = variables.keySet()
+                                        .stream()
+                                        .filter(name -> !writable.containsKey(name))
+                                        .toList();
+        if (!ignored.isEmpty()) {
+            LOGGER.debug("Completion of task [{}] ignored the variables it may not write: {}", taskId, LogSanitizer.sanitize(ignored));
+        }
+        return writable;
     }
 
     public List<HistoricVariableInstance> getProcessHistoricInstanceVariables(String processInstanceId) {
