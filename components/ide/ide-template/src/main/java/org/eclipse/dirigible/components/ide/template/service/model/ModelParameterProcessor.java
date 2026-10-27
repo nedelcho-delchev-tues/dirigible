@@ -138,6 +138,10 @@ final class ModelParameterProcessor {
         entity.put("referencedProjections", new ArrayList<>());
         splitChecks(entity, parameters);
         resolveUniqueConstraintLiterals(entity, parameters);
+        for (Map<String, Object> flag : asMaps(entity.get("singleFlags"))) {
+            // A refusing single flag's conflict message (#8101), resolved for the reader's language.
+            resolveMessageCatalog(flag, ModelTranslations.singleFlagMessageKey(entity, flag), parameters);
+        }
         resolveLifecycleStatusNames(entity);
         resolveDataOrder(entity);
         resolveOrderBy(entity);
