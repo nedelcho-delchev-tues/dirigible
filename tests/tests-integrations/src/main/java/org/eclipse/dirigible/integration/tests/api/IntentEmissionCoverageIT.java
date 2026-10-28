@@ -3126,11 +3126,18 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                 "a composition master must delete the children it owns through their own repository, got: " + entryRepository);
         // ...and the record and its children leave together or not at all: a repository call is
         // otherwise its own transaction, so a failure half-way through would commit some of the
-        // children and keep the record - the very orphan state the cascade exists to prevent.
-        assertTrue(
-                entryRepository.contains("UnitOfWork.run(() -> deleteWithOwnedChildren(entity))")
-                        && entryRepository.contains("UnitOfWork.run(() -> deleteByIdWithOwnedChildren(id))"),
-                "the cascade must run as one unit of work with the record's own delete, got: " + entryRepository);
+        // children and keep the record - the very orphan state the cascade exists to prevent. The
+        // refusal runs in that same unit, ahead of the children: the record is locked before its
+        // references are counted (#8252).
+        assertTrue(Pattern.compile(
+                "UnitOfWork\\.run\\(\\(\\) -> \\{[^{}]*requireDeletable\\(entity\\.Id\\);\\s*deleteWithOwnedChildren\\(entity\\);\\s*\\}\\);")
+                          .matcher(entryRepository)
+                          .find()
+                && Pattern.compile(
+                        "UnitOfWork\\.run\\(\\(\\) -> \\{[^{}]*requireDeletable\\(id\\);\\s*deleteByIdWithOwnedChildren\\(id\\);\\s*\\}\\);")
+                          .matcher(entryRepository)
+                          .find(),
+                "the cascade must run as one unit of work with the record's own delete, its refusal first, got: " + entryRepository);
         // ...and the author's alternative is the refusal, on the child that declared it - naming both
         // entities, in the repository, so it holds for a reaction and a cascade too, not only for REST.
         assertTrue(
@@ -3763,6 +3770,11 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                 unitManageView.indexOf("cycleSort('UnitPrice')") >= 0
                         && unitManageView.indexOf("cycleSort('UnitPrice')") < unitManageView.indexOf("cycleSort('Name')"),
                 "list: must put UnitPrice before Name in the list header");
+        // #8132: the header's default text is the label derived from unitPrice, as the record sheet's
+        // is - it is what an English user reads, and it used to be the raw name.
+        String unitHeader = unitManageView.substring(unitManageView.indexOf("<thead"), unitManageView.indexOf("</thead>"));
+        assertTrue(unitHeader.contains("', 'Unit Price')") && !unitHeader.contains("', 'UnitPrice')"),
+                "the list header must default to the property's label, not its name: " + unitHeader);
         assertFalse(unitManageView.contains("cycleSort('PackPrice')"), "a property list: leaves out must not be a list column");
         assertTrue(
                 unitManageList.indexOf("{ name: 'UnitPrice'") >= 0
@@ -3939,7 +3951,9 @@ class IntentEmissionCoverageIT extends IntegrationTest {
         assertTrue(!payslipMyDoc.contains("saveItem()"), "personalReadOnly my document must not render the item dialog's Save");
         assertTrue(!payslipMyDoc.contains("save()") && !payslipMyDoc.contains("deleteOpen = true"),
                 "personalReadOnly my document must not render the Save or Delete footer buttons");
-        assertTrue(payslipMyDoc.contains("openItem(row)"), "personalReadOnly my document must still open an item for reading");
+        // The line opens through the page's itemRowClicked, which skips the row's own controls (#8259).
+        assertTrue(payslipMyDoc.contains("itemRowClicked($event, row)"),
+                "personalReadOnly my document must still open an item for reading");
         // Positive control on the document shape too - the writable personal chat keeps its composer.
         String ticketMyDoc = contentOf("gen/emission/views/my/Ticket-document.html");
         assertTrue(ticketMyDoc.contains("sendMessage(chatDraft)"), "a writable personal document must still render the chat composer");
@@ -3960,7 +3974,7 @@ class IntentEmissionCoverageIT extends IntegrationTest {
                 !timesheetMyDoc.contains("openItem(null)") && !timesheetMyDoc.contains("deleteItem(row)")
                         && !timesheetMyDoc.contains("saveItem()"),
                 "a see-only items child must strip the items Add, the per-row Delete and the item dialog's Save");
-        assertTrue(timesheetMyDoc.contains("openItem(row)"), "a see-only items child must still open a line for reading");
+        assertTrue(timesheetMyDoc.contains("itemRowClicked($event, row)"), "a see-only items child must still open a line for reading");
         // The non-item panel is built at runtime, so the refusal travels as the panel's own flag.
         String timesheetMyDocPage = contentOf("gen/emission/js/components/pages/my/TimesheetMyDocumentPage.js");
         assertTrue(timesheetMyDocPage.contains("readOnly: true"), "the panel of a see-only child must carry the refusal");
